@@ -1,6 +1,6 @@
 import { assign, setup } from 'xstate';
 import { BANKRUPT_THRESHOLD, DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext } from './types.js';
-import { buildActionDeck, buildTrafficEventDeck, drawN, reshuffleDiscard } from './deck.js';
+import { buildActionDeck, buildTrafficEventDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
   createInitialTracks,
@@ -13,9 +13,9 @@ import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRo
 
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
-export function createInitialContext(): GameContext {
-  const trafficEventDeck = buildTrafficEventDeck();
-  const actionDeck = buildActionDeck();
+export function createInitialContext(rng: Rng = Math.random): GameContext {
+  const trafficEventDeck = buildTrafficEventDeck(rng);
+  const actionDeck = buildActionDeck(rng);
   const [initialHand, remainingActionDeck] = drawN(actionDeck, HAND_SIZE);
 
   return {
@@ -36,6 +36,7 @@ export function createInitialContext(): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    seed: crypto.randomUUID(),
   };
 }
 
@@ -69,6 +70,7 @@ export const gameMachine = setup({
       const [teDeckInit, teDiscard] = reshuffleDiscard(
         context.trafficEventDeck,
         context.trafficEventDiscard,
+        makeRng(context.seed + '-te-' + context.round),
       );
       let teDeck = teDeckInit;
       const [drawn, remaining] = drawN(teDeck, DRAW_COUNT);
@@ -123,7 +125,11 @@ export const gameMachine = setup({
       const deficit = HAND_SIZE - hand.length;
 
       if (deficit > 0) {
-        const [reshuffled, emptyDiscard] = reshuffleDiscard(actionDeck, actionDiscard);
+        const [reshuffled, emptyDiscard] = reshuffleDiscard(
+          actionDeck,
+          actionDiscard,
+          makeRng(context.seed + '-act-' + context.round),
+        );
         actionDeck = reshuffled;
         actionDiscard = emptyDiscard;
         const [drawn, remaining] = drawN(actionDeck, deficit);

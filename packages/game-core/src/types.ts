@@ -152,6 +152,8 @@ export interface GameContext {
   lastRoundSummary: RoundSummary | null;
   /** Cause of game loss */
   loseReason: LoseReason | null;
+  /** Seed used to derive per-round RNG — enables deterministic replays. */
+  seed: string;
 }
 
 export interface RoundSummary {

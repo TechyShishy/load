@@ -113,4 +113,5 @@ export const GameContextSchema = z.object({
   actionDiscard: z.array(ActionCardSchema),
   lastRoundSummary: RoundSummarySchema.nullable(),
   loseReason: LoseReasonSchema.nullable(),
+  seed: z.string(),
 });
