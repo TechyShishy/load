@@ -9,6 +9,8 @@ import { PhaseIndicator } from './components/hud/PhaseIndicator.js';
 import { HandZone } from './components/hud/HandZone.js';
 import { WinScreen, LoseScreen } from './components/overlays/EndScreens.js';
 import { ContinueModal } from './components/overlays/ContinueModal.js';
+import { ErrorBoundary } from 'react-error-boundary';
+import { SoftErrorFallback } from './components/overlays/ErrorFallbacks.js';
 
 export function App() {
   const { context, phase, advance, playAction, reset, isWon, isLost, hasSave } = useGame();
@@ -58,6 +60,7 @@ export function App() {
   const canPlayCard = phase === 'scheduling' || phase === 'crisis';
 
   return (
+    <ErrorBoundary FallbackComponent={SoftErrorFallback} resetKeys={[phase]}>
     <div role="main" className="relative flex flex-col w-full h-full overflow-hidden">
       <div className="flex items-center gap-4 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0 flex-wrap">
         <div className="text-cyan-400 font-mono font-bold text-sm tracking-widest">LOAD</div>
@@ -104,5 +107,6 @@ export function App() {
       {isWon && <WinScreen context={context} onPlayAgain={handlePlayAgain} />}
       {isLost && <LoseScreen context={context} onPlayAgain={handlePlayAgain} />}
     </div>
+    </ErrorBoundary>
   );
 }
