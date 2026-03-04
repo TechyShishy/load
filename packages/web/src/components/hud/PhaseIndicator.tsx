@@ -15,14 +15,17 @@ interface PhaseIndicatorProps {
 }
 
 export function PhaseIndicator({ currentPhase, round }: PhaseIndicatorProps) {
+  const activePhase = PHASES.find((p) => p.id === currentPhase);
+
   return (
     <div className="flex items-center gap-1">
-      <span className="text-xs opacity-50 mr-2 font-mono">R{round}</span>
+      <span className="text-xs opacity-50 mr-2 font-mono" aria-hidden="true">R{round}</span>
       {PHASES.map((phase) => {
         const isActive = currentPhase === phase.id;
         return (
           <div
             key={phase.id}
+            aria-current={isActive ? 'step' : undefined}
             className={`text-xs px-2 py-0.5 rounded font-mono transition-all ${
               isActive
                 ? 'bg-cyan-500 text-black font-bold'
@@ -33,6 +36,9 @@ export function PhaseIndicator({ currentPhase, round }: PhaseIndicatorProps) {
           </div>
         );
       })}
+      <span role="status" aria-live="polite" className="sr-only">
+        Round {round} – {activePhase?.label ?? currentPhase} phase
+      </span>
     </div>
   );
 }

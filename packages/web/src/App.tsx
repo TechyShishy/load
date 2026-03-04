@@ -58,7 +58,7 @@ export function App() {
   const canPlayCard = phase === 'scheduling' || phase === 'crisis';
 
   return (
-    <div className="relative flex flex-col w-full h-full overflow-hidden">
+    <div role="main" className="relative flex flex-col w-full h-full overflow-hidden">
       <div className="flex items-center gap-4 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0 flex-wrap">
         <div className="text-cyan-400 font-mono font-bold text-sm tracking-widest">LOAD</div>
         <BudgetBar budget={context.budget} />
@@ -70,7 +70,7 @@ export function App() {
         <GameCanvas context={context} phase={phase} />
       </div>
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
-        <div className="flex-1 overflow-x-auto min-w-0">
+        <div className="flex-1 overflow-x-auto min-w-0" aria-live="polite" aria-atomic="true">
           {actionFeedback && (
             <div className="px-3 py-1 mb-1 rounded text-xs font-mono bg-purple-900 border border-purple-600 text-purple-200 animate-pulse">
               ✓ {actionFeedback}
@@ -85,6 +85,8 @@ export function App() {
         <button
           onClick={advance}
           disabled={!canAdvance}
+          aria-disabled={!canAdvance}
+          aria-label={canAdvance ? "Advance to next phase" : "Cannot advance yet"}
           className={`
             px-5 py-2 rounded font-mono font-bold text-sm transition-all flex-shrink-0
             ${canAdvance

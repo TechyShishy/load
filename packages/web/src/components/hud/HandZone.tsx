@@ -10,7 +10,12 @@ interface HandZoneProps {
 
 export function HandZone({ hand, onPlayCard, disabled = false }: HandZoneProps) {
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-2 px-4 min-h-[80px]">
+    <div
+      role="group"
+      aria-label="Hand"
+      aria-live="polite"
+      className="flex items-center gap-2 overflow-x-auto py-2 px-4 min-h-[80px]"
+    >
       {hand.length === 0 && (
         <span className="text-gray-600 text-sm italic">No cards in hand</span>
       )}
@@ -37,7 +42,8 @@ function ActionCardView({ card, onPlay, disabled }: ActionCardViewProps) {
     <button
       onClick={onPlay}
       disabled={disabled}
-      title={card.description}
+      aria-disabled={disabled}
+      aria-label={`${card.name} – Cost $${card.cost.toLocaleString()} – ${card.description}`}
       className={`
         flex flex-col items-start gap-1 p-2 min-w-[120px] max-w-[140px]
         border rounded text-left transition-all select-none

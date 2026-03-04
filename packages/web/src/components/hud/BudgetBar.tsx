@@ -23,10 +23,23 @@ export function BudgetBar({ budget }: BudgetBarProps) {
     maximumFractionDigits: 0,
   }).format(budget);
 
+  const dangerLabel = isNegative
+    ? 'Budget overdrawn'
+    : isDanger
+      ? 'Budget critical'
+      : isWarning
+        ? 'Budget low'
+        : null;
+
   return (
-    <div className={`flex items-center gap-2 border rounded px-3 py-1 ${colorClass}`}>
+    <div
+      role="status"
+      aria-live="polite"
+      className={`flex items-center gap-2 border rounded px-3 py-1 ${colorClass}`}
+    >
       <span className="text-xs font-bold uppercase tracking-widest opacity-60">Budget</span>
       <span className="text-lg font-mono font-bold">{formatted}</span>
+      {dangerLabel && <span className="sr-only">{dangerLabel}</span>}
     </div>
   );
 }
