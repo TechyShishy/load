@@ -44,8 +44,10 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: Array<TrafficCard 
 
   for (const trafficCard of trafficQueue) {
     let placed = false;
+    let lastPeriodIndex = 0;
 
-    for (const period of periodOrder) {
+    for (let pi = 0; pi < periodOrder.length; pi++) {
+      const period = periodOrder[pi]!;
       const availableSlots = getAvailableSlots(context.timeSlots, period);
       const targetSlot = availableSlots.find(
         (s) => s.cards.length < effectiveCapacity(s)
@@ -63,6 +65,7 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: Array<TrafficCard 
         placed = true;
         break;
       }
+      lastPeriodIndex = pi;
     }
 
     if (!placed) {
@@ -72,8 +75,8 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: Array<TrafficCard 
         ...context,
         budget: context.budget - OVERLOAD_PENALTY,
       };
-      // Mark the first available slot in the next period as unavailable
-      const overflowPeriod = periodOrder[periodOrder.indexOf(Period.Morning) + 1] ?? Period.Overnight;
+      // Mark the first available slot in the next period (after the last attempted) as unavailable
+      const overflowPeriod = periodOrder[(lastPeriodIndex + 1) % periodOrder.length]!;
       const slotToDisable = context.timeSlots.find(
         (s) => s.period === overflowPeriod && !s.unavailable
       );

@@ -87,6 +87,34 @@ describe('autoFillTrafficSlots', () => {
     expect(allCards.filter((c) => c.name === 'Cloud Backup')).toHaveLength(2);
   });
 
+  it('overload disables a slot in the period after the last attempted period, not always Afternoon', () => {
+    // Fill Morning, Afternoon, and Evening to full capacity (5 slots × 3 = 15 cards each)
+    // so only Overnight slots remain. The next card triggers overload after exhausting
+    // Overnight (lastPeriodIndex = 3), so the overflow target wraps to Morning (index 0),
+    // NOT Afternoon (index 1) as the bug produced.
+    const ctx = makeBaseContext();
+    const totalSlots = ctx.timeSlots.length; // 20 slots, 5 per period
+    const capacity = 3; // default effectiveCapacity
+
+    // Fill Morning (5 slots × 3 = 15), Afternoon (15), Evening (15) = 45 cards
+    // Then fill Overnight (5 slots × 3 = 15) = 60 cards total, then 1 more to trigger overload
+    const fillCount = totalSlots * capacity + 1;
+    const manyCards: TrafficCard[] = Array.from({ length: fillCount }, () => iotCard);
+    const { overloadCount, context } = autoFillTrafficSlots(ctx, manyCards);
+
+    expect(overloadCount).toBeGreaterThan(0);
+    // The overload exhausted all periods (last attempted = Overnight, index 3),
+    // so overflow wraps to Morning (index 0) — not Afternoon.
+    const disabledAfternoon = context.timeSlots.filter(
+      (s) => s.period === Period.Afternoon && s.unavailable,
+    );
+    const disabledMorning = context.timeSlots.filter(
+      (s) => s.period === Period.Morning && s.unavailable,
+    );
+    expect(disabledMorning.length).toBeGreaterThan(0);
+    expect(disabledAfternoon.length).toBe(0);
+  });
+
   it('SpawnVendor events are ignored (noOpMVP)', () => {
     const vendorEvent: EventCard = {
       id: 'event-vendor-spawn-test',
