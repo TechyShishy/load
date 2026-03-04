@@ -1,4 +1,4 @@
-import { OVERLOAD_PENALTY, Period, type EventCard, type GameContext, type TrafficCard } from './types.js';
+import { CardType, EventSubtype, OVERLOAD_PENALTY, Period, type EventCard, type GameContext, type TrafficCard } from './types.js';
 import { effectiveCapacity, getAvailableSlots } from './boardState.js';
 import { TRAFFIC_CARDS } from './data/index.js';
 
@@ -24,12 +24,12 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: Array<TrafficCard 
   // Separate traffic from events; queue spawns from SpawnTraffic events
   const trafficQueue: TrafficCard[] = [];
   for (const card of drawn) {
-    if (card.type === 'Traffic') {
-      trafficQueue.push(card as TrafficCard);
+    if (card.type === CardType.Traffic) {
+      trafficQueue.push(card);
     } else {
-      const ev = card as EventCard;
+      const ev = card;
       pendingEvents.push(ev);
-      if (ev.subtype === 'SpawnTraffic' && ev.spawnCount && ev.spawnTrafficId) {
+      if (ev.subtype === EventSubtype.SpawnTraffic && ev.spawnCount && ev.spawnTrafficId) {
         const template = TRAFFIC_CARDS.find((t) => t.id === ev.spawnTrafficId);
         if (template) {
           for (let i = 0; i < ev.spawnCount; i++) {

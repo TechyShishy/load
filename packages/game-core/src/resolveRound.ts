@@ -1,4 +1,4 @@
-import { MAX_SLA_FAILURES, type GameContext, type RoundSummary } from './types.js';
+import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, type GameContext, type RoundSummary } from './types.js';
 
 export interface ResolutionResult {
   context: GameContext;
@@ -63,7 +63,7 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
  * Check lose conditions. Returns the reason string or null.
  */
 export function checkLoseCondition(ctx: GameContext): 'Bankrupt' | 'SLAExceeded' | null {
-  if (ctx.budget < -100_000) return 'Bankrupt';
+  if (ctx.budget < BANKRUPT_THRESHOLD) return 'Bankrupt';
   if (ctx.slaCount >= MAX_SLA_FAILURES) return 'SLAExceeded';
   return null;
 }
@@ -72,5 +72,5 @@ export function checkLoseCondition(ctx: GameContext): 'Bankrupt' | 'SLAExceeded'
  * Check win condition.
  */
 export function checkWinCondition(ctx: GameContext): boolean {
-  return ctx.round > 12 && ctx.budget >= 0;
+  return ctx.round >= MAX_ROUNDS && ctx.budget >= 0;
 }

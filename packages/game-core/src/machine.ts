@@ -1,5 +1,5 @@
 import { assign, setup } from 'xstate';
-import { HAND_SIZE, LoseReason, PhaseId, type ActionCard, type GameContext } from './types.js';
+import { BANKRUPT_THRESHOLD, DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext } from './types.js';
 import { buildActionDeck, buildTrafficEventDeck, drawN, reshuffleDiscard } from './deck.js';
 import {
   createInitialTimeSlots,
@@ -19,7 +19,7 @@ export function createInitialContext(): GameContext {
   const [initialHand, remainingActionDeck] = drawN(actionDeck, HAND_SIZE);
 
   return {
-    budget: 500_000,
+    budget: STARTING_BUDGET,
     round: 1,
     slaCount: 0,
     hand: initialHand as ActionCard[],
@@ -58,8 +58,8 @@ export const gameMachine = setup({
   guards: {
     isGameLost: ({ context }) => checkLoseCondition(context) !== null,
     isGameWon: ({ context }) => checkWinCondition(context),
-    isBankrupt: ({ context }) => context.budget < -100_000,
-    isSLAExceeded: ({ context }) => context.slaCount >= 3,
+    isBankrupt: ({ context }) => context.budget < BANKRUPT_THRESHOLD,
+    isSLAExceeded: ({ context }) => context.slaCount >= MAX_SLA_FAILURES,
   },
   actions: {
     performDraw: assign(({ context }) => {
@@ -72,8 +72,7 @@ export const gameMachine = setup({
         context.trafficEventDiscard,
       );
       let teDeck = teDeckInit;
-      const drawCount = 5; // draw 5 traffic/event cards per round
-      const [drawn, remaining] = drawN(teDeck, drawCount);
+      const [drawn, remaining] = drawN(teDeck, DRAW_COUNT);
       teDeck = remaining;
 
       const baseCtx: GameContext = {

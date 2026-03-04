@@ -170,6 +170,7 @@ export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
 export const SLOT_BASE_CAPACITY = 3;
 export const OVERLOAD_PENALTY = 25_000;
+export const DRAW_COUNT = 5;
 export const PERIOD_SLOT_COUNTS: Record<Period, number> = {
   [Period.Morning]: 4,
   [Period.Afternoon]: 4,
