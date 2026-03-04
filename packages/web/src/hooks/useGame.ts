@@ -3,7 +3,7 @@ import { useMachine } from '@xstate/react';
 import { gameMachine } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { clearSave, loadGame, saveGame } from '../save.js';
-import { AudioManager } from '../audio/AudioManager.js';
+import { useAudio } from '../audio/AudioContext.js';
 
 // Load saved context once at module level (useMachine only reads input on mount)
 const savedContext = loadGame();
@@ -15,6 +15,7 @@ export function useGame() {
 
   const context = snapshot.context;
   const phase = snapshot.value as string;
+  const audio = useAudio();
 
   useEffect(() => {
     if (phase === 'scheduling' || phase === 'crisis') {
@@ -34,9 +35,9 @@ export function useGame() {
       ...(targetEventId !== undefined ? { targetEventId } : {}),
       ...(targetTrafficCardId !== undefined ? { targetTrafficCardId } : {}),
     });
-      AudioManager.getInstance().playCardDrop();
+      audio.playCardDrop();
     },
-    [send],
+    [send, audio],
   );
 
   const reset = useCallback(() => {
@@ -46,10 +47,9 @@ export function useGame() {
 
   // Trigger audio on win/lose — only when phase transitions, not on every render
   useEffect(() => {
-    const audio = AudioManager.getInstance();
     if (phase === 'gameWon') audio.playWin();
     if (phase === 'gameLost') audio.playLose();
-  }, [phase]);
+  }, [phase, audio]);
 
   return {
     context,

@@ -1,20 +1,37 @@
 import { Howl, Howler } from 'howler';
 
 /**
- * AudioManager — singleton wrapping Howler.js for all game SFX.
+ * Interface for all game audio operations.
+ * Consuming code should depend on this type so tests can inject a no-op stub
+ * without touching module-level singletons.
+ */
+export interface IAudioManager {
+  playCardDrop(): void;
+  playSLAFail(): void;
+  playOverload(): void;
+  playWin(): void;
+  playLose(): void;
+  setMasterVolume(volume: number): void;
+  mute(muted: boolean): void;
+}
+
+/**
+ * Concrete AudioManager backed by Howler.js.
  * Audio files should be placed in packages/web/public/audio/.
  * Falls back gracefully if files are missing (dev mode).
+ *
+ * Instantiate via `new AudioManager()` and provide the instance through
+ * React context (see AudioContext.tsx) rather than using a module-level
+ * singleton — this keeps the class injectable and testable.
  */
-export class AudioManager {
-  private static instance: AudioManager | null = null;
-
+export class AudioManager implements IAudioManager {
   private cardDrop: Howl;
   private slaFail: Howl;
   private overload: Howl;
   private win: Howl;
   private lose: Howl;
 
-  private constructor() {
+  constructor() {
     // Howler will log a warning if the file 404s, but won't throw — safe in dev before assets exist
     this.cardDrop = new Howl({
       src: ['/audio/card-drop.ogg', '/audio/card-drop.mp3'],
@@ -36,13 +53,6 @@ export class AudioManager {
       src: ['/audio/lose.ogg', '/audio/lose.mp3'],
       volume: 1.0,
     });
-  }
-
-  static getInstance(): AudioManager {
-    if (!AudioManager.instance) {
-      AudioManager.instance = new AudioManager();
-    }
-    return AudioManager.instance;
   }
 
   playCardDrop(): void {
