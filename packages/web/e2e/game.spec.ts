@@ -233,24 +233,26 @@ test.describe('LOAD – Network Traffic Balancer', () => {
 
   // ── Restart ────────────────────────────────────────────────────────────────
   test('PLAY AGAIN resets the game to round 1', async ({ page }) => {
-    // Play two rounds to advance the game state
-    await playRound(page);
-    const endedAfterFirst = await isEndScreen(page);
-    if (!endedAfterFirst) {
-      await playRound(page);
+    // Play rounds until a win or lose screen appears (same pattern as the
+    // full-playthrough test). This guarantees we always exercise the restart
+    // path rather than bailing out early when the game hasn't ended yet.
+    const MAX_ROUNDS = 15;
+    let gameEnded = false;
+
+    for (let i = 0; i < MAX_ROUNDS; i++) {
+      const ended = await playRound(page, { playCard: i % 2 === 0 });
+      if (ended) {
+        gameEnded = true;
+        break;
+      }
     }
 
-    const gameEnded = await isEndScreen(page);
+    expect(gameEnded, `Game did not reach a win or lose screen after ${MAX_ROUNDS} rounds`).toBe(
+      true,
+    );
 
-    if (gameEnded) {
-      // Trigger restart from end screen — win → "PLAY AGAIN", lose → "TRY AGAIN"
-      await clickPlayAgain(page);
-    } else {
-      // Game hasn't ended yet; trigger reset via a full game play
-      // (skip to just verifying ADVANCE works after two rounds)
-      await expect(ADVANCE(page)).toBeEnabled({ timeout: 5_000 });
-      return;
-    }
+    // Trigger restart from end screen — win → "PLAY AGAIN", lose → "TRY AGAIN"
+    await clickPlayAgain(page);
 
     // After clicking PLAY AGAIN/TRY AGAIN, wait for the machine to complete
     // draw → scheduling transition before asserting ADVANCE is enabled.
