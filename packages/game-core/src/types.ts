@@ -86,6 +86,8 @@ export interface ActionCard {
   /** Traffic card instance to remove (for RemoveTrafficCard actions) */
   readonly targetTrafficCardId?: string;
   readonly description: string;
+  /** Number of copies to include in the action deck. Defaults to 3. */
+  readonly deckCount?: number;
 }
 
 export enum ActionEffectType {

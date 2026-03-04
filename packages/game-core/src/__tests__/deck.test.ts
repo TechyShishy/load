@@ -61,9 +61,9 @@ describe('buildTrafficEventDeck', () => {
 });
 
 describe('buildActionDeck', () => {
-  it('contains 15 cards total', () => {
+  it('contains 18 cards total', () => {
     const deck = buildActionDeck();
-    expect(deck).toHaveLength(15);
+    expect(deck).toHaveLength(18);
   });
 
   it('all cards are Action type', () => {
@@ -71,14 +71,17 @@ describe('buildActionDeck', () => {
     expect(deck.every((c) => c.type === CardType.Action)).toBe(true);
   });
 
-  it('contains exactly 3 copies of each action (by name)', () => {
+  it('contains correct copies of each action card (by name)', () => {
     const deck = buildActionDeck();
     const counts = new Map<string, number>();
     for (const card of deck) {
       counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
     }
-    for (const count of counts.values()) {
-      expect(count).toBe(3);
+    expect(counts.get('Traffic Prioritization')).toBe(6);
+    for (const [name, count] of counts) {
+      if (name !== 'Traffic Prioritization') {
+        expect(count).toBe(3);
+      }
     }
   });
 

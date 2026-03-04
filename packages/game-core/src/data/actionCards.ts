@@ -18,6 +18,7 @@ export const ACTION_CARDS: ActionCard[] = [
     cost: 10_000,
     effectType: ActionEffectType.RemoveTrafficCard,
     effectValue: 1,
+    deckCount: 6,
     description: 'Remove 1 Traffic card from the board, collecting its revenue.',
   },
   {

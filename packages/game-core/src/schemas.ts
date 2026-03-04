@@ -55,6 +55,7 @@ export const ActionCardSchema = z.object({
   targetPeriod: PeriodSchema.optional(),
   targetTrafficCardId: z.string().optional(),
   description: z.string(),
+  deckCount: z.number().optional(),
 });
 
 export const CardSchema = z.discriminatedUnion('type', [

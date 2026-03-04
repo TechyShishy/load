@@ -44,12 +44,14 @@ export function buildTrafficEventDeck(rng: Rng = Math.random): Array<TrafficCard
 
 /**
  * Build the Action deck.
- * Composition: 15 Action cards (3 copies of each of the 5 base Action cards).
+ * Composition: each card is included `card.deckCount ?? 3` times.
+ * Default: 3 copies per card (18 total with Traffic Prioritization at 6 copies).
  */
 export function buildActionDeck(rng: Rng = Math.random): ActionCard[] {
   const cards: ActionCard[] = [];
-  for (let i = 0; i < 3; i++) {
-    for (const card of ACTION_CARDS) {
+  for (const card of ACTION_CARDS) {
+    const copies = card.deckCount ?? 3;
+    for (let i = 0; i < copies; i++) {
       cards.push({ ...card, id: `${card.id}-${Math.floor(rng() * 1e9)}` });
     }
   }
