@@ -126,9 +126,15 @@ describe('useGame', () => {
     expect(result.current.isWon).toBe(false);
   });
 
-  it('hasSave is false when loadGame returned null at module init', () => {
+  it('hasSave is false when loadGame returns null', () => {
     const { result } = renderHook(() => useGame(), { wrapper });
     expect(result.current.hasSave).toBe(false);
+  });
+
+  it('hasSave is true when loadGame returns a saved context', () => {
+    mockLoadGame.mockReturnValueOnce({ round: 3, budget: 50_000 } as never);
+    const { result } = renderHook(() => useGame(), { wrapper });
+    expect(result.current.hasSave).toBe(true);
   });
 
   it('calls saveGame when phase is scheduling', () => {

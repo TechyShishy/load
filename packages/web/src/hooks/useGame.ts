@@ -1,14 +1,15 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { gameMachine } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { clearSave, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
 
-// Load saved context once at module level (useMachine only reads input on mount)
-const savedContext = loadGame();
-
 export function useGame() {
+  // Lazy initializer: loadGame() runs once per hook mount, not at module import time.
+  // This allows independent save-state control between test cases without module-cache tricks.
+  const [savedContext] = useState<ReturnType<typeof loadGame>>(() => loadGame());
+
   const [snapshot, send] = useMachine(gameMachine, {
     input: savedContext ?? undefined,
   });
