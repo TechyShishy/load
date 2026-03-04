@@ -91,4 +91,16 @@ describe('gameMachine win/lose conditions', () => {
     // (Full lose-trigger path tested above)
     expect(actor.getSnapshot().value).toBe('scheduling');
   });
+
+  it('reaches gameWon at round 12 with budget in (-100K, 0)', () => {
+    // Regression: previously checkWinCondition required budget >= 0, so a net-negative
+    // but non-bankrupt end-of-game had no matching guard and looped forever.
+    const ctx = { ...safeContext(), round: 12, budget: -50_000 };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling'); // sanity
+    actor.send({ type: 'ADVANCE' }); // scheduling → execution (transient) → crisis
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → always → gameWon
+    expect(actor.getSnapshot().value).toBe('gameWon');
+  });
 });

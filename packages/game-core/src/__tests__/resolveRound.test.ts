@@ -99,8 +99,8 @@ describe('checkWinCondition', () => {
     expect(checkWinCondition(ctx)).toBe(false);
   });
 
-  it('returns false when round >= MAX_ROUNDS but budget < 0', () => {
+  it('returns true when round >= MAX_ROUNDS even if budget < 0 (net-negative survival is still a win)', () => {
     const ctx = makeCtx({ round: MAX_ROUNDS, budget: -1 });
-    expect(checkWinCondition(ctx)).toBe(false);
+    expect(checkWinCondition(ctx)).toBe(true);
   });
 });

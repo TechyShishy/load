@@ -66,8 +66,9 @@ export function checkLoseCondition(ctx: GameContext): 'Bankrupt' | 'SLAExceeded'
 }
 
 /**
- * Check win condition.
+ * Check win condition. Surviving all MAX_ROUNDS is a win regardless of budget
+ * sign (as long as the player did not go bankrupt).
  */
 export function checkWinCondition(ctx: GameContext): boolean {
-  return ctx.round >= MAX_ROUNDS && ctx.budget >= 0;
+  return ctx.round >= MAX_ROUNDS;
 }
