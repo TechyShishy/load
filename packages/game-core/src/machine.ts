@@ -67,19 +67,20 @@ export const gameMachine = setup({
       const freshSlots = resetSlotsForRound(context.timeSlots);
 
       // Reshuffle if exhausted, then draw traffic/event cards
-      let [teDeck, teDiscard] = reshuffleDiscard(
+      const [teDeckInit, teDiscard] = reshuffleDiscard(
         context.trafficEventDeck,
         context.trafficEventDiscard,
       );
+      let teDeck = teDeckInit;
       const drawCount = 5; // draw 5 traffic/event cards per round
       const [drawn, remaining] = drawN(teDeck, drawCount);
       teDeck = remaining;
-      teDiscard = teDiscard; // unchanged; filled during end phase
 
       const baseCtx: GameContext = {
         ...context,
         timeSlots: freshSlots,
         trafficEventDeck: teDeck,
+        trafficEventDiscard: teDiscard,
         playedThisRound: [],
         mitigatedEventIds: [],
         slaProtectedCount: 0,
