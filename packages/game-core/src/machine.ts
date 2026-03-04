@@ -29,7 +29,6 @@ export function createInitialContext(): GameContext {
     vendorSlots: createVendorSlots(),
     pendingEvents: [],
     mitigatedEventIds: [],
-    slaProtectedCount: 0,
     activePhase: PhaseId.Draw,
     trafficEventDeck,
     trafficEventDiscard: [],
@@ -44,7 +43,7 @@ export function createInitialContext(): GameContext {
 
 export type GameEvent =
   | { type: 'ADVANCE' }
-  | { type: 'PLAY_ACTION'; card: ActionCard; targetEventId?: string }
+  | { type: 'PLAY_ACTION'; card: ActionCard; targetEventId?: string; targetTrafficCardId?: string }
   | { type: 'RESET' };
 
 // ─── Machine ──────────────────────────────────────────────────────────────────
@@ -82,8 +81,7 @@ export const gameMachine = setup({
         trafficEventDiscard: teDiscard,
         playedThisRound: [],
         mitigatedEventIds: [],
-        slaProtectedCount: 0,
-        activePhase: PhaseId.Scheduling,
+            activePhase: PhaseId.Scheduling,
       };
 
       // Auto-fill slots immediately after draw
@@ -147,7 +145,7 @@ export const gameMachine = setup({
 
     applyPlayAction: assign(({ context, event }) => {
       if (event.type !== 'PLAY_ACTION') return context;
-      return applyPlayActionCard(context, event.card, event.targetEventId);
+      return applyPlayActionCard(context, event.card, event.targetEventId, event.targetTrafficCardId);
     }),
 
     markGameLost: assign(({ context }) => {

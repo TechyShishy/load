@@ -30,11 +30,18 @@ export function App() {
   }, [reset]);
 
   const handlePlayCard = useCallback(
-    (card: ActionCard) => {
-      playAction(card);
+    (card: ActionCard, targetTrafficCardId?: string) => {
+      // For RemoveTrafficCard: use provided targetTrafficCardId (future DnD path)
+      // or auto-pick the first available traffic card on the board as a stub.
+      // TODO-0005: replace auto-pick with DnD selection
+      const resolvedTarget =
+        card.effectType === ActionEffectType.RemoveTrafficCard
+          ? (targetTrafficCardId ?? context.timeSlots.flatMap((s) => s.cards)[0]?.id)
+          : undefined;
+      playAction(card, undefined, resolvedTarget);
       const messages: Record<string, string> = {
         [ActionEffectType.ClearTicket]: `Cleared 1 ticket from ${card.targetTrack ?? 'track'} track.`,
-        [ActionEffectType.PreventSLAFail]: `Protecting ${card.effectValue} traffic card(s) from SLA failure.`,
+        [ActionEffectType.RemoveTrafficCard]: `Removing 1 traffic card and collecting its revenue.`,
         [ActionEffectType.BoostSlotCapacity]: `+${card.effectValue} capacity for ${card.targetPeriod ?? 'period'} slots.`,
         [ActionEffectType.MitigateDDoS]: `Mitigating the next pending event.`,
         [ActionEffectType.AddOvernightSlots]: `+${card.effectValue} overnight slots added.`,
@@ -44,7 +51,7 @@ export function App() {
       setActionFeedback(msg);
       feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3500);
     },
-    [playAction],
+    [playAction, context.timeSlots],
   );
 
   const canAdvance = phase === 'scheduling' || phase === 'crisis';

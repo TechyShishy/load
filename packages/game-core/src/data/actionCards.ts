@@ -16,9 +16,9 @@ export const ACTION_CARDS: ActionCard[] = [
     type: CardType.Action,
     name: 'Traffic Prioritization',
     cost: 10_000,
-    effectType: ActionEffectType.PreventSLAFail,
+    effectType: ActionEffectType.RemoveTrafficCard,
     effectValue: 1,
-    description: 'Prevent 1 Traffic card from becoming an SLA failure this round.',
+    description: 'Remove 1 Traffic card from the board, collecting its revenue.',
   },
   {
     id: 'action-bandwidth-upgrade',

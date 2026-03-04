@@ -15,6 +15,8 @@ export function playActionCard(
   card: ActionCard,
   /** Optional: ID of the event to target (for MitigateDDoS) */
   targetEventId?: string,
+  /** Optional: ID of the Traffic card to remove (for RemoveTrafficCard; overrides card.targetTrafficCardId) */
+  targetTrafficCardId?: string,
 ): GameContext {
   if (!ctx.hand.find((c) => c.id === card.id)) {
     // Card not in hand — no-op
@@ -43,11 +45,28 @@ export function playActionCard(
       }
       break;
     }
-    case ActionEffectType.PreventSLAFail: {
-      context = {
-        ...context,
-        slaProtectedCount: context.slaProtectedCount + card.effectValue,
-      };
+    case ActionEffectType.RemoveTrafficCard: {
+      // Remove the targeted Traffic card from the board and collect its revenue.
+      // targetTrafficCardId param takes precedence over card.targetTrafficCardId so
+      // the caller can supply the target dynamically (e.g. from UI selection).
+      const target = targetTrafficCardId ?? card.targetTrafficCardId;
+      if (target) {
+        let collectedRevenue = 0;
+        context = {
+          ...context,
+          timeSlots: context.timeSlots.map((slot) => {
+            const cardToRemove = slot.cards.find((c) => c.id === target);
+            if (cardToRemove) {
+              collectedRevenue += cardToRemove.revenue;
+              return { ...slot, cards: slot.cards.filter((c) => c.id !== target) };
+            }
+            return slot;
+          }),
+        };
+        if (collectedRevenue > 0) {
+          context = { ...context, budget: context.budget + collectedRevenue };
+        }
+      }
       break;
     }
     case ActionEffectType.BoostSlotCapacity: {

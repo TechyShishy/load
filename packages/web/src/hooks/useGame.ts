@@ -27,11 +27,12 @@ export function useGame() {
   }, [send]);
 
   const playAction = useCallback(
-    (card: ActionCard, targetEventId?: string) => {
+    (card: ActionCard, targetEventId?: string, targetTrafficCardId?: string) => {
       send({
       type: 'PLAY_ACTION',
       card,
       ...(targetEventId !== undefined ? { targetEventId } : {}),
+      ...(targetTrafficCardId !== undefined ? { targetTrafficCardId } : {}),
     });
       AudioManager.getInstance().playCardDrop();
     },

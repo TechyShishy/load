@@ -3,7 +3,8 @@ import type { ActionCard } from '@load/game-core';
 
 interface HandZoneProps {
   hand: ActionCard[];
-  onPlayCard: (card: ActionCard) => void;
+  // TODO-0005: second arg will be targetTrafficCardId supplied by DnD targeting
+  onPlayCard: (card: ActionCard, targetTrafficCardId?: string) => void;
   disabled?: boolean;
 }
 

@@ -83,12 +83,14 @@ export interface ActionCard {
   readonly targetTrack?: Track;
   /** Period this action targets (for slot-modification actions) */
   readonly targetPeriod?: Period;
+  /** Traffic card instance to remove (for RemoveTrafficCard actions) */
+  readonly targetTrafficCardId?: string;
   readonly description: string;
 }
 
 export enum ActionEffectType {
   ClearTicket = 'ClearTicket',
-  PreventSLAFail = 'PreventSLAFail',
+  RemoveTrafficCard = 'RemoveTrafficCard',
   BoostSlotCapacity = 'BoostSlotCapacity',
   MitigateDDoS = 'MitigateDDoS',
   AddOvernightSlots = 'AddOvernightSlots',
@@ -139,8 +141,6 @@ export interface GameContext {
   pendingEvents: EventCard[];
   /** Action cards that successfully mitigated a DDoS event this round */
   mitigatedEventIds: string[];
-  /** SLA failures prevented this round by Traffic Prioritization */
-  slaProtectedCount: number;
   /** Current phase */
   activePhase: PhaseId;
   /** Decks */

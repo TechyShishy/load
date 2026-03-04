@@ -9,7 +9,7 @@ export interface ResolutionResult {
  * Resolve the Execution + Resolution phases:
  * 1. Count resolved and unresolved Traffic cards across all time slots.
  * 2. Award revenue for resolved cards.
- * 3. Increment slaCount for unresolved cards (offset by slaProtectedCount).
+ * 3. Increment slaCount for unresolved cards.
  * 4. Return a RoundSummary.
  */
 export function resolveRound(ctx: GameContext): ResolutionResult {
@@ -29,9 +29,7 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
     }
   }
 
-  // Subtract SLA protections purchased this round
-  const unprotectedFails = Math.max(0, failedCount - ctx.slaProtectedCount);
-  const newSlaCount = ctx.slaCount + unprotectedFails;
+  const newSlaCount = ctx.slaCount + failedCount;
 
   const budgetDelta = revenue;
   const updatedBudget = ctx.budget + budgetDelta;
@@ -43,7 +41,7 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
     budgetDelta,
     newSlaCount,
     resolvedCount,
-    failedCount: unprotectedFails,
+    failedCount,
     overloadPenalties: 0, // populated by the machine from fill phase
   };
 
@@ -51,7 +49,6 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
     ...ctx,
     budget: updatedBudget,
     slaCount: newSlaCount,
-    slaProtectedCount: 0,
     mitigatedEventIds: [],
     lastRoundSummary: summary,
   };
