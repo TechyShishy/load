@@ -35,5 +35,9 @@ export function loadGame(
 export function clearSave(
   storage: StorageAdapter = LocalStorageAdapter,
 ): void {
-  storage.removeItem(SAVE_KEY);
+  try {
+    storage.removeItem(SAVE_KEY);
+  } catch {
+    // Storage unavailable — silently ignore
+  }
 }
