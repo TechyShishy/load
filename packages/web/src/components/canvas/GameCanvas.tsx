@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { Period, type GameContext, PERIOD_SLOT_COUNTS } from '@load/game-core';
 
@@ -32,6 +32,7 @@ export function GameCanvas({ context, phase }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const boardRef = useRef<Container | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Initialise PixiJS once.
   // Strategy: let PixiJS create its own <canvas> and append it to our div.
@@ -63,6 +64,11 @@ export function GameCanvas({ context, phase }: GameCanvasProps) {
       app.stage.addChild(board);
       boardRef.current = board;
       renderBoard(app, board, context);
+    }).catch((err: unknown) => {
+      app.destroy(true, { children: true });
+      if (!cancelled) {
+        setInitError(err instanceof Error ? err.message : 'PixiJS failed to initialize');
+      }
     });
 
     return () => {
@@ -85,6 +91,18 @@ export function GameCanvas({ context, phase }: GameCanvasProps) {
     board.removeChildren();
     renderBoard(app, board, context);
   }, [context, phase]);
+
+  if (initError) {
+    return (
+      // TODO-0001: replace stub with a proper recovery/retry UI
+      <div className="flex h-full w-full items-center justify-center bg-red-900/80">
+        <div className="text-center">
+          <p className="text-lg font-bold text-red-200">Canvas failed to initialize</p>
+          <p className="mt-1 font-mono text-sm text-red-400">{initError}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
