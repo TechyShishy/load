@@ -22,7 +22,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     budget: STARTING_BUDGET,
     round: 1,
     slaCount: 0,
-    hand: initialHand as ActionCard[],
+    hand: initialHand,
     playedThisRound: [],
     timeSlots: createInitialTimeSlots(),
     tracks: createInitialTracks(),
@@ -133,7 +133,7 @@ export const gameMachine = setup({
         actionDeck = reshuffled;
         actionDiscard = emptyDiscard;
         const [drawn, remaining] = drawN(actionDeck, deficit);
-        hand.push(...(drawn as ActionCard[]));
+        hand.push(...drawn);
         actionDeck = remaining;
       }
 
