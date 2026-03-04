@@ -26,5 +26,13 @@ jobs:
       - name: Run tests
         run: yarn test
 
+      - name: Type check
+        run: |
+          yarn tsc --noEmit -p packages/game-core/tsconfig.json
+          yarn tsc --noEmit -p packages/web/tsconfig.json
+
+      - name: Lint
+        run: yarn lint
+
       - name: Build web package
         run: yarn workspace @load/web build
