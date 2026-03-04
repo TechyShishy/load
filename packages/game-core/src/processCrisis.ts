@@ -139,8 +139,12 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     }
   }
 
-  // Clear pending events after processing
-  context = { ...context, pendingEvents: [] };
+  // Return consumed event cards to the TE discard pile, then clear
+  context = {
+    ...context,
+    trafficEventDiscard: [...context.trafficEventDiscard, ...context.pendingEvents],
+    pendingEvents: [],
+  };
 
   return { context, penaltiesApplied };
 }
