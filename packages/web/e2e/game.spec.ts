@@ -12,13 +12,13 @@ async function clearSave(page: Page) {
 }
 
 /**
- * If the "Resume Session" modal is showing, dismiss it by clicking NEW GAME.
+ * If the Start Screen is showing, dismiss it by clicking NEW GAME.
  */
 async function dismissContinueModal(page: Page) {
-  const modal = page.getByText('RESUME SESSION');
-  if (await modal.isVisible({ timeout: 2_000 }).catch(() => false)) {
+  const screen = page.getByRole('dialog', { name: 'LOAD' });
+  if (await screen.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await page.getByRole('button', { name: 'NEW GAME' }).click();
-    await expect(modal).not.toBeVisible();
+    await expect(screen).not.toBeVisible();
   }
 }
 

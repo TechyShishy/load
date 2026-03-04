@@ -8,28 +8,37 @@ import { SLAMeter } from './components/hud/SLAMeter.js';
 import { PhaseIndicator } from './components/hud/PhaseIndicator.js';
 import { HandZone } from './components/hud/HandZone.js';
 import { WinScreen, LoseScreen } from './components/overlays/EndScreens.js';
-import { ContinueModal } from './components/overlays/ContinueModal.js';
+import { StartScreen } from './components/overlays/StartScreen.js';
 import { ErrorBoundary } from 'react-error-boundary';
 import { SoftErrorFallback } from './components/overlays/ErrorFallbacks.js';
 
 export function App() {
   const { context, phase, advance, playAction, reset, isWon, isLost, hasSave } = useGame();
-  const [showContinue, setShowContinue] = useState(() => hasSave);
+  const [showStartScreen, setShowStartScreen] = useState(true);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleContinue = useCallback(() => {
-    setShowContinue(false);
+  const handleStartContinue = useCallback(() => {
+    setShowStartScreen(false);
   }, []);
 
-  const handleNewGame = useCallback(() => {
+  const handleStartNewGame = useCallback(() => {
     reset();
-    setShowContinue(false);
+    setShowStartScreen(false);
   }, [reset]);
 
   const handlePlayAgain = useCallback(() => {
     reset();
   }, [reset]);
+
+  const handleQuit = useCallback(() => {
+    const w = window as Window & { electronAPI?: { quit: () => void } };
+    if (w.electronAPI) {
+      w.electronAPI.quit();
+    } else {
+      window.close();
+    }
+  }, []);
 
   const handlePlayCard = useCallback(
     (card: ActionCard, targetTrafficCardId?: string) => {
@@ -110,8 +119,14 @@ export function App() {
           ADVANCE →
         </button>
       </div>
-      {showContinue && !isWon && !isLost && (
-        <ContinueModal onContinue={handleContinue} onNewGame={handleNewGame} />
+      {showStartScreen && (
+        <StartScreen
+          hasSave={hasSave}
+          onNewGame={handleStartNewGame}
+          onContinue={handleStartContinue}
+          onSettings={() => {}}
+          onQuit={handleQuit}
+        />
       )}
       {isWon && <WinScreen context={context} onPlayAgain={handlePlayAgain} />}
       {isLost && <LoseScreen context={context} onPlayAgain={handlePlayAgain} />}

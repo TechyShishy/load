@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -12,6 +12,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
@@ -24,6 +25,8 @@ function createWindow() {
     win.webContents.openDevTools();
   }
 }
+
+ipcMain.on('quit', () => app.quit());
 
 app.whenReady().then(() => {
   createWindow();
