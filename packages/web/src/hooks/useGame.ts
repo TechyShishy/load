@@ -43,10 +43,12 @@ export function useGame() {
     send({ type: 'RESET' });
   }, [send]);
 
-  // Trigger audio on win/lose
-  const audio = AudioManager.getInstance();
-  if (phase === 'gameWon') audio.playWin();
-  if (phase === 'gameLost') audio.playLose();
+  // Trigger audio on win/lose — only when phase transitions, not on every render
+  useEffect(() => {
+    const audio = AudioManager.getInstance();
+    if (phase === 'gameWon') audio.playWin();
+    if (phase === 'gameLost') audio.playLose();
+  }, [phase]);
 
   return {
     context,
