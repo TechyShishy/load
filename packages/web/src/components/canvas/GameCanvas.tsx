@@ -349,6 +349,47 @@ function patchBoard(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext)
   }
 }
 
+// ── Accessibility helpers ─────────────────────────────────────────────────────
+/**
+ * Builds a plain-text description of the current board state for screen
+ * readers. Updated alongside `patchBoard` so the `aria-live` region always
+ * reflects the visual canvas.
+ */
+function buildBoardSummary(ctx: GameContext): string {
+  const periods = Object.values(Period) as Period[];
+  const parts: string[] = [];
+
+  for (const period of periods) {
+    const slots = ctx.timeSlots.filter((s) => s.period === period);
+    const slotCount = PERIOD_SLOT_COUNTS[period];
+    for (let i = 0; i < slotCount; i++) {
+      const slot: TimeSlot | undefined = slots[i];
+      const label = `${period} slot ${i + 1}`;
+      if (!slot) continue;
+      if (slot.unavailable) {
+        parts.push(`${label}: unavailable`);
+      } else {
+        const capacity = slot.baseCapacity + slot.capacityBoost;
+        if (slot.cards.length === 0) {
+          parts.push(`${label}: empty, capacity ${capacity}`);
+        } else {
+          const names = slot.cards.map((c) => c.name).join(', ');
+          parts.push(`${label}: ${slot.cards.length} of ${capacity} cards — ${names}`);
+        }
+      }
+    }
+  }
+
+  for (const track of ctx.tracks) {
+    const count = track.tickets.length;
+    const ticketDesc =
+      count === 0 ? 'no open tickets' : `${count} open ticket${count === 1 ? '' : 's'}`;
+    parts.push(`${track.track} track: ${ticketDesc}`);
+  }
+
+  return parts.join('. ');
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export function GameCanvas({ context, phase: _phase }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -356,6 +397,7 @@ export function GameCanvas({ context, phase: _phase }: GameCanvasProps) {
   const sceneRefsRef = useRef<SceneRefs | null>(null);
   const prevContextRef = useRef<GameContext | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  const [boardSummary, setBoardSummary] = useState(() => buildBoardSummary(context));
 
   // Initialise PixiJS once.
   // Strategy: let PixiJS create its own <canvas> and append it to our div.
@@ -423,6 +465,13 @@ export function GameCanvas({ context, phase: _phase }: GameCanvasProps) {
     prevContextRef.current = context;
   }, [context]);
 
+  // Keep the accessible board summary in sync with context changes.
+  // This is intentionally a separate effect so it fires on every context
+  // update regardless of whether the PixiJS scene refs are ready.
+  useEffect(() => {
+    setBoardSummary(buildBoardSummary(context));
+  }, [context]);
+
   if (initError) {
     return (
       // TODO-0001: replace stub with a proper recovery/retry UI
@@ -436,14 +485,17 @@ export function GameCanvas({ context, phase: _phase }: GameCanvasProps) {
   }
 
   return (
-    // TODO-0002: add a visually-hidden aria-live sibling that renders a text
-    // summary of board state (periods → slots → capacity, tracks → tickets)
-    // updated alongside patchBoard — defer until B3 canvas refactor complete.
-    <div
-      ref={containerRef}
-      role="img"
-      aria-label="Game board"
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
-    />
+    <>
+      {/* Visually hidden live region — mirrors board state for screen readers. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {boardSummary}
+      </div>
+      <div
+        ref={containerRef}
+        role="img"
+        aria-label="Game board"
+        style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+      />
+    </>
   );
 }
