@@ -176,3 +176,17 @@ export const PERIOD_SLOT_COUNTS: Record<Period, number> = {
   [Period.Evening]: 4,
   [Period.Overnight]: 8,
 };
+
+// ─── Storage Adapter ─────────────────────────────────────────────────────────
+
+/**
+ * Platform-agnostic key-value storage contract.
+ * Mirrors the subset of the Web Storage API used by save/load.
+ * Implement this interface to provide storage for any platform
+ * (browser localStorage, Node.js fs, Redis, in-memory, etc.).
+ */
+export interface StorageAdapter {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
