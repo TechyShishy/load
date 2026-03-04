@@ -116,6 +116,7 @@ export interface TrackSlot {
   tickets: EventCard[];
 }
 
+// TODO-0003: implement vendor mechanics (Vendor card purchasing, slot bonuses, etc.)
 export interface VendorSlot {
   readonly index: number;
   card: null; // Vendor cards excluded from MVP
@@ -135,7 +136,7 @@ export interface GameContext {
   timeSlots: TimeSlot[];
   /** Track rows for tickets */
   tracks: TrackSlot[];
-  /** Vendor placeholder slots */
+  /** Vendor placeholder slots — TODO-0004: populate with vendor-mechanics effects once Vendor cards are implemented */
   vendorSlots: VendorSlot[];
   /** Event cards drawn this round, pending Crisis phase */
   pendingEvents: EventCard[];
