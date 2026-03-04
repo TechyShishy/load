@@ -46,6 +46,18 @@ describe('buildTrafficEventDeck', () => {
     const ids = deck.map((c) => c.id);
     expect(new Set(ids).size).toBe(deck.length);
   });
+
+  it('produces identical card IDs when given the same seed', () => {
+    const deck1 = buildTrafficEventDeck(makeRng('test-seed'));
+    const deck2 = buildTrafficEventDeck(makeRng('test-seed'));
+    expect(deck1.map((c) => c.id)).toEqual(deck2.map((c) => c.id));
+  });
+
+  it('produces different card IDs when given different seeds', () => {
+    const deck1 = buildTrafficEventDeck(makeRng('seed-a'));
+    const deck2 = buildTrafficEventDeck(makeRng('seed-b'));
+    expect(deck1.map((c) => c.id)).not.toEqual(deck2.map((c) => c.id));
+  });
 });
 
 describe('buildActionDeck', () => {
@@ -74,6 +86,18 @@ describe('buildActionDeck', () => {
     const deck = buildActionDeck();
     const ids = deck.map((c) => c.id);
     expect(new Set(ids).size).toBe(deck.length);
+  });
+
+  it('produces identical card IDs when given the same seed', () => {
+    const deck1 = buildActionDeck(makeRng('test-seed'));
+    const deck2 = buildActionDeck(makeRng('test-seed'));
+    expect(deck1.map((c) => c.id)).toEqual(deck2.map((c) => c.id));
+  });
+
+  it('produces different card IDs when given different seeds', () => {
+    const deck1 = buildActionDeck(makeRng('seed-a'));
+    const deck2 = buildActionDeck(makeRng('seed-b'));
+    expect(deck1.map((c) => c.id)).not.toEqual(deck2.map((c) => c.id));
   });
 });
 

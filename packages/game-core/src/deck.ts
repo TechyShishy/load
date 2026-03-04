@@ -31,11 +31,13 @@ export function buildTrafficEventDeck(rng: Rng = Math.random): Array<TrafficCard
   const traffic: TrafficCard[] = [];
   // Fill to 16 by cycling through the 3 base traffic cards
   for (let i = 0; i < 16; i++) {
-    traffic.push({ ...(TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!), id: crypto.randomUUID() });
+    const template = TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!;
+    traffic.push({ ...template, id: `${template.id}-${Math.floor(rng() * 1e9)}` });
   }
   const events: EventCard[] = [];
   for (let i = 0; i < 8; i++) {
-    events.push({ ...(EVENT_CARDS[i % EVENT_CARDS.length]!), id: crypto.randomUUID() });
+    const template = EVENT_CARDS[i % EVENT_CARDS.length]!;
+    events.push({ ...template, id: `${template.id}-${Math.floor(rng() * 1e9)}` });
   }
   return shuffle([...traffic, ...events], rng);
 }
@@ -48,7 +50,7 @@ export function buildActionDeck(rng: Rng = Math.random): ActionCard[] {
   const cards: ActionCard[] = [];
   for (let i = 0; i < 3; i++) {
     for (const card of ACTION_CARDS) {
-      cards.push({ ...card, id: crypto.randomUUID() });
+      cards.push({ ...card, id: `${card.id}-${Math.floor(rng() * 1e9)}` });
     }
   }
   return shuffle(cards, rng);
