@@ -33,7 +33,7 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: Array<TrafficCard 
         const template = TRAFFIC_CARDS.find((t) => t.id === ev.spawnTrafficId);
         if (template) {
           for (let i = 0; i < ev.spawnCount; i++) {
-            trafficQueue.push({ ...template });
+            trafficQueue.push({ ...template, id: crypto.randomUUID() });
           }
         }
       }

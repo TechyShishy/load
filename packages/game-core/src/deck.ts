@@ -22,11 +22,11 @@ export function buildTrafficEventDeck(): Array<TrafficCard | EventCard> {
   const traffic: TrafficCard[] = [];
   // Fill to 16 by cycling through the 3 base traffic cards
   for (let i = 0; i < 16; i++) {
-    traffic.push({ ...(TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!) });
+    traffic.push({ ...(TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!), id: crypto.randomUUID() });
   }
   const events: EventCard[] = [];
   for (let i = 0; i < 8; i++) {
-    events.push({ ...(EVENT_CARDS[i % EVENT_CARDS.length]!) });
+    events.push({ ...(EVENT_CARDS[i % EVENT_CARDS.length]!), id: crypto.randomUUID() });
   }
   return shuffle([...traffic, ...events]);
 }
@@ -39,7 +39,7 @@ export function buildActionDeck(): ActionCard[] {
   const cards: ActionCard[] = [];
   for (let i = 0; i < 3; i++) {
     for (const card of ACTION_CARDS) {
-      cards.push({ ...card });
+      cards.push({ ...card, id: crypto.randomUUID() });
     }
   }
   return shuffle(cards);
