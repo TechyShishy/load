@@ -107,10 +107,10 @@ export interface TimeSlot {
   readonly index: number;
   readonly baseCapacity: number;
   cards: TrafficCard[];
-  /** Temporary capacity boost from Action cards this round */
-  capacityBoost: number;
   /** True if this slot is unavailable due to Overload downtime */
   unavailable: boolean;
+  /** True if this slot was added temporarily by a BoostSlotCapacity/AddOvernightSlots action card; stripped at round reset */
+  readonly temporary?: boolean;
 }
 
 export interface TrackSlot {
@@ -177,7 +177,7 @@ export const MAX_ROUNDS = 12;
 export const BANKRUPT_THRESHOLD = -100_000;
 export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
-export const SLOT_BASE_CAPACITY = 3;
+export const SLOT_BASE_CAPACITY = 1;
 export const OVERLOAD_PENALTY = 25_000;
 export const DRAW_COUNT = 5;
 export const PERIOD_SLOT_COUNTS: Record<Period, number> = {

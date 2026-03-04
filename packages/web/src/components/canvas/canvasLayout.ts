@@ -50,6 +50,29 @@ export function computeSlotRect(
 }
 
 /**
+ * Compute the pixel rect of an entire period column (header + all slots).
+ * Matches the colBg roundRect dimensions in buildStaticScene.
+ * @param periodIndex  0=Morning, 1=Afternoon, 2=Evening, 3=Overnight
+ * @param slotCount    number of slots currently in this period (may increase with temporary slots)
+ * @param containerWidth  clientWidth of the canvas container div
+ */
+export function computePeriodRect(
+  periodIndex: number,
+  slotCount: number,
+  containerWidth: number,
+): SlotRect {
+  const availableW = containerWidth - 40;
+  const periodW = availableW / PERIOD_COUNT;
+  const periodX = 20 + periodIndex * periodW;
+  return {
+    x: periodX,
+    y: BOARD_START_Y - 8,
+    w: periodW - 8,
+    h: 32 + slotCount * (SLOT_H + SLOT_GAP),
+  };
+}
+
+/**
  * Compute the pixel rect of a track row given the canvas container CSS width.
  * @param trackIndex    0-based track index
  * @param containerWidth  clientWidth of the canvas container div

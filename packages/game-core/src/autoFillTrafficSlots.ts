@@ -1,5 +1,5 @@
 import { CardType, EventSubtype, OVERLOAD_PENALTY, Period, type EventCard, type GameContext, type TrafficCard } from './types.js';
-import { effectiveCapacity, getAvailableSlots } from './boardState.js';
+import { getAvailableSlots } from './boardState.js';
 import { TRAFFIC_CARDS } from './data/index.js';
 
 export interface FillResult {
@@ -50,7 +50,7 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: Array<TrafficCard 
       const period = periodOrder[pi]!;
       const availableSlots = getAvailableSlots(context.timeSlots, period);
       const targetSlot = availableSlots.find(
-        (s) => s.cards.length < effectiveCapacity(s)
+        (s) => s.cards.length < s.baseCapacity
       );
       if (targetSlot) {
         // Mutate a copy of the slot

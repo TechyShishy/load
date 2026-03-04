@@ -101,21 +101,26 @@ describe('playActionCard', () => {
     expect(updated.timeSlots).toEqual(ctx.timeSlots);
   });
 
-  it('BoostSlotCapacity increases slot capacityBoost for target period', () => {
+  it('BoostSlotCapacity adds new temporary slots for target period', () => {
     const ctx = makeCtx({ hand: [bwUpgrade] });
+    const beforeCount = ctx.timeSlots.filter((s) => s.period === bwUpgrade.targetPeriod).length;
     const updated = playActionCard(ctx, bwUpgrade);
-    const boostedSlots = updated.timeSlots.filter((s) => s.period === bwUpgrade.targetPeriod);
-    expect(boostedSlots.every((s) => s.capacityBoost >= 1)).toBe(true);
+    const afterSlots = updated.timeSlots.filter((s) => s.period === bwUpgrade.targetPeriod);
+    expect(afterSlots.length).toBe(beforeCount + bwUpgrade.effectValue);
+    expect(afterSlots.filter((s) => s.temporary).length).toBe(bwUpgrade.effectValue);
   });
 
   it('BoostSlotCapacity runtime targetPeriod overrides card.targetPeriod', () => {
     const ctx = makeCtx({ hand: [bwUpgrade] });
+    const beforeMorning = ctx.timeSlots.filter((s) => s.period === Period.Morning).length;
+    const beforeAfternoon = ctx.timeSlots.filter((s) => s.period === Period.Afternoon).length;
     // bwUpgrade targets Afternoon; override to Morning
     const updated = playActionCard(ctx, bwUpgrade, undefined, undefined, Period.Morning);
     const morningSlots = updated.timeSlots.filter((s) => s.period === Period.Morning);
     const afternoonSlots = updated.timeSlots.filter((s) => s.period === Period.Afternoon);
-    expect(morningSlots.every((s) => s.capacityBoost >= 1)).toBe(true);
-    expect(afternoonSlots.every((s) => s.capacityBoost === 0)).toBe(true);
+    expect(morningSlots.length).toBe(beforeMorning + bwUpgrade.effectValue);
+    expect(morningSlots.filter((s) => s.temporary).length).toBe(bwUpgrade.effectValue);
+    expect(afternoonSlots.length).toBe(beforeAfternoon);
   });
 
   it('ClearTicket runtime targetTrack overrides card.targetTrack', () => {
@@ -135,12 +140,15 @@ describe('playActionCard', () => {
   it('AddOvernightSlots runtime targetPeriod overrides card.targetPeriod', () => {
     const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
     const ctx = makeCtx({ hand: [dcExpansion] });
+    const beforeEvening = ctx.timeSlots.filter((s) => s.period === Period.Evening).length;
+    const beforeOvernight = ctx.timeSlots.filter((s) => s.period === Period.Overnight).length;
     // dcExpansion targets Overnight; override to Evening
     const updated = playActionCard(ctx, dcExpansion, undefined, undefined, Period.Evening);
     const eveningSlots = updated.timeSlots.filter((s) => s.period === Period.Evening);
     const overnightSlots = updated.timeSlots.filter((s) => s.period === Period.Overnight);
-    expect(eveningSlots.every((s) => s.capacityBoost >= 1)).toBe(true);
-    expect(overnightSlots.every((s) => s.capacityBoost === 0)).toBe(true);
+    expect(eveningSlots.length).toBe(beforeEvening + dcExpansion.effectValue);
+    expect(eveningSlots.filter((s) => s.temporary).length).toBe(dcExpansion.effectValue);
+    expect(overnightSlots.length).toBe(beforeOvernight);
   });
 
   it('MitigateDDoS adds event id to mitigatedEventIds', () => {

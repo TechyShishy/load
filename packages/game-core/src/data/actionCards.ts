@@ -29,7 +29,7 @@ export const ACTION_CARDS: ActionCard[] = [
     effectType: ActionEffectType.BoostSlotCapacity,
     effectValue: 1,
     targetPeriod: Period.Afternoon,
-    description: 'Raise one Period\'s slot capacity by +1 for this round.',
+    description: 'Add 1 bonus slot to a Period for this round.',
   },
   {
     id: 'action-security-patch',

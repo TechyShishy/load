@@ -5,7 +5,6 @@ import {
   type GameContext,
   type TimeSlot,
   type TrackSlot,
-  PERIOD_SLOT_COUNTS,
 } from '@load/game-core';
 import {
   SLOT_W,
@@ -63,7 +62,6 @@ const CARD_CHIP_STYLE = new TextStyle({
   wordWrap: true,
   wordWrapWidth: SLOT_W - 12,
 });
-const CAP_STYLE = new TextStyle({ fill: 0x6b7280, fontSize: 8, fontFamily: 'Courier New' });
 const TICKET_STYLE = new TextStyle({ fill: 0xfca5a5, fontSize: 8, fontFamily: 'Courier New' });
 const EMPTY_STYLE = new TextStyle({
   fill: 0x374151,
@@ -88,7 +86,6 @@ function getTrackLabelStyle(trackName: string): TextStyle {
 // ── Scene ref types ───────────────────────────────────────────────────────────
 interface SlotRefs {
   bg: Graphics;
-  capText: Text;
   cardContainer: Container;
   /** Pixel origin of the slot — needed to position rebuilt card chips. */
   slotX: number;
@@ -121,17 +118,17 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
   for (let pi = 0; pi < periods.length; pi++) {
     const period = periods[pi] as Period;
     const periodX = 20 + pi * periodW;
-    const slotCount = PERIOD_SLOT_COUNTS[period];
 
-    // Period column background — fully static.
-    // Height is anchored to declared capacity, so Overnight (8 slots) renders
-    // taller than Morning/Afternoon/Evening (4 slots).
+    // Slots for this period — collected first so column height responds to temporary extra slots.
+    const periodSlots = ctx.timeSlots.filter((s) => s.period === period);
+
+    // Period column background — sized to actual slot count, including any temporary slots.
     const colBg = new Graphics();
     colBg.roundRect(
       periodX,
       BOARD_START_Y - 8,
       periodW - 8,
-      32 + slotCount * (SLOT_H + SLOT_GAP),
+      32 + periodSlots.length * (SLOT_H + SLOT_GAP),
       8,
     );
     colBg.fill({ color: PERIOD_COLORS[period], alpha: 0.15 });
@@ -143,9 +140,6 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
     header.x = periodX + PERIOD_PADDING;
     header.y = BOARD_START_Y;
     board.addChild(header);
-
-    // Slots for this period.
-    const periodSlots = ctx.timeSlots.filter((s) => s.period === period);
     for (let si = 0; si < periodSlots.length; si++) {
       const slot = periodSlots[si]!;
       const slotKey = `${period}-${si}`;
@@ -173,16 +167,7 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
       const cardContainer = new Container();
       board.addChild(cardContainer);
 
-      // Capacity indicator — text updated by patchSlot on change.
-      const capText = new Text({
-        text: `${slot.cards.length}/${slot.baseCapacity + slot.capacityBoost}`,
-        style: CAP_STYLE,
-      });
-      capText.x = slotX + SLOT_W - 22;
-      capText.y = slotY + SLOT_H - 12;
-      board.addChild(capText);
-
-      refs.slots.set(slotKey, { bg, capText, cardContainer, slotX, slotY, period });
+      refs.slots.set(slotKey, { bg, cardContainer, slotX, slotY, period });
       // Initial card paint.
       paintSlotCards(slot, slotX, slotY, cardContainer);
     }
@@ -305,14 +290,6 @@ function patchSlot(refs: SlotRefs, oldSlot: TimeSlot, newSlot: TimeSlot): void {
     paintSlotCards(newSlot, refs.slotX, refs.slotY, refs.cardContainer);
   }
 
-  // Update capacity text when any of its inputs change.
-  if (
-    oldSlot.cards.length !== newSlot.cards.length ||
-    oldSlot.baseCapacity !== newSlot.baseCapacity ||
-    oldSlot.capacityBoost !== newSlot.capacityBoost
-  ) {
-    refs.capText.text = `${newSlot.cards.length}/${newSlot.baseCapacity + newSlot.capacityBoost}`;
-  }
 }
 
 function patchTrack(refs: TrackRefs, oldTrack: TrackSlot, newTrack: TrackSlot): void {
@@ -366,20 +343,17 @@ function buildBoardSummary(ctx: GameContext): string {
 
   for (const period of periods) {
     const slots = ctx.timeSlots.filter((s) => s.period === period);
-    const slotCount = PERIOD_SLOT_COUNTS[period];
-    for (let i = 0; i < slotCount; i++) {
-      const slot: TimeSlot | undefined = slots[i];
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i]!;
       const label = `${period} slot ${i + 1}`;
-      if (!slot) continue;
       if (slot.unavailable) {
         parts.push(`${label}: unavailable`);
       } else {
-        const capacity = slot.baseCapacity + slot.capacityBoost;
         if (slot.cards.length === 0) {
-          parts.push(`${label}: empty, capacity ${capacity}`);
+          parts.push(`${label}: empty, capacity ${slot.baseCapacity}`);
         } else {
           const names = slot.cards.map((c) => c.name).join(', ');
-          parts.push(`${label}: ${slot.cards.length} of ${capacity} cards — ${names}`);
+          parts.push(`${label}: ${slot.cards.length} of ${slot.baseCapacity} cards — ${names}`);
         }
       }
     }
@@ -400,6 +374,7 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? internalRef;
   const appRef = useRef<Application | null>(null);
+  const boardRef = useRef<Container | null>(null);
   const sceneRefsRef = useRef<SceneRefs | null>(null);
   const prevContextRef = useRef<GameContext | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -435,6 +410,7 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
         appRef.current = app;
         const board = new Container();
         app.stage.addChild(board);
+        boardRef.current = board;
 
         const refs = buildStaticScene(app, board, context);
         sceneRefsRef.current = refs;
@@ -453,6 +429,7 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
         // true = also removes the canvas element PixiJS created.
         appRef.current.destroy(true, { children: true });
         appRef.current = null;
+        boardRef.current = null;
         sceneRefsRef.current = null;
         prevContextRef.current = null;
       }
@@ -463,11 +440,28 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
   // Patch only what changed whenever context updates.
   // `phase` is intentionally omitted — the canvas renders board state only;
   // phase-relevant UI lives in HUD overlays.
+  // When the number of time slots changes (e.g. a BoostSlotCapacity card was
+  // played), the static scene must be fully rebuilt since patchBoard only
+  // handles existing slot refs.
   useEffect(() => {
-    const refs = sceneRefsRef.current;
+    const app = appRef.current;
     const prev = prevContextRef.current;
-    if (!refs || !prev) return;
-    patchBoard(refs, prev, context);
+    if (!app || !prev) return;
+
+    if (context.timeSlots.length !== prev.timeSlots.length) {
+      // Slot count changed — destroy old board Container and rebuild from scratch.
+      const oldBoard = boardRef.current;
+      if (oldBoard) {
+        oldBoard.destroy({ children: true });
+      }
+      const newBoard = new Container();
+      app.stage.addChild(newBoard);
+      boardRef.current = newBoard;
+      sceneRefsRef.current = buildStaticScene(app, newBoard, context);
+    } else {
+      const refs = sceneRefsRef.current;
+      if (refs) patchBoard(refs, prev, context);
+    }
     prevContextRef.current = context;
   }, [context]);
 

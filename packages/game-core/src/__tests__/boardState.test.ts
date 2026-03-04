@@ -3,7 +3,6 @@ import {
   createInitialTimeSlots,
   createInitialTracks,
   createVendorSlots,
-  effectiveCapacity,
   getAvailableSlots,
   resetSlotsForRound,
 } from '../boardState.js';
@@ -19,7 +18,7 @@ describe('createInitialTimeSlots', () => {
     expect(slots.every((s) => s.cards.length === 0)).toBe(true);
   });
 
-  it('all slots start with base capacity 3', () => {
+  it('all slots start with base capacity 1', () => {
     const slots = createInitialTimeSlots();
     expect(slots.every((s) => s.baseCapacity === SLOT_BASE_CAPACITY)).toBe(true);
   });
@@ -53,18 +52,6 @@ describe('createVendorSlots', () => {
   });
 });
 
-describe('effectiveCapacity', () => {
-  it('returns base capacity when no boost', () => {
-    const slot = createInitialTimeSlots()[0]!;
-    expect(effectiveCapacity(slot)).toBe(SLOT_BASE_CAPACITY);
-  });
-
-  it('includes capacity boost', () => {
-    const slot = { ...createInitialTimeSlots()[0]!, capacityBoost: 2 };
-    expect(effectiveCapacity(slot)).toBe(SLOT_BASE_CAPACITY + 2);
-  });
-});
-
 describe('getAvailableSlots', () => {
   it('returns only slots for the given period', () => {
     const slots = createInitialTimeSlots();
@@ -92,10 +79,15 @@ describe('resetSlotsForRound', () => {
     expect(reset.every((s) => s.cards.length === 0)).toBe(true);
   });
 
-  it('resets capacity boosts', () => {
-    const slots = createInitialTimeSlots().map((s) => ({ ...s, capacityBoost: 2 }));
-    const reset = resetSlotsForRound(slots);
-    expect(reset.every((s) => s.capacityBoost === 0)).toBe(true);
+  it('strips temporary slots on reset', () => {
+    const base = createInitialTimeSlots();
+    const withTemporary = [
+      ...base,
+      { ...base[0]!, index: base.length, temporary: true as const },
+    ];
+    const reset = resetSlotsForRound(withTemporary);
+    expect(reset.every((s) => !s.temporary)).toBe(true);
+    expect(reset.length).toBe(base.length);
   });
 
   it('marks all slots available', () => {

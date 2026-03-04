@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Period, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
-import { computeSlotRect, computeTrackRect } from './canvasLayout.js';
+import { ActionEffectType, Period, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
+import { computePeriodRect, computeSlotRect, computeTrackRect } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
@@ -40,6 +40,42 @@ function SlotDropZone({ slot, periodIndex, containerWidth }: SlotDropZoneProps) 
       className={
         isOver
           ? 'border-2 border-cyan-400 bg-cyan-900/30 ring-1 ring-cyan-400/60'
+          : 'border-2 border-transparent'
+      }
+    />
+  );
+}
+
+// ── Period drop zone (RemoveTrafficCard target) ──────────────────────────────
+
+interface PeriodDropZoneProps {
+  period: Period;
+  periodIndex: number;
+  slotCount: number;
+  containerWidth: number;
+}
+
+function PeriodDropZone({ period, periodIndex, slotCount, containerWidth }: PeriodDropZoneProps) {
+  const id = `period-${period}`;
+  const { isOver, setNodeRef } = useDroppable({ id, data: { type: 'period', period } });
+  const rect = computePeriodRect(periodIndex, slotCount, containerWidth);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        position: 'absolute',
+        left: rect.x,
+        top: rect.y,
+        width: rect.w,
+        height: rect.h,
+        borderRadius: 8,
+        pointerEvents: 'auto',
+        zIndex: 2,
+      }}
+      className={
+        isOver
+          ? 'border-2 border-red-400 bg-red-900/30 ring-1 ring-red-400/60'
           : 'border-2 border-transparent'
       }
     />
@@ -98,9 +134,11 @@ export interface BoardDropZonesProps {
   context: GameContext;
   /** Ref to the canvas wrapper div — used to track container width for overlay positioning. */
   containerRef: React.RefObject<HTMLDivElement>;
+  /** The card currently being dragged. Used to conditionally show period drop zones. */
+  activeCard?: ActionCard | null;
 }
 
-export function BoardDropZones({ context, containerRef }: BoardDropZonesProps) {
+export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZonesProps) {
   const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
@@ -115,9 +153,24 @@ export function BoardDropZones({ context, containerRef }: BoardDropZonesProps) {
 
   if (containerWidth === 0) return null;
 
+  const showPeriodZones = activeCard?.effectType === ActionEffectType.RemoveTrafficCard;
+
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}>
       <BoardAreaDropZone />
+      {showPeriodZones &&
+        PERIOD_ORDER.map((period, pi) => {
+          const slotCount = context.timeSlots.filter((s) => s.period === period).length;
+          return (
+            <PeriodDropZone
+              key={`period-${period}`}
+              period={period}
+              periodIndex={pi}
+              slotCount={slotCount}
+              containerWidth={containerWidth}
+            />
+          );
+        })}
       {context.timeSlots.map((slot) => {
         const periodIndex = PERIOD_ORDER.indexOf(slot.period);
         return (

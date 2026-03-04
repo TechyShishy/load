@@ -71,8 +71,8 @@ export const TimeSlotSchema = z.object({
   index: z.number(),
   baseCapacity: z.number(),
   cards: z.array(TrafficCardSchema),
-  capacityBoost: z.number(),
   unavailable: z.boolean(),
+  temporary: z.boolean().optional(),
 });
 
 export const TrackSlotSchema = z.object({

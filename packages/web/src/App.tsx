@@ -67,7 +67,21 @@ export function App() {
       const card = active.data.current?.card as ActionCard | undefined;
       if (!card) return;
 
-      if (typeof over.id === 'string' && over.id.startsWith('slot-')) {
+      if (typeof over.id === 'string' && over.id.startsWith('period-')) {
+        const period = over.id.slice('period-'.length) as Period;
+        if (card.effectType === ActionEffectType.RemoveTrafficCard) {
+          const firstCard = context.timeSlots
+            .filter((s) => s.period === period)
+            .sort((a, b) => a.index - b.index)
+            .flatMap((s) => s.cards)[0];
+          if (!firstCard) {
+            showFeedback(`${card.name}: No traffic cards in ${period}.`);
+            return;
+          }
+          playAction(card, undefined, firstCard.id);
+          showFeedback(`${card.name}: Removing traffic from ${period} (-$${card.cost.toLocaleString()})`);
+        }
+      } else if (typeof over.id === 'string' && over.id.startsWith('slot-')) {
         // id format: "slot-Morning-0"
         const [, period, idxStr] = over.id.split('-') as [string, Period, string];
         const slotIndex = parseInt(idxStr ?? '0', 10);
@@ -75,13 +89,7 @@ export function App() {
         if (!slot) return;
 
         if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          const targetTrafficCardId = slot.cards[0]?.id;
-          if (!targetTrafficCardId) {
-            showFeedback(`${card.name}: No traffic card in this slot.`);
-            return;
-          }
-          playAction(card, undefined, targetTrafficCardId);
-          showFeedback(`${card.name}: Removing traffic from ${slot.period} slot ${slot.index + 1} (-$${card.cost.toLocaleString()})`);
+          showFeedback(`${card.name}: Drop on a period column to remove a traffic card.`);
         } else if (
           card.effectType === ActionEffectType.BoostSlotCapacity ||
           card.effectType === ActionEffectType.AddOvernightSlots
@@ -102,7 +110,7 @@ export function App() {
           playAction(card, undefined, undefined, undefined, trackName);
           showFeedback(`${card.name}: Clearing a ticket from the ${trackName} track (-$${card.cost.toLocaleString()})`);
         } else if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          showFeedback(`${card.name}: Drop on a populated time slot to remove a traffic card.`);
+          showFeedback(`${card.name}: Drop on a period column to remove a traffic card.`);
         } else if (
           card.effectType === ActionEffectType.BoostSlotCapacity ||
           card.effectType === ActionEffectType.AddOvernightSlots
@@ -119,7 +127,7 @@ export function App() {
           playAction(card);
           showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
         } else if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          showFeedback(`${card.name}: Drop on a populated time slot to remove a traffic card.`);
+          showFeedback(`${card.name}: Drop on a period column to remove a traffic card.`);
         } else if (
           card.effectType === ActionEffectType.BoostSlotCapacity ||
           card.effectType === ActionEffectType.AddOvernightSlots
@@ -149,7 +157,7 @@ export function App() {
       </div>
       <div className="flex-1 relative overflow-hidden">
         <GameCanvas context={context} phase={phase} containerRef={canvasRef} />
-        <BoardDropZones context={context} containerRef={canvasRef} />
+        <BoardDropZones context={context} containerRef={canvasRef} activeCard={activeCard} />
       </div>
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
         <div className="flex-1 overflow-x-auto min-w-0" aria-live="polite" aria-atomic="true">

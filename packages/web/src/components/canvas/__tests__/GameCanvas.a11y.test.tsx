@@ -97,9 +97,8 @@ function makeTimeSlots(overrides: Partial<TimeSlot>[] = []): TimeSlot[] {
       slots.push({
         period,
         index: i,
-        baseCapacity: 3,
+        baseCapacity: 1,
         cards: [],
-        capacityBoost: 0,
         unavailable: false,
         ...override,
       });
@@ -135,6 +134,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    pendingOverloadCount: 0,
     seed: 'test-seed',
     ...overrides,
   };
@@ -166,7 +166,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
   it('describes empty slots with capacity', () => {
     const { container } = render(<GameCanvas context={makeCtx()} phase="scheduling" />);
     const text = getLiveRegion(container).textContent ?? '';
-    expect(text).toContain('Morning slot 1: empty, capacity 3');
+    expect(text).toContain('Morning slot 1: empty, capacity 1');
   });
 
   it('describes an unavailable slot', () => {
@@ -200,7 +200,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
       <GameCanvas context={makeCtx({ timeSlots: slots })} phase="scheduling" />,
     );
     const text = getLiveRegion(container).textContent ?? '';
-    expect(text).toMatch(/Evening slot 1: 1 of 3 cards.*WebSurge/);
+    expect(text).toMatch(/Evening slot 1: 1 of 1 cards.*WebSurge/);
   });
 
   it('reports "no open tickets" for empty tracks', () => {

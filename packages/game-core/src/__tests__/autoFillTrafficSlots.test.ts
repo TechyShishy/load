@@ -63,7 +63,7 @@ describe('autoFillTrafficSlots', () => {
 
   it('fills up to capacity without overload', () => {
     const ctx = makeBaseContext();
-    // 3 cards, 1 Morning slot capacity is 3, should fit
+    // 3 cards each go into a separate slot (capacity 1 per slot), should fit
     const cards: TrafficCard[] = [iotCard, iotCard, iotCard];
     const { context, overloadCount } = autoFillTrafficSlots(ctx, cards);
     expect(overloadCount).toBe(0);
@@ -72,8 +72,8 @@ describe('autoFillTrafficSlots', () => {
 
   it('triggers Overload penalty when all slots are full', () => {
     const ctx = makeBaseContext();
-    // Fill all 20 slots × 3 capacity = 60 slots. We'll overflow by 1.
-    const manyCards: TrafficCard[] = Array.from({ length: 61 }, () => iotCard);
+    // Fill all 20 slots × 1 capacity = 20 slots. We'll overflow by 1.
+    const manyCards: TrafficCard[] = Array.from({ length: 21 }, () => iotCard);
     const { overloadCount, context } = autoFillTrafficSlots(ctx, manyCards);
     expect(overloadCount).toBeGreaterThan(0);
     expect(context.budget).toBeLessThan(500_000);
@@ -89,16 +89,16 @@ describe('autoFillTrafficSlots', () => {
   });
 
   it('overload disables a slot in the period after the last attempted period, not always Afternoon', () => {
-    // Fill Morning, Afternoon, and Evening to full capacity (5 slots × 3 = 15 cards each)
-    // so only Overnight slots remain. The next card triggers overload after exhausting
+    // Fill all periods to full capacity (1 card per slot)
+    // so no slots remain. The next card triggers overload after exhausting
     // Overnight (lastPeriodIndex = 3), so the overflow target wraps to Morning (index 0),
     // NOT Afternoon (index 1) as the bug produced.
     const ctx = makeBaseContext();
-    const totalSlots = ctx.timeSlots.length; // 20 slots, 5 per period
-    const capacity = 3; // default effectiveCapacity
+    const totalSlots = ctx.timeSlots.length; // 20 slots (4+4+4+8)
+    const capacity = 1; // default baseCapacity
 
-    // Fill Morning (5 slots × 3 = 15), Afternoon (15), Evening (15) = 45 cards
-    // Then fill Overnight (5 slots × 3 = 15) = 60 cards total, then 1 more to trigger overload
+    // Fill Morning (4 × 1 = 4), Afternoon (4), Evening (4), Overnight (8) = 20 cards total,
+    // then 1 more to trigger overload
     const fillCount = totalSlots * capacity + 1;
     const manyCards: TrafficCard[] = Array.from({ length: fillCount }, () => iotCard);
     const { overloadCount, context } = autoFillTrafficSlots(ctx, manyCards);

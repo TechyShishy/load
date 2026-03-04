@@ -19,7 +19,6 @@ export function createInitialTimeSlots(): TimeSlot[] {
         index: i,
         baseCapacity: SLOT_BASE_CAPACITY,
         cards: [],
-        capacityBoost: 0,
         unavailable: false,
       });
     }
@@ -45,20 +44,16 @@ export function getAvailableSlots(slots: TimeSlot[], period: Period): TimeSlot[]
 }
 
 /**
- * Get the effective capacity of a slot (base + any boost from Action cards).
- */
-export function effectiveCapacity(slot: TimeSlot): number {
-  return slot.baseCapacity + slot.capacityBoost;
-}
-
-/**
- * Reset per-round transient state on all time slots (capacity boosts, clear cards).
+ * Reset per-round transient state on all time slots.
+ * Temporary slots (added by BoostSlotCapacity/AddOvernightSlots) are removed entirely;
+ * permanent slots have their cards cleared and availability restored.
  */
 export function resetSlotsForRound(slots: TimeSlot[]): TimeSlot[] {
-  return slots.map((s) => ({
-    ...s,
-    cards: [],
-    capacityBoost: 0,
-    unavailable: false,
-  }));
+  return slots
+    .filter((s) => !s.temporary)
+    .map((s) => ({
+      ...s,
+      cards: [],
+      unavailable: false,
+    }));
 }

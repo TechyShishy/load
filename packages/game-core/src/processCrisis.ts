@@ -1,4 +1,4 @@
-import { ActionEffectType, EventSubtype, type ActionCard, type GameContext, type Period, type Track } from './types.js';
+import { ActionEffectType, EventSubtype, SLOT_BASE_CAPACITY, type ActionCard, type GameContext, type Period, type TimeSlot, type Track } from './types.js';
 
 export interface CrisisResult {
   context: GameContext;
@@ -77,13 +77,18 @@ export function playActionCard(
     case ActionEffectType.BoostSlotCapacity: {
       const resolvedPeriod = targetPeriod ?? card.targetPeriod;
       if (resolvedPeriod) {
+        const existingCount = context.timeSlots.filter((s) => s.period === resolvedPeriod).length;
+        const newSlots: TimeSlot[] = Array.from({ length: card.effectValue }, (_, i) => ({
+          period: resolvedPeriod,
+          index: existingCount + i,
+          baseCapacity: SLOT_BASE_CAPACITY,
+          cards: [],
+          unavailable: false,
+          temporary: true,
+        }));
         context = {
           ...context,
-          timeSlots: context.timeSlots.map((s) =>
-            s.period === resolvedPeriod
-              ? { ...s, capacityBoost: s.capacityBoost + card.effectValue }
-              : s,
-          ),
+          timeSlots: [...context.timeSlots, ...newSlots],
         };
       }
       break;
@@ -103,13 +108,18 @@ export function playActionCard(
     case ActionEffectType.AddOvernightSlots: {
       const resolvedPeriod = targetPeriod ?? card.targetPeriod;
       if (resolvedPeriod) {
+        const existingCount = context.timeSlots.filter((s) => s.period === resolvedPeriod).length;
+        const newSlots: TimeSlot[] = Array.from({ length: card.effectValue }, (_, i) => ({
+          period: resolvedPeriod,
+          index: existingCount + i,
+          baseCapacity: SLOT_BASE_CAPACITY,
+          cards: [],
+          unavailable: false,
+          temporary: true,
+        }));
         context = {
           ...context,
-          timeSlots: context.timeSlots.map((s) =>
-            s.period === resolvedPeriod
-              ? { ...s, capacityBoost: s.capacityBoost + card.effectValue }
-              : s,
-          ),
+          timeSlots: [...context.timeSlots, ...newSlots],
         };
       }
       break;
