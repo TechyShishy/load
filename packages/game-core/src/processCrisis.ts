@@ -1,4 +1,4 @@
-import { ActionEffectType, EventSubtype, type ActionCard, type GameContext } from './types.js';
+import { ActionEffectType, EventSubtype, type ActionCard, type GameContext, type Period, type Track } from './types.js';
 
 export interface CrisisResult {
   context: GameContext;
@@ -17,6 +17,10 @@ export function playActionCard(
   targetEventId?: string,
   /** Optional: ID of the Traffic card to remove (for RemoveTrafficCard; overrides card.targetTrafficCardId) */
   targetTrafficCardId?: string,
+  /** Optional: Period to target (for BoostSlotCapacity, AddOvernightSlots; overrides card.targetPeriod) */
+  targetPeriod?: Period,
+  /** Optional: Track to target (for ClearTicket; overrides card.targetTrack) */
+  targetTrack?: Track,
 ): GameContext {
   if (!ctx.hand.find((c) => c.id === card.id)) {
     // Card not in hand — no-op
@@ -32,12 +36,13 @@ export function playActionCard(
 
   switch (card.effectType) {
     case ActionEffectType.ClearTicket: {
-      const track = ctx.tracks.find((t) => t.track === card.targetTrack);
+      const resolvedTrack = targetTrack ?? card.targetTrack;
+      const track = ctx.tracks.find((t) => t.track === resolvedTrack);
       if (track && track.tickets.length > 0) {
         context = {
           ...context,
           tracks: context.tracks.map((t) =>
-            t.track === card.targetTrack
+            t.track === resolvedTrack
               ? { ...t, tickets: t.tickets.slice(1) } // remove the oldest ticket
               : t,
           ),
@@ -70,11 +75,12 @@ export function playActionCard(
       break;
     }
     case ActionEffectType.BoostSlotCapacity: {
-      if (card.targetPeriod) {
+      const resolvedPeriod = targetPeriod ?? card.targetPeriod;
+      if (resolvedPeriod) {
         context = {
           ...context,
           timeSlots: context.timeSlots.map((s) =>
-            s.period === card.targetPeriod
+            s.period === resolvedPeriod
               ? { ...s, capacityBoost: s.capacityBoost + card.effectValue }
               : s,
           ),
@@ -95,11 +101,12 @@ export function playActionCard(
       break;
     }
     case ActionEffectType.AddOvernightSlots: {
-      if (card.targetPeriod) {
+      const resolvedPeriod = targetPeriod ?? card.targetPeriod;
+      if (resolvedPeriod) {
         context = {
           ...context,
           timeSlots: context.timeSlots.map((s) =>
-            s.period === card.targetPeriod
+            s.period === resolvedPeriod
               ? { ...s, capacityBoost: s.capacityBoost + card.effectValue }
               : s,
           ),

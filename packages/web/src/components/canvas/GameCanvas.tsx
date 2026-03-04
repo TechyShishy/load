@@ -7,9 +7,21 @@ import {
   type TrackSlot,
   PERIOD_SLOT_COUNTS,
 } from '@load/game-core';
+import {
+  SLOT_W,
+  SLOT_H,
+  SLOT_GAP,
+  PERIOD_PADDING,
+  CARD_PADDING,
+  BOARD_START_Y,
+  TRACKS_Y_OFFSET,
+} from './canvasLayout.js';
 interface GameCanvasProps {
   context: GameContext;
   phase: string;
+  /** Optional shared ref for the container div. Passed from App so overlay
+   * components can compute slot positions without duplicating layout math. */
+  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -34,13 +46,6 @@ const TRACK_COLORS: Record<string, number> = {
 };
 
 const TRAFFIC_COLOR = 0x005f8f;
-const SLOT_W = 90;
-const SLOT_H = 60;
-const SLOT_GAP = 8;
-const PERIOD_PADDING = 16;
-const CARD_PADDING = 4;
-const BOARD_START_Y = 40;
-const TRACKS_Y_OFFSET = BOARD_START_Y + 24 + 8 * (SLOT_H + SLOT_GAP) + 20;
 
 // ── Stable TextStyle instances (module-level, never recreated) ────────────────
 const HEADER_STYLES: Record<Period, TextStyle> = {
@@ -391,8 +396,9 @@ function buildBoardSummary(ctx: GameContext): string {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function GameCanvas({ context, phase: _phase }: GameCanvasProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+export function GameCanvas({ context, phase: _phase, containerRef: externalContainerRef }: GameCanvasProps) {
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = externalContainerRef ?? internalRef;
   const appRef = useRef<Application | null>(null);
   const sceneRefsRef = useRef<SceneRefs | null>(null);
   const prevContextRef = useRef<GameContext | null>(null);

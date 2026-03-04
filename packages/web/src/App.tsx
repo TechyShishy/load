@@ -1,12 +1,15 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { useGame } from './hooks/useGame.js';
-import { ActionEffectType } from '@load/game-core';
+import { ActionEffectType, Period, Track } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { GameCanvas } from './components/canvas/GameCanvas.js';
+import { BoardDropZones } from './components/canvas/BoardDropZones.js';
 import { BudgetBar } from './components/hud/BudgetBar.js';
 import { SLAMeter } from './components/hud/SLAMeter.js';
 import { PhaseIndicator } from './components/hud/PhaseIndicator.js';
-import { HandZone } from './components/hud/HandZone.js';
+import { HandZone, ActionCardPreview } from './components/hud/HandZone.js';
 import { WinScreen, LoseScreen } from './components/overlays/EndScreens.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -16,7 +19,10 @@ export function App() {
   const { context, phase, advance, playAction, reset, isWon, isLost, hasSave } = useGame();
   const [showStartScreen, setShowStartScreen] = useState(true);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState<ActionCard | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleStartContinue = useCallback(() => {
     setShowStartScreen(false);
@@ -40,44 +46,98 @@ export function App() {
     }
   }, []);
 
-  const handlePlayCard = useCallback(
-    (card: ActionCard, targetTrafficCardId?: string) => {
-      // For RemoveTrafficCard: use provided targetTrafficCardId (future DnD path)
-      // or auto-pick the first available traffic card on the board as a stub.
-      // TODO-0005: replace auto-pick with DnD selection
-      const resolvedTarget =
-        card.effectType === ActionEffectType.RemoveTrafficCard
-          ? (targetTrafficCardId ?? context.timeSlots.flatMap((s) => s.cards)[0]?.id)
-          : undefined;
-
-      // Guard: RemoveTrafficCard with no valid target would silently deduct cost for no effect.
-      if (card.effectType === ActionEffectType.RemoveTrafficCard && resolvedTarget === undefined) {
-        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-        setActionFeedback(`${card.name}: No traffic cards on the board to remove.`);
-        feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3500);
-        return;
-      }
-
-      playAction(card, undefined, resolvedTarget);
-      const messages: Record<string, string> = {
-        [ActionEffectType.ClearTicket]: `Cleared 1 ticket from ${card.targetTrack ?? 'track'} track.`,
-        [ActionEffectType.RemoveTrafficCard]: `Removing 1 traffic card and collecting its revenue.`,
-        [ActionEffectType.BoostSlotCapacity]: `+${card.effectValue} capacity for ${card.targetPeriod ?? 'period'} slots.`,
-        [ActionEffectType.MitigateDDoS]: `Mitigating the next pending event.`,
-        [ActionEffectType.AddOvernightSlots]: `+${card.effectValue} overnight slots added.`,
-      };
-      const msg = `${card.name}: ${messages[card.effectType] ?? card.description} (-$${card.cost.toLocaleString()})`;
+  const showFeedback = useCallback(
+    (msg: string) => {
       if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
       setActionFeedback(msg);
       feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3500);
     },
-    [playAction, context.timeSlots],
+    [],
+  );
+
+  const handleDragStart = useCallback(({ active }: DragStartEvent) => {
+    const card = active.data.current?.card as ActionCard | undefined;
+    setActiveCard(card ?? null);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      setActiveCard(null);
+      if (!over) return;
+      const card = active.data.current?.card as ActionCard | undefined;
+      if (!card) return;
+
+      if (typeof over.id === 'string' && over.id.startsWith('slot-')) {
+        // id format: "slot-Morning-0"
+        const [, period, idxStr] = over.id.split('-') as [string, Period, string];
+        const slotIndex = parseInt(idxStr ?? '0', 10);
+        const slot = context.timeSlots.find((s) => s.period === period && s.index === slotIndex);
+        if (!slot) return;
+
+        if (card.effectType === ActionEffectType.RemoveTrafficCard) {
+          const targetTrafficCardId = slot.cards[0]?.id;
+          if (!targetTrafficCardId) {
+            showFeedback(`${card.name}: No traffic card in this slot.`);
+            return;
+          }
+          playAction(card, undefined, targetTrafficCardId);
+          showFeedback(`${card.name}: Removing traffic from ${slot.period} slot ${slot.index + 1} (-$${card.cost.toLocaleString()})`);
+        } else if (
+          card.effectType === ActionEffectType.BoostSlotCapacity ||
+          card.effectType === ActionEffectType.AddOvernightSlots
+        ) {
+          playAction(card, undefined, undefined, slot.period);
+          showFeedback(`${card.name}: +${card.effectValue} capacity for ${slot.period} slots (-$${card.cost.toLocaleString()})`);
+        } else if (card.effectType === ActionEffectType.ClearTicket) {
+          showFeedback(`${card.name}: Drop on a track row to clear a ticket.`);
+        } else {
+          // MitigateDDoS — any drop zone activates it
+          playAction(card);
+          showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
+        }
+      } else if (typeof over.id === 'string' && over.id.startsWith('track-')) {
+        const trackName = over.id.slice('track-'.length) as Track;
+
+        if (card.effectType === ActionEffectType.ClearTicket) {
+          playAction(card, undefined, undefined, undefined, trackName);
+          showFeedback(`${card.name}: Clearing a ticket from the ${trackName} track (-$${card.cost.toLocaleString()})`);
+        } else if (card.effectType === ActionEffectType.RemoveTrafficCard) {
+          showFeedback(`${card.name}: Drop on a populated time slot to remove a traffic card.`);
+        } else if (
+          card.effectType === ActionEffectType.BoostSlotCapacity ||
+          card.effectType === ActionEffectType.AddOvernightSlots
+        ) {
+          showFeedback(`${card.name}: Drop on a time slot to apply the capacity boost.`);
+        } else {
+          // MitigateDDoS
+          playAction(card);
+          showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
+        }
+      } else {
+        // board-area fallback
+        if (card.effectType === ActionEffectType.MitigateDDoS) {
+          playAction(card);
+          showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
+        } else if (card.effectType === ActionEffectType.RemoveTrafficCard) {
+          showFeedback(`${card.name}: Drop on a populated time slot to remove a traffic card.`);
+        } else if (
+          card.effectType === ActionEffectType.BoostSlotCapacity ||
+          card.effectType === ActionEffectType.AddOvernightSlots
+        ) {
+          showFeedback(`${card.name}: Drop on a time slot to boost its period's capacity.`);
+        } else if (card.effectType === ActionEffectType.ClearTicket) {
+          showFeedback(`${card.name}: Drop on a track row to clear a ticket.`);
+        }
+      }
+    },
+    [playAction, context.timeSlots, showFeedback],
   );
 
   const canAdvance = phase === 'scheduling' || phase === 'crisis';
   const canPlayCard = phase === 'scheduling' || phase === 'crisis';
 
   return (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
     <ErrorBoundary FallbackComponent={SoftErrorFallback} resetKeys={[phase]}>
     <div role="main" className="relative flex flex-col w-full h-full overflow-hidden">
       <div className="flex items-center gap-4 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0 flex-wrap">
@@ -88,7 +148,8 @@ export function App() {
         <PhaseIndicator currentPhase={phase} round={context.round} />
       </div>
       <div className="flex-1 relative overflow-hidden">
-        <GameCanvas context={context} phase={phase} />
+        <GameCanvas context={context} phase={phase} containerRef={canvasRef} />
+        <BoardDropZones context={context} containerRef={canvasRef} />
       </div>
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
         <div className="flex-1 overflow-x-auto min-w-0" aria-live="polite" aria-atomic="true">
@@ -99,7 +160,6 @@ export function App() {
           )}
           <HandZone
             hand={context.hand}
-            onPlayCard={handlePlayCard}
             disabled={!canPlayCard}
           />
         </div>
@@ -132,5 +192,9 @@ export function App() {
       {isLost && <LoseScreen context={context} onPlayAgain={handlePlayAgain} />}
     </div>
     </ErrorBoundary>
+    <DragOverlay dropAnimation={null}>
+      {activeCard ? <ActionCardPreview card={activeCard} dragging /> : null}
+    </DragOverlay>
+    </DndContext>
   );
 }

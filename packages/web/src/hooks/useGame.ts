@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { gameMachine } from '@load/game-core';
-import type { ActionCard } from '@load/game-core';
+import type { ActionCard, Period, Track } from '@load/game-core';
 import { clearSave, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
 
@@ -29,13 +29,15 @@ export function useGame() {
   }, [send]);
 
   const playAction = useCallback(
-    (card: ActionCard, targetEventId?: string, targetTrafficCardId?: string) => {
+    (card: ActionCard, targetEventId?: string, targetTrafficCardId?: string, targetPeriod?: Period, targetTrack?: Track) => {
       send({
-      type: 'PLAY_ACTION',
-      card,
-      ...(targetEventId !== undefined ? { targetEventId } : {}),
-      ...(targetTrafficCardId !== undefined ? { targetTrafficCardId } : {}),
-    });
+        type: 'PLAY_ACTION',
+        card,
+        ...(targetEventId !== undefined ? { targetEventId } : {}),
+        ...(targetTrafficCardId !== undefined ? { targetTrafficCardId } : {}),
+        ...(targetPeriod !== undefined ? { targetPeriod } : {}),
+        ...(targetTrack !== undefined ? { targetTrack } : {}),
+      });
       audio.playCardDrop();
     },
     [send, audio],

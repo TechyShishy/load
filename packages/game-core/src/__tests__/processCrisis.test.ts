@@ -5,6 +5,7 @@ import { ACTION_CARDS } from '../data/actionCards.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import {
+  Period,
   PhaseId,
   Track,
   type GameContext,
@@ -105,6 +106,41 @@ describe('playActionCard', () => {
     const updated = playActionCard(ctx, bwUpgrade);
     const boostedSlots = updated.timeSlots.filter((s) => s.period === bwUpgrade.targetPeriod);
     expect(boostedSlots.every((s) => s.capacityBoost >= 1)).toBe(true);
+  });
+
+  it('BoostSlotCapacity runtime targetPeriod overrides card.targetPeriod', () => {
+    const ctx = makeCtx({ hand: [bwUpgrade] });
+    // bwUpgrade targets Afternoon; override to Morning
+    const updated = playActionCard(ctx, bwUpgrade, undefined, undefined, Period.Morning);
+    const morningSlots = updated.timeSlots.filter((s) => s.period === Period.Morning);
+    const afternoonSlots = updated.timeSlots.filter((s) => s.period === Period.Afternoon);
+    expect(morningSlots.every((s) => s.capacityBoost >= 1)).toBe(true);
+    expect(afternoonSlots.every((s) => s.capacityBoost === 0)).toBe(true);
+  });
+
+  it('ClearTicket runtime targetTrack overrides card.targetTrack', () => {
+    // emMaint targets BreakFix; override to Maintenance
+    const ctx = makeCtx({
+      tracks: createInitialTracks().map((t) =>
+        t.track === Track.Maintenance ? { ...t, tickets: [ddosEvent] } : t,
+      ),
+    });
+    const updated = playActionCard(ctx, emMaint, undefined, undefined, undefined, Track.Maintenance);
+    const maintTrack = updated.tracks.find((t) => t.track === Track.Maintenance)!;
+    const bfTrack = updated.tracks.find((t) => t.track === Track.BreakFix)!;
+    expect(maintTrack.tickets).toHaveLength(0);
+    expect(bfTrack.tickets).toHaveLength(0);
+  });
+
+  it('AddOvernightSlots runtime targetPeriod overrides card.targetPeriod', () => {
+    const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
+    const ctx = makeCtx({ hand: [dcExpansion] });
+    // dcExpansion targets Overnight; override to Evening
+    const updated = playActionCard(ctx, dcExpansion, undefined, undefined, Period.Evening);
+    const eveningSlots = updated.timeSlots.filter((s) => s.period === Period.Evening);
+    const overnightSlots = updated.timeSlots.filter((s) => s.period === Period.Overnight);
+    expect(eveningSlots.every((s) => s.capacityBoost >= 1)).toBe(true);
+    expect(overnightSlots.every((s) => s.capacityBoost === 0)).toBe(true);
   });
 
   it('MitigateDDoS adds event id to mitigatedEventIds', () => {

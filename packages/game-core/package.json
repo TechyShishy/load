@@ -17,8 +17,8 @@
     "build": "tsc --project tsconfig.json"
   },
   "dependencies": {
-    "xstate": "^5.11.0",
     "seedrandom": "^3.0.5",
+    "xstate": "^5.11.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

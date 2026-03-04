@@ -1,5 +1,5 @@
 import { assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext } from './types.js';
+import { BANKRUPT_THRESHOLD, DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track } from './types.js';
 import { buildActionDeck, buildTrafficEventDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
@@ -45,7 +45,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
 
 export type GameEvent =
   | { type: 'ADVANCE' }
-  | { type: 'PLAY_ACTION'; card: ActionCard; targetEventId?: string; targetTrafficCardId?: string }
+  | { type: 'PLAY_ACTION'; card: ActionCard; targetEventId?: string; targetTrafficCardId?: string; targetPeriod?: Period; targetTrack?: Track }
   | { type: 'RESET' };
 
 // ─── Machine ──────────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ export const gameMachine = setup({
 
     applyPlayAction: assign(({ context, event }) => {
       if (event.type !== 'PLAY_ACTION') return context;
-      return applyPlayActionCard(context, event.card, event.targetEventId, event.targetTrafficCardId);
+      return applyPlayActionCard(context, event.card, event.targetEventId, event.targetTrafficCardId, event.targetPeriod, event.targetTrack);
     }),
 
     markGameLost: assign(({ context }) => {
