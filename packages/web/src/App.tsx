@@ -40,6 +40,15 @@ export function App() {
         card.effectType === ActionEffectType.RemoveTrafficCard
           ? (targetTrafficCardId ?? context.timeSlots.flatMap((s) => s.cards)[0]?.id)
           : undefined;
+
+      // Guard: RemoveTrafficCard with no valid target would silently deduct cost for no effect.
+      if (card.effectType === ActionEffectType.RemoveTrafficCard && resolvedTarget === undefined) {
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        setActionFeedback(`${card.name}: No traffic cards on the board to remove.`);
+        feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3500);
+        return;
+      }
+
       playAction(card, undefined, resolvedTarget);
       const messages: Record<string, string> = {
         [ActionEffectType.ClearTicket]: `Cleared 1 ticket from ${card.targetTrack ?? 'track'} track.`,
