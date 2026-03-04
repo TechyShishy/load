@@ -1,0 +1,52 @@
+import { ActionEffectType, CardType, Period, Track, type ActionCard } from '../types.js';
+
+export const ACTION_CARDS: ActionCard[] = [
+  {
+    id: 'action-emergency-maintenance',
+    type: CardType.Action,
+    name: 'Emergency Maintenance',
+    cost: 15_000,
+    effectType: ActionEffectType.ClearTicket,
+    effectValue: 1,
+    targetTrack: Track.BreakFix,
+    description: 'Clear 1 ticket from the Break/Fix track.',
+  },
+  {
+    id: 'action-traffic-prioritization',
+    type: CardType.Action,
+    name: 'Traffic Prioritization',
+    cost: 10_000,
+    effectType: ActionEffectType.PreventSLAFail,
+    effectValue: 1,
+    description: 'Prevent 1 Traffic card from becoming an SLA failure this round.',
+  },
+  {
+    id: 'action-bandwidth-upgrade',
+    type: CardType.Action,
+    name: 'Bandwidth Upgrade',
+    cost: 20_000,
+    effectType: ActionEffectType.BoostSlotCapacity,
+    effectValue: 1,
+    targetPeriod: Period.Afternoon,
+    description: 'Raise one Period\'s slot capacity by +1 for this round.',
+  },
+  {
+    id: 'action-security-patch',
+    type: CardType.Action,
+    name: 'Security Patch',
+    cost: 25_000,
+    effectType: ActionEffectType.MitigateDDoS,
+    effectValue: 1,
+    description: 'Mitigate 1 DDoS-type Event, cancelling its penalty.',
+  },
+  {
+    id: 'action-datacenter-expansion',
+    type: CardType.Action,
+    name: 'Data Center Expansion',
+    cost: 30_000,
+    effectType: ActionEffectType.AddOvernightSlots,
+    effectValue: 2,
+    targetPeriod: Period.Overnight,
+    description: 'Add 2 bonus slots to Overnight this round.',
+  },
+];

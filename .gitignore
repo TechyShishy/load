@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.yarn/cache
+.yarn/install-state.gz
+*.tsbuildinfo
+coverage/
+.DS_Store
+android/
+ios/

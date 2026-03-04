@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --color-neon-cyan: #00f5ff;
+  --color-neon-purple: #bf5af2;
+  --color-neon-green: #30d158;
+  --color-neon-red: #ff375f;
+  --color-bg-dark: #0a0e1a;
+  --color-bg-panel: #111827;
+  --color-border: #1f2937;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg-dark);
+  color: #e5e7eb;
+  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
