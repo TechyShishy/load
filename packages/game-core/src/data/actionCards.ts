@@ -37,7 +37,7 @@ export const ACTION_CARDS: ActionCard[] = [
     cost: 25_000,
     effectType: ActionEffectType.MitigateDDoS,
     effectValue: 1,
-    description: 'Mitigate 1 DDoS-type Event, cancelling its penalty.',
+    description: 'Mitigate 1 DDoS-type Event, cancelling its financial penalty and preventing the incident ticket from being filed.',
   },
   {
     id: 'action-datacenter-expansion',

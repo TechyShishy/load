@@ -145,6 +145,16 @@ describe('processCrisis', () => {
     expect(penaltiesApplied).toBe(0);
   });
 
+  it('does not file a ticket when a DDoS IssueTicket event is mitigated', () => {
+    const ctx = makeCtx({
+      pendingEvents: [ddosEvent],
+      mitigatedEventIds: [ddosEvent.id],
+    });
+    const { context } = processCrisis(ctx);
+    const bfTrack = context.tracks.find((t) => t.track === Track.BreakFix)!;
+    expect(bfTrack.tickets).toHaveLength(0);
+  });
+
   it('clears pendingEvents after processing', () => {
     const ctx = makeCtx({ pendingEvents: [ddosEvent] });
     const { context } = processCrisis(ctx);

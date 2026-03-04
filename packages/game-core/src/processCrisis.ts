@@ -125,8 +125,10 @@ export function processCrisis(ctx: GameContext): CrisisResult {
   for (const event of ctx.pendingEvents) {
     const isMitigated = ctx.mitigatedEventIds.includes(event.id);
 
-    if (event.subtype === EventSubtype.IssueTicket && event.targetTrack) {
-      // Always issue the ticket regardless of mitigation
+    if (!isMitigated && event.subtype === EventSubtype.IssueTicket && event.targetTrack) {
+      // Only issue the ticket when the event is NOT mitigated.
+      // A mitigated IssueTicket (e.g. Security Patch on a DDoS Attack) cancels
+      // both the financial penalty and the ticket itself.
       context = {
         ...context,
         tracks: context.tracks.map((t) =>
