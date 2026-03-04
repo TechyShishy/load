@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { describe, expect, it } from 'vitest';
 import { autoFillTrafficSlots } from '../autoFillTrafficSlots.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
@@ -6,10 +5,8 @@ import { ACTION_CARDS } from '../data/actionCards.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import {
-  BANKRUPT_THRESHOLD,
   CardType,
   EventSubtype,
-  OVERLOAD_PENALTY,
   Period,
   PhaseId,
   type EventCard,
@@ -29,7 +26,6 @@ function makeBaseContext(): GameContext {
     vendorSlots: createVendorSlots(),
     pendingEvents: [],
     mitigatedEventIds: [],
-    slaProtectedCount: 0,
     activePhase: PhaseId.Scheduling,
     trafficEventDeck: [],
     trafficEventDiscard: [],
@@ -37,6 +33,7 @@ function makeBaseContext(): GameContext {
     actionDiscard: ACTION_CARDS,
     lastRoundSummary: null,
     loseReason: null,
+    seed: 'test-seed',
   };
 }
 
@@ -86,8 +83,8 @@ describe('autoFillTrafficSlots', () => {
     // AWS Outage spawns 2 Cloud Backup cards
     const { context } = autoFillTrafficSlots(ctx, [awsOutageEvent]);
     const allCards = context.timeSlots.flatMap((s) => s.cards);
-    // Should have 2 spawned cloud backup cards
-    expect(allCards.filter((c) => c.id === 'traffic-cloud-backup')).toHaveLength(2);
+    // Should have 2 spawned cloud backup cards (IDs are now UUIDs; match by name)
+    expect(allCards.filter((c) => c.name === 'Cloud Backup')).toHaveLength(2);
   });
 
   it('SpawnVendor events are ignored (noOpMVP)', () => {

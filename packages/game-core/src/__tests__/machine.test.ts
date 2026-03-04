@@ -1,8 +1,6 @@
-/// <reference types="vitest" />
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
-import { LoseReason, PhaseId } from '../types.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import type { TrafficCard } from '../types.js';
 

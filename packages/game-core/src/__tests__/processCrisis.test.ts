@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { describe, expect, it } from 'vitest';
 import { playActionCard, processCrisis } from '../processCrisis.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
@@ -6,12 +5,8 @@ import { ACTION_CARDS } from '../data/actionCards.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import {
-  ActionEffectType,
-  CardType,
   PhaseId,
   Track,
-  type ActionCard,
-  type EventCard,
   type GameContext,
 } from '../types.js';
 
@@ -29,7 +24,6 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     vendorSlots: createVendorSlots(),
     pendingEvents: [],
     mitigatedEventIds: [],
-    slaProtectedCount: 0,
     activePhase: PhaseId.Crisis,
     trafficEventDeck: [],
     trafficEventDiscard: [],
@@ -37,6 +31,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    seed: 'test-seed',
     ...overrides,
   };
 }
@@ -78,10 +73,30 @@ describe('playActionCard', () => {
     expect(bfTrack.tickets).toHaveLength(0);
   });
 
-  it('PreventSLAFail increments slaProtectedCount', () => {
+  it('RemoveTrafficCard removes the targeted traffic card from its slot', () => {
+    const trafficCard = TRAFFIC_CARDS[0]!;
+    const slotsWithCard = createInitialTimeSlots().map((s, i) =>
+      i === 0 ? { ...s, cards: [trafficCard] } : s,
+    );
+    const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
+    const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
+    expect(updated.timeSlots.flatMap((s) => s.cards)).not.toContainEqual(trafficCard);
+  });
+
+  it('RemoveTrafficCard credits the traffic card revenue to budget', () => {
+    const trafficCard = TRAFFIC_CARDS[0]!;
+    const slotsWithCard = createInitialTimeSlots().map((s, i) =>
+      i === 0 ? { ...s, cards: [trafficCard] } : s,
+    );
+    const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
+    const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
+    expect(updated.budget).toBe(500_000 - trafficPrio.cost + trafficCard.revenue);
+  });
+
+  it('RemoveTrafficCard is a no-op when no targetTrafficCardId is given', () => {
     const ctx = makeCtx({ hand: [trafficPrio] });
     const updated = playActionCard(ctx, trafficPrio);
-    expect(updated.slaProtectedCount).toBe(1);
+    expect(updated.timeSlots).toEqual(ctx.timeSlots);
   });
 
   it('BoostSlotCapacity increases slot capacityBoost for target period', () => {
@@ -133,5 +148,28 @@ describe('processCrisis', () => {
     const ctx = makeCtx({ pendingEvents: [ddosEvent] });
     const { context } = processCrisis(ctx);
     expect(context.pendingEvents).toHaveLength(0);
+  });
+
+  it('moves processed event cards into trafficEventDiscard', () => {
+    const ctx = makeCtx({
+      pendingEvents: [ddosEvent, activationEvent],
+      trafficEventDiscard: [],
+    });
+    const { context } = processCrisis(ctx);
+    expect(context.trafficEventDiscard).toHaveLength(2);
+    expect(context.trafficEventDiscard).toContainEqual(ddosEvent);
+    expect(context.trafficEventDiscard).toContainEqual(activationEvent);
+  });
+
+  it('appends to an existing trafficEventDiscard', () => {
+    const existingCard = TRAFFIC_CARDS[0]!;
+    const ctx = makeCtx({
+      pendingEvents: [ddosEvent],
+      trafficEventDiscard: [existingCard],
+    });
+    const { context } = processCrisis(ctx);
+    expect(context.trafficEventDiscard).toHaveLength(2);
+    expect(context.trafficEventDiscard).toContainEqual(existingCard);
+    expect(context.trafficEventDiscard).toContainEqual(ddosEvent);
   });
 });

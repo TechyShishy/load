@@ -1,9 +1,9 @@
-/// <reference types="vitest" />
 import { describe, expect, it } from 'vitest';
 import {
   buildActionDeck,
   buildTrafficEventDeck,
   drawN,
+  makeRng,
   reshuffleDiscard,
   shuffle,
 } from '../deck.js';
@@ -40,6 +40,12 @@ describe('buildTrafficEventDeck', () => {
     const deck = buildTrafficEventDeck();
     expect(deck.filter((c) => c.type === CardType.Event)).toHaveLength(8);
   });
+
+  it('all card IDs are unique', () => {
+    const deck = buildTrafficEventDeck();
+    const ids = deck.map((c) => c.id);
+    expect(new Set(ids).size).toBe(deck.length);
+  });
 });
 
 describe('buildActionDeck', () => {
@@ -53,15 +59,21 @@ describe('buildActionDeck', () => {
     expect(deck.every((c) => c.type === CardType.Action)).toBe(true);
   });
 
-  it('contains exactly 3 copies of each action', () => {
+  it('contains exactly 3 copies of each action (by name)', () => {
     const deck = buildActionDeck();
     const counts = new Map<string, number>();
     for (const card of deck) {
-      counts.set(card.id, (counts.get(card.id) ?? 0) + 1);
+      counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
     }
     for (const count of counts.values()) {
       expect(count).toBe(3);
     }
+  });
+
+  it('all card IDs are unique', () => {
+    const deck = buildActionDeck();
+    const ids = deck.map((c) => c.id);
+    expect(new Set(ids).size).toBe(deck.length);
   });
 });
 
@@ -98,5 +110,43 @@ describe('reshuffleDiscard', () => {
     const [newDeck, newDiscard] = reshuffleDiscard([], [1, 2, 3]);
     expect(newDeck).toHaveLength(3);
     expect(newDiscard).toEqual([]);
+  });
+});
+
+describe('makeRng / seeded shuffle', () => {
+  it('same seed produces the same shuffle order', () => {
+    const input = [1, 2, 3, 4, 5, 6, 7, 8];
+    const result1 = shuffle(input, makeRng('test-seed'));
+    const result2 = shuffle(input, makeRng('test-seed'));
+    expect(result1).toEqual(result2);
+  });
+
+  it('different seeds produce different shuffle orders', () => {
+    const input = [1, 2, 3, 4, 5, 6, 7, 8];
+    const result1 = shuffle(input, makeRng('seed-a'));
+    const result2 = shuffle(input, makeRng('seed-b'));
+    // With 8 elements (40320 permutations) the probability of collision is negligible
+    expect(result1).not.toEqual(result2);
+  });
+
+  it('seeded reshuffleDiscard is deterministic', () => {
+    const cards = [1, 2, 3, 4, 5];
+    const [deck1] = reshuffleDiscard([], cards, makeRng(42));
+    const [deck2] = reshuffleDiscard([], cards, makeRng(42));
+    expect(deck1).toEqual(deck2);
+  });
+
+  it('seeded buildTrafficEventDeck is deterministic', () => {
+    const deck1 = buildTrafficEventDeck(makeRng('game-seed'));
+    const deck2 = buildTrafficEventDeck(makeRng('game-seed'));
+    // Card IDs differ (crypto.randomUUID), but type and name order must match
+    expect(deck1.map((c) => c.type)).toEqual(deck2.map((c) => c.type));
+    expect(deck1.map((c) => c.name)).toEqual(deck2.map((c) => c.name));
+  });
+
+  it('seeded buildActionDeck is deterministic', () => {
+    const deck1 = buildActionDeck(makeRng('game-seed'));
+    const deck2 = buildActionDeck(makeRng('game-seed'));
+    expect(deck1.map((c) => c.name)).toEqual(deck2.map((c) => c.name));
   });
 });

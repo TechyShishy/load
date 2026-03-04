@@ -1,12 +1,11 @@
-/// <reference types="vitest" />
 import { describe, expect, it } from 'vitest';
 import { checkLoseCondition, checkWinCondition, resolveRound } from '../resolveRound.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import { ACTION_CARDS } from '../data/actionCards.js';
 import {
+  MAX_ROUNDS,
   MAX_SLA_FAILURES,
-  Period,
   PhaseId,
   type GameContext,
   type TrafficCard,
@@ -27,7 +26,6 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     vendorSlots: createVendorSlots(),
     pendingEvents: [],
     mitigatedEventIds: [],
-    slaProtectedCount: 0,
     activePhase: PhaseId.Resolution,
     trafficEventDeck: [],
     trafficEventDiscard: [],
@@ -35,6 +33,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    seed: 'test-seed',
     ...overrides,
   };
 }
@@ -59,20 +58,7 @@ describe('resolveRound', () => {
     expect(context.slaCount).toBe(1);
   });
 
-  it('slaProtectedCount reduces sla failures', () => {
-    const slots = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [iotCard], unavailable: true } : s,
-    );
-    const ctx = makeCtx({ timeSlots: slots, slaProtectedCount: 1 });
-    const { context } = resolveRound(ctx);
-    expect(context.slaCount).toBe(0); // failure was protected
-  });
 
-  it('slaProtectedCount does not go below zero', () => {
-    const ctx = makeCtx({ slaProtectedCount: 5 }); // no failures
-    const { context } = resolveRound(ctx);
-    expect(context.slaCount).toBe(0);
-  });
 
   it('populates lastRoundSummary', () => {
     const slots = createInitialTimeSlots().map((s, i) =>
@@ -103,18 +89,18 @@ describe('checkLoseCondition', () => {
 });
 
 describe('checkWinCondition', () => {
-  it('returns true when round > 12 and budget >= 0', () => {
-    const ctx = makeCtx({ round: 13, budget: 0 });
+  it('returns true when round >= MAX_ROUNDS and budget >= 0', () => {
+    const ctx = makeCtx({ round: MAX_ROUNDS, budget: 0 });
     expect(checkWinCondition(ctx)).toBe(true);
   });
 
-  it('returns false when round <= 12', () => {
-    const ctx = makeCtx({ round: 12, budget: 100_000 });
+  it('returns false when round < MAX_ROUNDS', () => {
+    const ctx = makeCtx({ round: MAX_ROUNDS - 1, budget: 100_000 });
     expect(checkWinCondition(ctx)).toBe(false);
   });
 
-  it('returns false when round > 12 but budget < 0', () => {
-    const ctx = makeCtx({ round: 13, budget: -1 });
+  it('returns false when round >= MAX_ROUNDS but budget < 0', () => {
+    const ctx = makeCtx({ round: MAX_ROUNDS, budget: -1 });
     expect(checkWinCondition(ctx)).toBe(false);
   });
 });
