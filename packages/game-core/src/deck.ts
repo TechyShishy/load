@@ -50,8 +50,8 @@ export function buildActionDeck(): ActionCard[] {
  * If the deck has fewer than n cards, returns all remaining.
  */
 export function drawN<T>(deck: readonly T[], n: number): [drawn: T[], remaining: T[]] {
-  const drawn = deck.slice(0, n) as T[];
-  const remaining = deck.slice(n) as T[];
+  const drawn = deck.slice(0, n);
+  const remaining = deck.slice(n);
   return [drawn, remaining];
 }
 
@@ -60,6 +60,6 @@ export function drawN<T>(deck: readonly T[], n: number): [drawn: T[], remaining:
  * Returns [newDeck, emptyDiscard].
  */
 export function reshuffleDiscard<T>(deck: readonly T[], discard: readonly T[]): [T[], T[]] {
-  if (deck.length > 0) return [deck.slice() as T[], discard.slice() as T[]];
+  if (deck.length > 0) return [deck.slice(), discard.slice()];
   return [shuffle(discard), []];
 }

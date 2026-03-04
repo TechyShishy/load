@@ -1,5 +1,4 @@
 import React from 'react';
-import { PhaseId } from '@load/game-core';
 
 const PHASES: { id: string; label: string }[] = [
   { id: 'draw', label: 'Draw' },

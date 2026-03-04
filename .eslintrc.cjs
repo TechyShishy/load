@@ -4,7 +4,7 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
-    project: ['./packages/*/tsconfig.json'],
+    project: ['./packages/*/tsconfig.json', './packages/*/tsconfig.node.json'],
   },
   plugins: ['@typescript-eslint', 'react', 'react-hooks'],
   extends: [
@@ -17,6 +17,7 @@ module.exports = {
   settings: {
     react: { version: 'detect' },
   },
+  ignorePatterns: ['**/dist/**', 'packages/web/e2e/**'],
   rules: {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'react/react-in-jsx-scope': 'off',
