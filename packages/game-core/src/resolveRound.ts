@@ -1,4 +1,4 @@
-import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, type GameContext, type RoundSummary } from './types.js';
+import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, OVERLOAD_PENALTY, type GameContext, type RoundSummary } from './types.js';
 
 export interface ResolutionResult {
   context: GameContext;
@@ -42,7 +42,7 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
     newSlaCount,
     resolvedCount,
     failedCount,
-    overloadPenalties: 0, // populated by the machine from fill phase
+    overloadPenalties: ctx.pendingOverloadCount * OVERLOAD_PENALTY,
   };
 
   const context: GameContext = {
@@ -50,6 +50,7 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
     budget: updatedBudget,
     slaCount: newSlaCount,
     mitigatedEventIds: [],
+    pendingOverloadCount: 0,
     lastRoundSummary: summary,
   };
 

@@ -36,6 +36,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    pendingOverloadCount: 0,
     seed: crypto.randomUUID(),
   };
 }
@@ -87,8 +88,8 @@ export const gameMachine = setup({
       };
 
       // Auto-fill slots immediately after draw
-      const { context: filled } = autoFillTrafficSlots(baseCtx, drawn);
-      return { ...filled, activePhase: PhaseId.Scheduling };
+      const { context: filled, overloadCount } = autoFillTrafficSlots(baseCtx, drawn);
+      return { ...filled, pendingOverloadCount: overloadCount, activePhase: PhaseId.Scheduling };
     }),
 
     performExecution: assign(({ context }) => ({

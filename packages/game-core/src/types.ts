@@ -153,6 +153,10 @@ export interface GameContext {
   lastRoundSummary: RoundSummary | null;
   /** Cause of game loss */
   loseReason: LoseReason | null;
+  /** Number of overload events that occurred during the most recent fill phase.
+   * Set by performDraw, consumed by resolveRound to populate RoundSummary.overloadPenalties,
+   * then reset to 0. */
+  pendingOverloadCount: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
 }

@@ -33,6 +33,7 @@ function makeBaseContext(): GameContext {
     actionDiscard: ACTION_CARDS,
     lastRoundSummary: null,
     loseReason: null,
+    pendingOverloadCount: 0,
     seed: 'test-seed',
   };
 }

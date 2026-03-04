@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
+import { createInitialTimeSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
-import type { TrafficCard } from '../types.js';
+import { DRAW_COUNT, OVERLOAD_PENALTY, type TrafficCard } from '../types.js';
 
 /** Build a deterministic safeContext where the deck has only traffic cards (no events),
  * so a round will always complete without game-over from bad draws. */
@@ -102,5 +103,40 @@ describe('gameMachine win/lose conditions', () => {
     actor.send({ type: 'ADVANCE' }); // scheduling → execution (transient) → crisis
     actor.send({ type: 'ADVANCE' }); // crisis → resolution → always → gameWon
     expect(actor.getSnapshot().value).toBe('gameWon');
+  });
+});
+
+describe('gameMachine overload penalties', () => {
+  /** Build a context whose time slots all have baseCapacity 0 so every drawn
+   * traffic card triggers an overload. resetSlotsForRound preserves baseCapacity,
+   * so the zero-capacity survives into performDraw. */
+  function zeroCapacityContext() {
+    const zeroSlots = createInitialTimeSlots().map((s) => ({ ...s, baseCapacity: 0 }));
+    return { ...safeContext(), timeSlots: zeroSlots };
+  }
+
+  it('records overloadPenalties in lastRoundSummary after a round with overloads', () => {
+    const actor = createActor(gameMachine, { input: zeroCapacityContext() });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+    actor.send({ type: 'ADVANCE' }); // → crisis
+    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw (next scheduling)
+    const summary = actor.getSnapshot().context.lastRoundSummary;
+    expect(summary).not.toBeNull();
+    // All DRAW_COUNT traffic cards overflow zero-capacity slots → each costs OVERLOAD_PENALTY
+    expect(summary!.overloadPenalties).toBe(DRAW_COUNT * OVERLOAD_PENALTY);
+  });
+
+  it('reflects updated overloadPenalties in the second round', () => {
+    // After round 1 completes, a second draw+resolve cycle should again populate overloadPenalties.
+    const actor = createActor(gameMachine, { input: zeroCapacityContext() });
+    actor.start();
+    actor.send({ type: 'ADVANCE' }); // round 1 → crisis
+    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw → scheduling (round 2)
+    actor.send({ type: 'ADVANCE' }); // round 2 → crisis
+    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw → scheduling (round 3)
+    const summary = actor.getSnapshot().context.lastRoundSummary;
+    expect(summary).not.toBeNull();
+    expect(summary!.overloadPenalties).toBe(DRAW_COUNT * OVERLOAD_PENALTY);
   });
 });

@@ -6,6 +6,7 @@ import { ACTION_CARDS } from '../data/actionCards.js';
 import {
   MAX_ROUNDS,
   MAX_SLA_FAILURES,
+  OVERLOAD_PENALTY,
   PhaseId,
   type GameContext,
   type TrafficCard,
@@ -33,6 +34,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    pendingOverloadCount: 0,
     seed: 'test-seed',
     ...overrides,
   };
@@ -59,6 +61,13 @@ describe('resolveRound', () => {
   });
 
 
+
+  it('sets overloadPenalties from pendingOverloadCount and resets it to 0', () => {
+    const ctx = makeCtx({ pendingOverloadCount: 2 });
+    const { summary, context: resolved } = resolveRound(ctx);
+    expect(summary.overloadPenalties).toBe(2 * OVERLOAD_PENALTY);
+    expect(resolved.pendingOverloadCount).toBe(0);
+  });
 
   it('populates lastRoundSummary', () => {
     const slots = createInitialTimeSlots().map((s, i) =>

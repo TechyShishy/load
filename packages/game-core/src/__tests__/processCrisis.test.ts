@@ -31,6 +31,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
+    pendingOverloadCount: 0,
     seed: 'test-seed',
     ...overrides,
   };
