@@ -1,16 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useMachine } from '@xstate/react';
 import { gameMachine } from '@load/game-core';
-import { clearSave, loadGame, saveGame } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
+import { clearSave, loadGame, saveGame } from '../save.js';
 import { AudioManager } from '../audio/AudioManager.js';
 
-/**
- * Central game hook. Wraps the XState machine and wires audio + auto-save.
- */
-export function useGame() {
-  const savedContext = loadGame();
+// Load saved context once at module level (useMachine only reads input on mount)
+const savedContext = loadGame();
 
+export function useGame() {
   const [snapshot, send] = useMachine(gameMachine, {
     input: savedContext ?? undefined,
   });
@@ -18,14 +16,15 @@ export function useGame() {
   const context = snapshot.context;
   const phase = snapshot.value as string;
 
+  useEffect(() => {
+    if (phase === 'scheduling' || phase === 'crisis') {
+      saveGame(snapshot.context);
+    }
+  }, [snapshot, phase]);
+
   const advance = useCallback(() => {
     send({ type: 'ADVANCE' });
-    // Auto-save after End phase transition (detected by round increment)
-    const newSnap = snapshot; // captured before re-render
-    if (newSnap.context.activePhase === 'End') {
-      saveGame(newSnap.context);
-    }
-  }, [send, snapshot]);
+  }, [send]);
 
   const playAction = useCallback(
     (card: ActionCard, targetEventId?: string) => {
@@ -57,5 +56,6 @@ export function useGame() {
     reset,
     isWon: phase === 'gameWon',
     isLost: phase === 'gameLost',
+    hasSave: savedContext !== null,
   };
 }

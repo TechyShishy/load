@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useGame } from './hooks/useGame.js';
-import { loadGame, saveGame, ActionEffectType } from '@load/game-core';
+import { ActionEffectType } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { GameCanvas } from './components/canvas/GameCanvas.js';
 import { BudgetBar } from './components/hud/BudgetBar.js';
@@ -11,17 +11,10 @@ import { WinScreen, LoseScreen } from './components/overlays/EndScreens.js';
 import { ContinueModal } from './components/overlays/ContinueModal.js';
 
 export function App() {
-  const { context, phase, advance, playAction, reset, isWon, isLost } = useGame();
-  const [showContinue, setShowContinue] = useState(() => loadGame() !== null);
+  const { context, phase, advance, playAction, reset, isWon, isLost, hasSave } = useGame();
+  const [showContinue, setShowContinue] = useState(() => hasSave);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-save after End phase
-  useEffect(() => {
-    if (phase === 'end') {
-      saveGame(context);
-    }
-  }, [phase, context]);
 
   const handleContinue = useCallback(() => {
     setShowContinue(false);
@@ -39,7 +32,6 @@ export function App() {
   const handlePlayCard = useCallback(
     (card: ActionCard) => {
       playAction(card);
-      // Compose a brief confirmation of what the card actually did.
       const messages: Record<string, string> = {
         [ActionEffectType.ClearTicket]: `Cleared 1 ticket from ${card.targetTrack ?? 'track'} track.`,
         [ActionEffectType.PreventSLAFail]: `Protecting ${card.effectValue} traffic card(s) from SLA failure.`,
@@ -60,7 +52,6 @@ export function App() {
 
   return (
     <div className="relative flex flex-col w-full h-full overflow-hidden">
-      {/* Top HUD bar */}
       <div className="flex items-center gap-4 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0 flex-wrap">
         <div className="text-cyan-400 font-mono font-bold text-sm tracking-widest">LOAD</div>
         <BudgetBar budget={context.budget} />
@@ -68,13 +59,9 @@ export function App() {
         <div className="flex-1" />
         <PhaseIndicator currentPhase={phase} round={context.round} />
       </div>
-
-      {/* Main canvas area */}
       <div className="flex-1 relative overflow-hidden">
         <GameCanvas context={context} phase={phase} />
       </div>
-
-      {/* Bottom HUD: hand + advance button */}
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
         <div className="flex-1 overflow-x-auto min-w-0">
           {actionFeedback && (
@@ -102,8 +89,6 @@ export function App() {
           ADVANCE →
         </button>
       </div>
-
-      {/* Overlays */}
       {showContinue && !isWon && !isLost && (
         <ContinueModal onContinue={handleContinue} onNewGame={handleNewGame} />
       )}
