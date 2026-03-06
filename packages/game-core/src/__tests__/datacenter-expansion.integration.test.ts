@@ -28,7 +28,6 @@ function makeWeeklySlot(period: Period, index: number): TimeSlot {
     index,
     baseCapacity: SLOT_BASE_CAPACITY,
     cards: [],
-    unavailable: false,
     weeklyTemporary: true,
   };
 }

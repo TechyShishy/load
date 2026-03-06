@@ -37,8 +37,6 @@ export enum LoseReason {
 
 export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'board';
 
-export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'board';
-
 // ─── Card Definitions ─────────────────────────────────────────────────────────
 
 /**
@@ -91,8 +89,8 @@ export abstract class ActionCard {
   abstract readonly allowedOnWeekend: boolean;
   abstract readonly validDropZones: readonly DropZoneTarget[];
   abstract readonly invalidZoneFeedback: string;
-  readonly periodZoneVariant?: 'add' | 'remove';
   readonly crisisOnly?: boolean;
+  readonly periodZoneVariant?: 'add' | 'remove';
   /** When set, this card may only be played against events whose templateId is in this list. */
   readonly validForEventTemplateIds?: readonly string[];
   readonly type = CardType.Action as const;
@@ -138,7 +136,6 @@ export interface SerializedGameContext {
   actionDiscard: SerializedCard[];
   lastRoundSummary: RoundSummary | null;
   loseReason: LoseReason | null;
-  pendingOverloadCount: number;
   pendingRevenue: number;
   seed: string;
 }
@@ -150,12 +147,15 @@ export interface TimeSlot {
   readonly index: number;
   readonly baseCapacity: number;
   cards: TrafficCard[];
-  /** True if this slot is unavailable due to Overload downtime */
-  unavailable: boolean;
   /** True if this slot was added temporarily by a BoostSlotCapacity action card; stripped at every round reset */
   readonly temporary?: boolean;
   /** True if this slot was added by an AddPeriodSlots (Data Center Expansion) card; stripped on Monday */
   readonly weeklyTemporary?: boolean;
+  /** True if this slot was created because a period was full when a traffic card arrived.
+   * Overload slots are swept at the end of Resolution, adding their cards to trafficDiscard
+   * and incrementing slaCount by 1 per slot. Can be converted to a normal slot by
+   * Bandwidth Upgrade or Data Center Expansion. */
+  readonly overloaded?: boolean;
 }
 
 export interface TrackSlot {
@@ -168,6 +168,7 @@ export interface VendorSlot {
   readonly index: number;
   card: null; // Vendor cards excluded from MVP
 }
+
 
 // ─── Game Context ─────────────────────────────────────────────────────────────
 
@@ -204,10 +205,6 @@ export interface GameContext {
   lastRoundSummary: RoundSummary | null;
   /** Cause of game loss */
   loseReason: LoseReason | null;
-  /** Number of overload events that occurred during the most recent fill phase.
-   * Set by performDraw, consumed by resolveRound to populate RoundSummary.overloadPenalties,
-   * then reset to 0. */
-  pendingOverloadCount: number;
   /** Revenue collected by traffic card removals during the current round.
    * Set by playActionCard (RemoveTrafficCard), consumed by resolveRound to populate
    * RoundSummary.budgetDelta, then reset to 0. */
@@ -222,7 +219,6 @@ export interface RoundSummary {
   newSlaCount: number;
   resolvedCount: number;
   failedCount: number;
-  overloadPenalties: number;
   /** Number of traffic cards placed on the board from SpawnTraffic events this round */
   spawnedTrafficCount: number;
 }
@@ -233,7 +229,6 @@ export const BANKRUPT_THRESHOLD = -100_000;
 export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
 export const SLOT_BASE_CAPACITY = 1;
-export const OVERLOAD_PENALTY = 25_000;
 export const WEEKDAY_TRAFFIC_DRAW = 5;
 export const WEEKDAY_EVENT_DRAW = 1;
 export const WEEKEND_TRAFFIC_DRAW = 1;

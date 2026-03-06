@@ -23,15 +23,39 @@ export class DataCenterExpansionCard extends ActionCard {
   ): GameContext {
     let context = commit();
     const resolvedPeriod = targetPeriod ?? Period.Overnight;
-    const existingCount = context.timeSlots.filter((s) => s.period === resolvedPeriod).length;
-    const newSlots: TimeSlot[] = Array.from({ length: 2 }, (_, i) => ({
+
+    // Convert overload slots in the target period first (up to 2),
+    // then add any remaining new empty weekly-temporary slots.
+    const overloadSlotsInPeriod = context.timeSlots.filter(
+      (s) => s.period === resolvedPeriod && s.overloaded === true,
+    );
+    const slotsToConvert = Math.min(overloadSlotsInPeriod.length, 2);
+    const slotsToAdd = 2 - slotsToConvert;
+
+    let convertedCount = 0;
+    const updatedTimeSlots = context.timeSlots.map((s): TimeSlot => {
+      if (s.period === resolvedPeriod && s.overloaded === true && convertedCount < slotsToConvert) {
+        convertedCount++;
+        return {
+          period: s.period,
+          index: s.index,
+          baseCapacity: s.baseCapacity,
+          cards: s.cards,
+          weeklyTemporary: true,
+        };
+      }
+      return s;
+    });
+
+    const newSlotBase = updatedTimeSlots.filter((s) => s.period === resolvedPeriod).length;
+    const newSlots: TimeSlot[] = Array.from({ length: slotsToAdd }, (_, i) => ({
       period: resolvedPeriod,
-      index: existingCount + i,
+      index: newSlotBase + i,
       baseCapacity: SLOT_BASE_CAPACITY,
       cards: [],
-      unavailable: false,
-      weeklyTemporary: true,
+      weeklyTemporary: true as const,
     }));
-    return { ...context, timeSlots: [...context.timeSlots, ...newSlots] };
+
+    return { ...context, timeSlots: [...updatedTimeSlots, ...newSlots] };
   }
 }

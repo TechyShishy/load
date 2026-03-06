@@ -1,29 +1,30 @@
-import { OVERLOAD_PENALTY, Period, type GameContext, type TrafficCard } from './types.js';
+import { Period, SLOT_BASE_CAPACITY, type GameContext, type TrafficCard } from './types.js';
 import { getAvailableSlots } from './boardState.js';
-import type { Rng } from './deck.js';
 
 export interface FillResult {
   context: GameContext;
-  overloadCount: number;
 }
 
 /**
  * Auto-fill time slots with Traffic cards.
- * Each card is assigned to a randomly-selected period (uniform across all four).
- * It then fills the first available slot in that period only.
- * If no slot is available in the chosen period it triggers Overload immediately:
- *   - Deduct OVERLOAD_PENALTY from budget
- *   - Mark 1 slot in the next period (wrapping) as unavailable
+ * Each card is assigned to a period via round-robin cycling through
+ * Morning → Afternoon → Evening → Overnight → Morning → …
+ * It then fills the first available slot in that period.
+ * If no slot is available in the chosen period, an overload slot is created:
+ *   - A new TimeSlot with `overloaded: true` is appended to `timeSlots`
+ *   - The traffic card is placed inside it
+ *   - At Resolution, overload slots are swept: each costs 1 SLA failure and
+ *     their cards go to trafficDiscard
  */
-export function autoFillTrafficSlots(ctx: GameContext, drawn: TrafficCard[], rng: Rng): FillResult {
+export function autoFillTrafficSlots(ctx: GameContext, drawn: TrafficCard[]): FillResult {
   let context = { ...ctx, timeSlots: ctx.timeSlots.map((s) => ({ ...s })) };
-  let overloadCount = 0;
 
   const periodOrder = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
-  for (const trafficCard of drawn) {
-    // Pick a random period for this card
-    const periodIndex = Math.floor(rng() * periodOrder.length);
+  for (let i = 0; i < drawn.length; i++) {
+    const trafficCard = drawn[i]!;
+    // Assign period via round-robin
+    const periodIndex = i % periodOrder.length;
     const targetPeriod = periodOrder[periodIndex]!;
 
     const availableSlots = getAvailableSlots(context.timeSlots, targetPeriod);
@@ -39,29 +40,22 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: TrafficCard[], rng
         ),
       };
     } else {
-      // Chosen period is full — Overload
-      overloadCount++;
+      // Chosen period is full — create an overload slot to hold the traffic card.
+      // This slot will be swept at Resolution (1 SLA failure per slot).
+      const overloadIndex = context.timeSlots.filter((s) => s.period === targetPeriod).length;
+      const overloadSlot = {
+        period: targetPeriod,
+        index: overloadIndex,
+        baseCapacity: SLOT_BASE_CAPACITY,
+        cards: [trafficCard],
+        overloaded: true as const,
+      };
       context = {
         ...context,
-        budget: context.budget - OVERLOAD_PENALTY,
+        timeSlots: [...context.timeSlots, overloadSlot],
       };
-      // Mark the first available slot in the next period as unavailable
-      const overflowPeriod = periodOrder[(periodIndex + 1) % periodOrder.length]!;
-      const slotToDisable = context.timeSlots.find(
-        (s) => s.period === overflowPeriod && !s.unavailable
-      );
-      if (slotToDisable) {
-        context = {
-          ...context,
-          timeSlots: context.timeSlots.map((s) =>
-            s.period === slotToDisable.period && s.index === slotToDisable.index
-              ? { ...s, unavailable: true }
-              : s
-          ),
-        };
-      }
     }
   }
 
-  return { context, overloadCount };
+  return { context };
 }

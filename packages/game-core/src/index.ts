@@ -14,7 +14,6 @@ export {
   MAX_SLA_FAILURES,
   HAND_SIZE,
   SLOT_BASE_CAPACITY,
-  OVERLOAD_PENALTY,
   WEEKDAY_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW,
   WEEKEND_TRAFFIC_DRAW,
@@ -28,9 +27,9 @@ export {
   getWeekNumber,
   isWeekend,
   isFriday,
-  DropZoneTarget,
 } from './types.js';
 export type {
+  DropZoneTarget,
   Card,
   TimeSlot,
   TrackSlot,
@@ -40,7 +39,6 @@ export type {
   SerializedCard,
   SerializedGameContext,
   StorageAdapter,
-  DropZoneTarget,
 } from './types.js';
 
 // ── Persistence schema (for save/load validation) ─────────────────────────────

@@ -22,17 +22,25 @@ export class TrafficPrioritizationCard extends ActionCard {
     let context = commit();
     if (targetTrafficCardId) {
       let collectedRevenue = 0;
+      let removedCard: (typeof context.trafficDiscard)[number] | undefined;
       context = {
         ...context,
-        timeSlots: context.timeSlots.map((slot) => {
-          const cardToRemove = slot.cards.find((c) => c.id === targetTrafficCardId);
-          if (cardToRemove) {
-            collectedRevenue += cardToRemove.revenue;
-            return { ...slot, cards: slot.cards.filter((c) => c.id !== targetTrafficCardId) };
-          }
-          return slot;
-        }),
+        timeSlots: context.timeSlots
+          .map((slot) => {
+            const cardToRemove = slot.cards.find((c) => c.id === targetTrafficCardId);
+            if (cardToRemove) {
+              collectedRevenue += cardToRemove.revenue;
+              removedCard = cardToRemove;
+              return { ...slot, cards: slot.cards.filter((c) => c.id !== targetTrafficCardId) };
+            }
+            return slot;
+          })
+          // If the traffic card was the last card in an overload slot, remove that slot entirely.
+          .filter((slot) => !(slot.overloaded === true && slot.cards.length === 0)),
       };
+      if (removedCard !== undefined) {
+        context = { ...context, trafficDiscard: [...context.trafficDiscard, removedCard] };
+      }
       if (collectedRevenue > 0) {
         context = {
           ...context,

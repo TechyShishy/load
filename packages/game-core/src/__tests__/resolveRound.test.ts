@@ -6,7 +6,6 @@ import { ACTION_CARDS } from '../data/actions/index.js';
 import {
   MAX_ROUNDS,
   MAX_SLA_FAILURES,
-  OVERLOAD_PENALTY,
   PhaseId,
   type GameContext,
   type TrafficCard,
@@ -37,7 +36,6 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
-    pendingOverloadCount: 0,
     pendingRevenue: 0,
     seed: 'test-seed',
     ...overrides,
@@ -52,14 +50,16 @@ describe('resolveRound', () => {
     expect(summary.budgetDelta).toBe(iotCard.revenue);
   });
 
-  it('does not award revenue for cards in unavailable slots, increments SLA', () => {
+  it('resolvedCount captures all slot cards; failedCount and slaCount reflect slot-card resolution', () => {
     const slots = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [iotCard], unavailable: true } : s,
+      i === 0 ? { ...s, cards: [iotCard] } : s,
     );
     const ctx = makeCtx({ timeSlots: slots });
-    const { context } = resolveRound(ctx);
-    expect(context.budget).toBe(500_000); // no revenue
-    expect(context.slaCount).toBe(1);
+    const { context, summary } = resolveRound(ctx);
+    expect(context.budget).toBe(500_000);
+    expect(summary.resolvedCount).toBe(1);
+    expect(summary.failedCount).toBe(0);
+    expect(context.slaCount).toBe(0);
   });
 
   it('resets pendingRevenue to 0 after resolution', () => {
@@ -68,11 +68,21 @@ describe('resolveRound', () => {
     expect(context.pendingRevenue).toBe(0);
   });
 
-  it('sets overloadPenalties from pendingOverloadCount and resets it to 0', () => {
-    const ctx = makeCtx({ pendingOverloadCount: 2 });
+  it('overload slots are swept: each adds 1 SLA failure and cards go to trafficDiscard', () => {
+    const initialSlots = createInitialTimeSlots();
+    const ol1 = { ...initialSlots[0]!, index: 100, overloaded: true as const, cards: [iotCard] };
+    const ol2 = { ...initialSlots[1]!, index: 101, overloaded: true as const, cards: [cloudCard] };
+    const ctx = makeCtx({ timeSlots: [...initialSlots, ol1, ol2], trafficDiscard: [] });
     const { summary, context: resolved } = resolveRound(ctx);
-    expect(summary.overloadPenalties).toBe(2 * OVERLOAD_PENALTY);
-    expect(resolved.pendingOverloadCount).toBe(0);
+    // 2 overload slots → 2 SLA failures, no budget deduction
+    expect(summary.failedCount).toBe(2);
+    expect(resolved.slaCount).toBe(2);
+    expect(resolved.budget).toBe(500_000);
+    // Overload slot cards go to trafficDiscard
+    expect(resolved.trafficDiscard).toContainEqual(iotCard);
+    expect(resolved.trafficDiscard).toContainEqual(cloudCard);
+    // Overload slots removed from timeSlots
+    expect(resolved.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
   });
 
   it('populates lastRoundSummary', () => {

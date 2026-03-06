@@ -27,9 +27,9 @@ export const SerializedTimeSlotSchema = z.object({
   index: z.number(),
   baseCapacity: z.number(),
   cards: z.array(SerializedCardSchema),
-  unavailable: z.boolean(),
   temporary: z.boolean().optional(),
   weeklyTemporary: z.boolean().optional(),
+  overloaded: z.boolean().optional(),
 });
 
 export const SerializedTrackSlotSchema = z.object({
@@ -48,7 +48,6 @@ export const RoundSummarySchema = z.object({
   newSlaCount: z.number(),
   resolvedCount: z.number(),
   failedCount: z.number(),
-  overloadPenalties: z.number(),
   spawnedTrafficCount: z.number(),
 });
 
@@ -75,7 +74,6 @@ export const GameContextSchema = z.object({
   actionDiscard: z.array(SerializedCardSchema),
   lastRoundSummary: RoundSummarySchema.nullable(),
   loseReason: LoseReasonSchema.nullable(),
-  pendingOverloadCount: z.number(),
   pendingRevenue: z.number(),
   seed: z.string(),
 });

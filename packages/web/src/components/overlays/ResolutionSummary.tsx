@@ -39,15 +39,13 @@ export function ResolutionSummary({ summary }: ResolutionSummaryProps) {
           </div>
         </div>
         <div>
-          <div className="text-gray-500">Overloads</div>
+          <div className="text-gray-500">SLA</div>
           <div
             className={
-              summary.overloadPenalties > 0 ? 'text-orange-400 font-bold' : 'text-gray-400'
+              summary.newSlaCount > 0 ? 'text-orange-400 font-bold' : 'text-gray-400'
             }
           >
-            {summary.overloadPenalties > 0
-              ? `-$${summary.overloadPenalties.toLocaleString()}`
-              : '—'}
+            {summary.newSlaCount > 0 ? `+${summary.newSlaCount}` : '—'}
           </div>
         </div>
       </div>

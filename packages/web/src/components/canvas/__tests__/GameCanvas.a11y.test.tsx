@@ -99,7 +99,6 @@ function makeTimeSlots(overrides: Partial<TimeSlot>[] = []): TimeSlot[] {
         index: i,
         baseCapacity: 1,
         cards: [],
-        unavailable: false,
         ...override,
       });
     }
@@ -137,7 +136,6 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
-    pendingOverloadCount: 0,
     pendingRevenue: 0,
     seed: 'test-seed',
     ...overrides,
@@ -173,16 +171,6 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     expect(text).toContain('Morning slot 1: empty, capacity 1');
   });
 
-  it('describes an unavailable slot', () => {
-    const ctx = makeCtx({
-      timeSlots: makeTimeSlots([
-        { period: Period.Afternoon, index: 1, unavailable: true } as Partial<TimeSlot>,
-      ]),
-    });
-    const { container } = render(<GameCanvas context={ctx} phase="scheduling" />);
-    const text = getLiveRegion(container).textContent ?? '';
-    expect(text).toContain('Afternoon slot 2: unavailable');
-  });
 
   it('lists card names when a slot has cards', () => {
     const slots = makeTimeSlots();
@@ -205,7 +193,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
       <GameCanvas context={makeCtx({ timeSlots: slots })} phase="scheduling" />,
     );
     const text = getLiveRegion(container).textContent ?? '';
-    expect(text).toMatch(/Evening slot 1: 1 of 1 cards.*WebSurge/);
+    expect(text).toMatch(/Evening slot 1 \(slot\): 1 of 1 cards — WebSurge/);
   });
 
   it('reports "no open tickets" for empty tracks', () => {
@@ -274,22 +262,4 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     expect(liveRegion.textContent).not.toContain('Morning slot 1: empty');
   });
 
-  it('updates the summary when a slot becomes unavailable', async () => {
-    const slotsWithDowntime = makeTimeSlots([
-      { period: Period.Morning, index: 0, unavailable: true } as Partial<TimeSlot>,
-    ]);
-    const ctx1 = makeCtx();
-    const ctx2 = makeCtx({ timeSlots: slotsWithDowntime });
-
-    const { container, rerender } = render(<GameCanvas context={ctx1} phase="scheduling" />);
-    const liveRegion = getLiveRegion(container);
-
-    expect(liveRegion.textContent).not.toContain('unavailable');
-
-    await act(async () => {
-      rerender(<GameCanvas context={ctx2} phase="scheduling" />);
-    });
-
-    expect(liveRegion.textContent).toContain('Morning slot 1: unavailable');
-  });
 });

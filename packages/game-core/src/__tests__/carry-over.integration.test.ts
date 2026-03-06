@@ -75,17 +75,4 @@ describe('integration: traffic cards carry over across round boundary', () => {
 
     expect(discardAfter).toBe(discardBefore);
   });
-
-  it('unavailable flag is cleared on carry-over slots at round start', () => {
-    const actor = createActor(gameMachine, { input: safeContext() });
-    actor.start();
-
-    advanceRound(actor);
-
-    const snap = actor.getSnapshot();
-    expect(snap.value).toBe('scheduling');
-    expect(
-      snap.context.timeSlots.every((s) => !s.unavailable),
-    ).toBe(true);
-  });
 });

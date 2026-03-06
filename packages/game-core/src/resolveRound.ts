@@ -1,4 +1,4 @@
-import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, OVERLOAD_PENALTY, type GameContext, type RoundSummary } from './types.js';
+import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, type GameContext, type RoundSummary } from './types.js';
 
 export interface ResolutionResult {
   context: GameContext;
@@ -7,50 +7,45 @@ export interface ResolutionResult {
 
 /**
  * Resolve the Execution + Resolution phases:
- * 1. Count resolved and unresolved Traffic cards across all time slots.
- * 2. Award revenue for resolved cards.
- * 3. Increment slaCount for unresolved cards.
- * 4. Return a RoundSummary.
+ * 1. Sweep overload slots: each costs 1 SLA failure; cards go to trafficDiscard.
+ * 2. Count remaining resolved Traffic cards across all normal time slots.
+ * 3. Return a RoundSummary.
  */
 export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): ResolutionResult {
-  let resolvedCount = 0;
-  let failedCount = 0;
-
-  for (const slot of ctx.timeSlots) {
-    // A card is "resolved" if the slot is not unavailable (tracked for SLA and summary)
-    if (!slot.unavailable) {
-      resolvedCount += slot.cards.length;
-    } else {
-      failedCount += slot.cards.length;
-    }
-  }
-
+  // Sweep overload slots — each one is 1 SLA failure; cards discarded without revenue.
+  const overloadedSlots = ctx.timeSlots.filter((s) => s.overloaded);
+  const failedCount = overloadedSlots.length;
   const newSlaCount = ctx.slaCount + failedCount;
+  const cardsFromOverload = overloadedSlots.flatMap((s) => s.cards);
+  const timeSlots = ctx.timeSlots.filter((s) => !s.overloaded);
+  const trafficDiscard = [...ctx.trafficDiscard, ...cardsFromOverload];
+
+  // Count cards remaining in normal slots (carry-over mechanic).
+  let resolvedCount = 0;
+  for (const slot of timeSlots) {
+    resolvedCount += slot.cards.length;
+  }
 
   // Revenue was collected during the round when traffic cards were removed from the board
   // (see processCrisis.ts RemoveTrafficCard). pendingRevenue accumulates those amounts;
   // budget was already updated at that point, so we only report it here and reset.
   const budgetDelta = ctx.pendingRevenue;
-  const updatedBudget = ctx.budget;
 
-  // Overload penalties were already deducted during fill phase; track them separately if needed.
-  // Here we just compute the round summary delta from revenue alone.
   const summary: RoundSummary = {
     round: ctx.round,
     budgetDelta,
     newSlaCount,
     resolvedCount,
     failedCount,
-    overloadPenalties: ctx.pendingOverloadCount * OVERLOAD_PENALTY,
     spawnedTrafficCount,
   };
 
   const context: GameContext = {
     ...ctx,
-    budget: updatedBudget,
+    timeSlots,
+    trafficDiscard,
     slaCount: newSlaCount,
     mitigatedEventIds: [],
-    pendingOverloadCount: 0,
     pendingRevenue: 0,
     lastRoundSummary: summary,
   };

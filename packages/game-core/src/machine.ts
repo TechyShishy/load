@@ -41,7 +41,6 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
-    pendingOverloadCount: 0,
     pendingRevenue: 0,
     seed: crypto.randomUUID(),
   };
@@ -72,22 +71,6 @@ export const gameMachine = setup({
       if (!isWeekend(context.round)) return true;
       if (event.type !== 'PLAY_ACTION') return false;
       return event.card.allowedOnWeekend;
-    },
-    isNotCrisisOnly: ({ event }) => {
-      if (event.type !== 'PLAY_ACTION') return true;
-      return event.card.crisisOnly !== true;
-    },
-    isActionValidForCrisisTarget: ({ context, event }) => {
-      if (event.type !== 'PLAY_ACTION') return true;
-      const { validForEventTemplateIds } = event.card;
-      if (!validForEventTemplateIds || validForEventTemplateIds.length === 0) return true;
-      const targetId =
-        event.targetEventId ??
-        context.pendingEvents.find((e) => !context.mitigatedEventIds.includes(e.id))?.id;
-      if (!targetId) return false;
-      const targetEvent = context.pendingEvents.find((e) => e.id === targetId);
-      if (!targetEvent) return false;
-      return (validForEventTemplateIds as readonly string[]).includes(targetEvent.templateId);
     },
     isNotCrisisOnly: ({ event }) => {
       if (event.type !== 'PLAY_ACTION') return true;
@@ -136,10 +119,10 @@ export const gameMachine = setup({
         activePhase: PhaseId.Scheduling,
       };
 
-      // Auto-fill slots with a fresh sub-rng so placement is deterministic
-      const fillRng = makeRng(context.seed + '-fill-' + context.round);
-      const { context: filled, overloadCount } = autoFillTrafficSlots(baseCtx, drawn, fillRng);
-      return { ...filled, pendingOverloadCount: overloadCount, activePhase: PhaseId.Scheduling };
+      // Auto-fill slots using round-robin period assignment
+      const { context: filled } = autoFillTrafficSlots(baseCtx, drawn);
+
+      return { ...filled, activePhase: PhaseId.Scheduling };
     }),
 
     performExecution: assign(({ context }) => ({
@@ -174,19 +157,15 @@ export const gameMachine = setup({
     performResolution: assign(({ context }) => {
       // Place any SpawnTraffic-spawned cards onto the board so they are visible this round
       let resolveCtx = context;
-      let spawnOverloadCount = 0;
       if (context.spawnedTrafficQueue.length > 0) {
-        const spawnRng = makeRng(context.seed + '-spawn-' + context.round);
-        const { context: spawned, overloadCount } = autoFillTrafficSlots(
+        const { context: spawned } = autoFillTrafficSlots(
           context,
           context.spawnedTrafficQueue,
-          spawnRng,
         );
         resolveCtx = { ...spawned, spawnedTrafficQueue: [] };
-        spawnOverloadCount = overloadCount;
       }
       const { context: resolved, summary } = resolveRound(
-        { ...resolveCtx, pendingOverloadCount: resolveCtx.pendingOverloadCount + spawnOverloadCount },
+        resolveCtx,
         context.spawnedTrafficQueue.length,
       );
       return {

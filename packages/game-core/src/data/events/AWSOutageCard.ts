@@ -1,5 +1,4 @@
 import { EventCard, type GameContext } from '../../types.js';
-import { applyDowntime } from './helpers.js';
 import { CloudBackupCard } from '../traffic/CloudBackupCard.js';
 
 export class AWSOutageCard extends EventCard {
@@ -16,12 +15,11 @@ export class AWSOutageCard extends EventCard {
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
     const spawned = Array.from({ length: 2 }, () => new CloudBackupCard(crypto.randomUUID()));
-    let context: GameContext = {
+    const context: GameContext = {
       ...ctx,
       spawnedTrafficQueue: [...ctx.spawnedTrafficQueue, ...spawned],
+      budget: ctx.budget - 75_000,
     };
-    context = { ...context, budget: context.budget - 75_000 };
-    context = applyDowntime(context, 2);
     return context;
   }
 }

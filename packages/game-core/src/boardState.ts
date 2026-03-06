@@ -19,7 +19,6 @@ export function createInitialTimeSlots(): TimeSlot[] {
         index: i,
         baseCapacity: SLOT_BASE_CAPACITY,
         cards: [],
-        unavailable: false,
       });
     }
   }
@@ -37,10 +36,10 @@ export function createVendorSlots(): VendorSlot[] {
 }
 
 /**
- * Get all slots for a given period, filtering out unavailable slots.
+ * Get all slots for a given period.
  */
 export function getAvailableSlots(slots: TimeSlot[], period: Period): TimeSlot[] {
-  return slots.filter((s) => s.period === period && !s.unavailable);
+  return slots.filter((s) => s.period === period);
 }
 
 /**
@@ -49,12 +48,7 @@ export function getAvailableSlots(slots: TimeSlot[], period: Period): TimeSlot[]
  * permanent slots have their availability restored and cards preserved (carry-over).
  */
 export function resetSlotsForRound(slots: TimeSlot[]): TimeSlot[] {
-  return slots
-    .filter((s) => !s.temporary)
-    .map((s) => ({
-      ...s,
-      unavailable: false,
-    }));
+  return slots.filter((s) => !s.temporary);
 }
 
 /**

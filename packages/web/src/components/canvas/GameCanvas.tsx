@@ -38,6 +38,11 @@ const PERIOD_ACCENT: Record<Period, number> = {
   [Period.Overnight]: 0x005577,
 };
 
+/** Fill colour for overload slots (period-full traffic card was placed here). */
+const OVERLOAD_SLOT_COLOR = 0x3a0000;
+/** Stroke accent for overload slots. */
+const OVERLOAD_SLOT_ACCENT = 0xff4444;
+
 const TRACK_COLORS: Record<string, number> = {
   BreakFix: 0xff375f,
   Projects: 0x30d158,
@@ -93,6 +98,18 @@ interface SlotRefs {
   period: Period;
 }
 
+function repaintSlotBackground(refs: SlotRefs, slot: TimeSlot): void {
+  refs.bg.clear();
+  refs.bg.roundRect(refs.slotX, refs.slotY, SLOT_W, SLOT_H, 4);
+  if (slot.overloaded) {
+    refs.bg.fill({ color: OVERLOAD_SLOT_COLOR, alpha: 0.9 });
+    refs.bg.stroke({ color: OVERLOAD_SLOT_ACCENT, width: 1, alpha: 0.8 });
+  } else {
+    refs.bg.fill({ color: PERIOD_COLORS[refs.period], alpha: 0.9 });
+    refs.bg.stroke({ color: PERIOD_ACCENT[refs.period], width: 1, alpha: 0.4 });
+  }
+}
+
 interface TrackRefs {
   ticketContainer: Container;
   emptyText: Text;
@@ -146,15 +163,16 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
       const slotX = periodX + PERIOD_PADDING;
       const slotY = BOARD_START_Y + 24 + si * (SLOT_H + SLOT_GAP);
 
-      // Slot background — reactive to `unavailable`.
+      // Slot background.
       const bg = new Graphics();
       bg.roundRect(slotX, slotY, SLOT_W, SLOT_H, 4);
-      bg.fill({ color: slot.unavailable ? 0x3a0000 : PERIOD_COLORS[period], alpha: 0.9 });
-      bg.stroke({
-        color: slot.unavailable ? 0xff375f : PERIOD_ACCENT[period],
-        width: 1,
-        alpha: 0.4,
-      });
+      if (slot.overloaded) {
+        bg.fill({ color: OVERLOAD_SLOT_COLOR, alpha: 0.9 });
+        bg.stroke({ color: OVERLOAD_SLOT_ACCENT, width: 1, alpha: 0.8 });
+      } else {
+        bg.fill({ color: PERIOD_COLORS[period], alpha: 0.9 });
+        bg.stroke({ color: PERIOD_ACCENT[period], width: 1, alpha: 0.4 });
+      }
       board.addChild(bg);
 
       // Slot index label — fully static (e.g., "M1").
@@ -261,19 +279,9 @@ function paintTrackTickets(
 
 // ── Patch functions (called on context change) ────────────────────────────────
 function patchSlot(refs: SlotRefs, oldSlot: TimeSlot, newSlot: TimeSlot): void {
-  // Repaint background only when availability changes.
-  if (oldSlot.unavailable !== newSlot.unavailable) {
-    refs.bg.clear();
-    refs.bg.roundRect(refs.slotX, refs.slotY, SLOT_W, SLOT_H, 4);
-    refs.bg.fill({
-      color: newSlot.unavailable ? 0x3a0000 : PERIOD_COLORS[refs.period],
-      alpha: 0.9,
-    });
-    refs.bg.stroke({
-      color: newSlot.unavailable ? 0xff375f : PERIOD_ACCENT[refs.period],
-      width: 1,
-      alpha: 0.4,
-    });
+  // Repaint background when overloaded flag changes (e.g. BU/DCE converts the slot).
+  if (oldSlot.overloaded !== newSlot.overloaded) {
+    repaintSlotBackground(refs, newSlot);
   }
 
   // Rebuild card chips only when the cards array has changed.
@@ -317,7 +325,7 @@ function patchBoard(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext)
     for (let si = 0; si < newPeriodSlots.length; si++) {
       const oldSlot = oldPeriodSlots[si];
       const newSlot = newPeriodSlots[si];
-      if (!oldSlot || !newSlot || oldSlot === newSlot) continue;
+      if (!oldSlot || !newSlot || (oldSlot === newSlot && oldSlot.overloaded === newSlot.overloaded)) continue;
       const slotRefs = refs.slots.get(`${period}-${si}`);
       if (slotRefs) patchSlot(slotRefs, oldSlot, newSlot);
     }
@@ -346,15 +354,12 @@ function buildBoardSummary(ctx: GameContext): string {
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i]!;
       const label = `${period} slot ${i + 1}`;
-      if (slot.unavailable) {
-        parts.push(`${label}: unavailable`);
+      if (slot.cards.length === 0) {
+        parts.push(`${label}: empty, capacity ${slot.baseCapacity}`);
       } else {
-        if (slot.cards.length === 0) {
-          parts.push(`${label}: empty, capacity ${slot.baseCapacity}`);
-        } else {
-          const names = slot.cards.map((c) => c.name).join(', ');
-          parts.push(`${label}: ${slot.cards.length} of ${slot.baseCapacity} cards — ${names}`);
-        }
+        const names = slot.cards.map((c) => c.name).join(', ');
+        const slotType = slot.overloaded ? 'overload slot' : 'slot';
+        parts.push(`${label} (${slotType}): ${slot.cards.length} of ${slot.baseCapacity} cards — ${names}`);
       }
     }
   }

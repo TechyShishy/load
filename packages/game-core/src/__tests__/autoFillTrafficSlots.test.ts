@@ -10,11 +10,6 @@ import {
   type TrafficCard,
 } from '../types.js';
 
-/** rng that always returns 0.0 → always picks Morning (index 0) */
-const alwaysMorning = () => 0;
-/** rng that always returns 0.5 → always picks Evening (index 2 = floor(0.5 * 4)) */
-const alwaysEvening = () => 0.5;
-
 function makeBaseContext(): GameContext {
   return {
     budget: 500_000,
@@ -37,7 +32,6 @@ function makeBaseContext(): GameContext {
     actionDiscard: ACTION_CARDS,
     lastRoundSummary: null,
     loseReason: null,
-    pendingOverloadCount: 0,
     pendingRevenue: 0,
     seed: 'test-seed',
   };
@@ -45,10 +39,21 @@ function makeBaseContext(): GameContext {
 
 const iotCard: TrafficCard = TRAFFIC_CARDS.find((c) => c.id === 'traffic-iot-burst')!;
 
+/** Returns a context where all 4 Morning slots are pre-filled with iotCard. */
+function makeFullMorningContext(): GameContext {
+  const ctx = makeBaseContext();
+  return {
+    ...ctx,
+    timeSlots: ctx.timeSlots.map((s) =>
+      s.period === Period.Morning ? { ...s, cards: [iotCard] } : s,
+    ),
+  };
+}
+
 describe('autoFillTrafficSlots', () => {
-  it('places a single traffic card in the period chosen by rng', () => {
+  it('places first card in Morning (round-robin index 0)', () => {
     const ctx = makeBaseContext();
-    const { context } = autoFillTrafficSlots(ctx, [iotCard], alwaysMorning);
+    const { context } = autoFillTrafficSlots(ctx, [iotCard]);
     const morningSlotsWithCards = context.timeSlots.filter(
       (s) => s.period === Period.Morning && s.cards.length > 0,
     );
@@ -60,52 +65,71 @@ describe('autoFillTrafficSlots', () => {
     expect(otherCards).toHaveLength(0);
   });
 
-  it('places card in Evening when rng returns 0.5', () => {
+  it('cycles Morning → Afternoon → Evening → Overnight → Morning (round-robin)', () => {
     const ctx = makeBaseContext();
-    const { context } = autoFillTrafficSlots(ctx, [iotCard], alwaysEvening);
-    const eveningSlotsWithCards = context.timeSlots.filter(
-      (s) => s.period === Period.Evening && s.cards.length > 0,
-    );
-    expect(eveningSlotsWithCards.length).toBe(1);
+    // card[0]→Morning, card[1]→Afternoon, card[2]→Evening, card[3]→Overnight, card[4]→Morning
+    const cards: TrafficCard[] = Array.from({ length: 5 }, () => iotCard);
+    const { context } = autoFillTrafficSlots(ctx, cards);
+    expect(
+      context.timeSlots.filter((s) => s.period === Period.Morning && s.cards.length > 0),
+    ).toHaveLength(2);
+    expect(
+      context.timeSlots.filter((s) => s.period === Period.Afternoon && s.cards.length > 0),
+    ).toHaveLength(1);
+    expect(
+      context.timeSlots.filter((s) => s.period === Period.Evening && s.cards.length > 0),
+    ).toHaveLength(1);
+    expect(
+      context.timeSlots.filter((s) => s.period === Period.Overnight && s.cards.length > 0),
+    ).toHaveLength(1);
   });
 
-  it('fills up to capacity without overload', () => {
+  it('fills all 16 slots to capacity without overload', () => {
     const ctx = makeBaseContext();
-    // 4 cards all directed to Morning (4 slots × capacity 1 = fits all)
-    const cards: TrafficCard[] = Array.from({ length: 4 }, () => iotCard);
-    const { overloadCount, context } = autoFillTrafficSlots(ctx, cards, alwaysMorning);
-    expect(overloadCount).toBe(0);
+    // 4 periods × 4 slots each = 16 total capacity; round-robin fills one per period per cycle
+    const cards: TrafficCard[] = Array.from({ length: 16 }, () => iotCard);
+    const { context } = autoFillTrafficSlots(ctx, cards);
     expect(context.budget).toBe(500_000);
-    const morningCards = context.timeSlots
-      .filter((s) => s.period === Period.Morning)
+    expect(context.timeSlots.flatMap((s) => s.cards)).toHaveLength(16);
+    // No overload slots created
+    expect(context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
+  });
+
+  it('creates an overload slot when target period is full', () => {
+    // Pre-fill all Morning slots; card[0] round-robins to Morning → full → overload
+    const ctx = makeFullMorningContext();
+    const { context } = autoFillTrafficSlots(ctx, [iotCard]);
+    // Budget must not be affected — no monetary penalty
+    expect(context.budget).toBe(500_000);
+    const overloadSlots = context.timeSlots.filter((s) => s.overloaded === true);
+    expect(overloadSlots).toHaveLength(1);
+    expect(overloadSlots[0]!.period).toBe(Period.Morning);
+    expect(overloadSlots[0]!.cards).toHaveLength(1);
+  });
+
+  it('overload slot holds the card — does not drop it', () => {
+    // Pre-fill Morning (4 slots), send 1 card → 1 overload slot containing the card
+    const ctx = makeFullMorningContext();
+    const { context } = autoFillTrafficSlots(ctx, [iotCard]);
+    const morningNormalCards = context.timeSlots
+      .filter((s) => s.period === Period.Morning && !s.overloaded)
       .flatMap((s) => s.cards);
-    expect(morningCards).toHaveLength(4);
+    expect(morningNormalCards).toHaveLength(4);
+    const overloadCards = context.timeSlots
+      .filter((s) => s.period === Period.Morning && s.overloaded)
+      .flatMap((s) => s.cards);
+    expect(overloadCards).toHaveLength(1);
+    // Other periods untouched
+    const otherCards = context.timeSlots
+      .filter((s) => s.period !== Period.Morning)
+      .flatMap((s) => s.cards);
+    expect(otherCards).toHaveLength(0);
   });
 
-  it('triggers Overload when target period is full', () => {
+  it('returns empty drawn array without changes', () => {
     const ctx = makeBaseContext();
-    // Morning has 4 slots. Send 5 cards to Morning → 1 overload.
-    const cards: TrafficCard[] = Array.from({ length: 5 }, () => iotCard);
-    const { overloadCount, context } = autoFillTrafficSlots(ctx, cards, alwaysMorning);
-    expect(overloadCount).toBe(1);
-    expect(context.budget).toBe(500_000 - 25_000);
-  });
-
-  it('overload disables a slot in the next period (Afternoon when Morning overflows)', () => {
-    const ctx = makeBaseContext();
-    // Fill Morning (4 slots) and send 1 more → overflow to Afternoon
-    const cards: TrafficCard[] = Array.from({ length: 5 }, () => iotCard);
-    const { context } = autoFillTrafficSlots(ctx, cards, alwaysMorning);
-    const disabledAfternoon = context.timeSlots.filter(
-      (s) => s.period === Period.Afternoon && s.unavailable,
-    );
-    expect(disabledAfternoon.length).toBeGreaterThan(0);
-  });
-
-  it('returns overloadCount 0 for empty drawn array', () => {
-    const ctx = makeBaseContext();
-    const { overloadCount, context } = autoFillTrafficSlots(ctx, [], alwaysMorning);
-    expect(overloadCount).toBe(0);
+    const { context } = autoFillTrafficSlots(ctx, []);
     expect(context.timeSlots.flatMap((s) => s.cards)).toHaveLength(0);
+    expect(context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
   });
 });

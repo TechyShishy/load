@@ -1,5 +1,5 @@
 import { EventCard, Track, type GameContext } from '../../types.js';
-import { applyDowntime, issueTicket } from './helpers.js';
+import { issueTicket } from './helpers.js';
 
 export class FiveGActivationCard extends EventCard {
   readonly templateId = 'event-5g-activation';
@@ -16,7 +16,6 @@ export class FiveGActivationCard extends EventCard {
     if (mitigated) return ctx;
     let context = issueTicket(ctx, Track.Projects, this);
     context = { ...context, budget: context.budget - 25_000 };
-    context = applyDowntime(context, 1);
     return context;
   }
 }

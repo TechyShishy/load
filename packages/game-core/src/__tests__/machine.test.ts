@@ -4,7 +4,7 @@ import { createInitialContext, gameMachine } from '../machine.js';
 import { createInitialTimeSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
-import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, OVERLOAD_PENALTY, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
+import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
 import { EmergencyMaintenanceCard } from '../data/actions/index.js';
 import { AWSOutageCard, DDoSAttackCard, FiveGActivationCard } from '../data/events/index.js';
@@ -127,39 +127,39 @@ describe('gameMachine win/lose conditions', () => {
   });
 });
 
-describe('gameMachine overload penalties', () => {
+describe('gameMachine overload slots', () => {
   /** Build a context whose time slots all have baseCapacity 0 so every drawn
-   * traffic card triggers an overload. resetSlotsForRound preserves baseCapacity,
-   * so the zero-capacity survives into performDraw. */
+   * traffic card triggers an overload slot creation. */
   function zeroCapacityContext() {
     const zeroSlots = createInitialTimeSlots().map((s) => ({ ...s, baseCapacity: 0 }));
     return { ...safeContext(), timeSlots: zeroSlots };
   }
 
-  it('records overloadPenalties in lastRoundSummary after a round with overloads', () => {
+  it('overload slots appear on the board when a period is full', () => {
     const actor = createActor(gameMachine, { input: zeroCapacityContext() });
     actor.start();
     expect(actor.getSnapshot().value).toBe('scheduling');
-    actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution (stable)
-    const summary = actor.getSnapshot().context.lastRoundSummary;
-    expect(summary).not.toBeNull();
-    // All WEEKDAY_TRAFFIC_DRAW traffic cards overflow zero-capacity slots → each costs OVERLOAD_PENALTY
-    expect(summary!.overloadPenalties).toBe(WEEKDAY_TRAFFIC_DRAW * OVERLOAD_PENALTY);
+    // With baseCapacity 0, all drawn cards become overload slots
+    const overloadSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.overloaded);
+    expect(overloadSlots.length).toBe(WEEKDAY_TRAFFIC_DRAW);
+    // No budget penalty
+    expect(actor.getSnapshot().context.budget).toBe(500_000);
   });
 
-  it('reflects updated overloadPenalties in the second round', () => {
-    // After round 1 completes, a second draw+resolve cycle should again populate overloadPenalties.
+  it('overload slots are swept at resolution, incrementing slaCount', () => {
     const actor = createActor(gameMachine, { input: zeroCapacityContext() });
     actor.start();
-    actor.send({ type: 'ADVANCE' }); // round 1 → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution (stable)
-    actor.send({ type: 'ADVANCE' }); // → end → draw → scheduling (round 2)
-    actor.send({ type: 'ADVANCE' }); // round 2 → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution (stable)
-    const summary = actor.getSnapshot().context.lastRoundSummary;
+    actor.send({ type: 'ADVANCE' }); // → crisis
+    actor.send({ type: 'ADVANCE' }); // → resolution → gameLost (5 SLA ≥ MAX=3)
+    const snap = actor.getSnapshot();
+    // Resolution sweeps overload slots, slaCount exceeds limit → gameLost
+    expect(snap.value).toBe('gameLost');
+    const summary = snap.context.lastRoundSummary!;
     expect(summary).not.toBeNull();
-    expect(summary!.overloadPenalties).toBe(WEEKDAY_TRAFFIC_DRAW * OVERLOAD_PENALTY);
+    // Each overload slot = 1 SLA failure
+    expect(summary.failedCount).toBe(WEEKDAY_TRAFFIC_DRAW);
+    // No budget penalty
+    expect(snap.context.budget).toBe(500_000);
   });
 });
 

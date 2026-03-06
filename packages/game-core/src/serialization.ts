@@ -54,9 +54,9 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
       period: slot.period,
       index: slot.index,
       baseCapacity: slot.baseCapacity,
-      unavailable: slot.unavailable,
       ...(slot.temporary !== undefined && { temporary: slot.temporary }),
       ...(slot.weeklyTemporary !== undefined && { weeklyTemporary: slot.weeklyTemporary }),
+      ...(slot.overloaded !== undefined && { overloaded: slot.overloaded }),
       cards: slot.cards.map(dehydrateCard),
     })),
     tracks: ctx.tracks.map((t) => ({
@@ -76,7 +76,6 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
     actionDiscard: ctx.actionDiscard.map(dehydrateCard),
     lastRoundSummary: ctx.lastRoundSummary,
     loseReason: ctx.loseReason,
-    pendingOverloadCount: ctx.pendingOverloadCount,
     pendingRevenue: ctx.pendingRevenue,
     seed: ctx.seed,
   };
@@ -114,9 +113,9 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
       period: slot.period,
       index: slot.index,
       baseCapacity: slot.baseCapacity,
-      unavailable: slot.unavailable,
       ...(slot.temporary !== undefined && { temporary: slot.temporary }),
       ...(slot.weeklyTemporary !== undefined && { weeklyTemporary: slot.weeklyTemporary }),
+      ...(slot.overloaded !== undefined && { overloaded: slot.overloaded }),
       cards,
     });
   }
@@ -150,7 +149,6 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     actionDiscard,
     lastRoundSummary: raw.lastRoundSummary,
     loseReason: raw.loseReason,
-    pendingOverloadCount: raw.pendingOverloadCount,
     pendingRevenue: raw.pendingRevenue,
     seed: raw.seed,
   };

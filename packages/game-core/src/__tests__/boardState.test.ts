@@ -59,14 +59,6 @@ describe('getAvailableSlots', () => {
     const morning = getAvailableSlots(slots, Period.Morning);
     expect(morning.every((s) => s.period === Period.Morning)).toBe(true);
   });
-
-  it('excludes unavailable slots', () => {
-    const slots = createInitialTimeSlots().map((s, i) =>
-      s.period === Period.Morning && i === 0 ? { ...s, unavailable: true } : s,
-    );
-    const available = getAvailableSlots(slots, Period.Morning);
-    expect(available.every((s) => !s.unavailable)).toBe(true);
-  });
 });
 
 describe('resetSlotsForRound', () => {
@@ -92,12 +84,6 @@ describe('resetSlotsForRound', () => {
     const reset = resetSlotsForRound(withTemporary);
     expect(reset.every((s) => !s.temporary)).toBe(true);
     expect(reset.length).toBe(base.length);
-  });
-
-  it('marks all slots available', () => {
-    const slots = createInitialTimeSlots().map((s) => ({ ...s, unavailable: true }));
-    const reset = resetSlotsForRound(slots);
-    expect(reset.every((s) => !s.unavailable)).toBe(true);
   });
 });
 
