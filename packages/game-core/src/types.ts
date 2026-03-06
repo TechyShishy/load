@@ -206,7 +206,7 @@ export const PERIOD_SLOT_COUNTS: Record<Period, number> = {
   [Period.Morning]: 4,
   [Period.Afternoon]: 4,
   [Period.Evening]: 4,
-  [Period.Overnight]: 8,
+  [Period.Overnight]: 4,
 };
 
 // ─── Calendar Helpers ─────────────────────────────────────────────────────────

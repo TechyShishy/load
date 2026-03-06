@@ -8,8 +8,8 @@ export const PERIOD_PADDING = 16;
 export const CARD_PADDING = 4;
 export const BOARD_START_Y = 40;
 
-/** Y-offset of the first track row. Derived from the tallest period column (Overnight, 8 slots). */
-export const TRACKS_Y_OFFSET = BOARD_START_Y + 24 + 8 * (SLOT_H + SLOT_GAP) + 20;
+/** Y-offset of the first track row. Derived from the tallest period column (4 slots). */
+export const TRACKS_Y_OFFSET = BOARD_START_Y + 24 + 4 * (SLOT_H + SLOT_GAP) + 20;
 
 /** Visual height of a single track row background rect. */
 export const TRACK_H = 28;

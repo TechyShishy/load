@@ -10,8 +10,8 @@ import {
 import { Period, SLOT_BASE_CAPACITY, Track } from '../types.js';
 
 describe('createInitialTimeSlots', () => {
-  it('creates 20 total slots (4+4+4+8)', () => {
-    expect(createInitialTimeSlots()).toHaveLength(20);
+  it('creates 16 total slots (4+4+4+4)', () => {
+    expect(createInitialTimeSlots()).toHaveLength(16);
   });
 
   it('all slots start with empty cards array', () => {
@@ -24,9 +24,9 @@ describe('createInitialTimeSlots', () => {
     expect(slots.every((s) => s.baseCapacity === SLOT_BASE_CAPACITY)).toBe(true);
   });
 
-  it('overnight period has 8 slots', () => {
+  it('overnight period has 4 slots', () => {
     const slots = createInitialTimeSlots();
-    expect(slots.filter((s) => s.period === Period.Overnight)).toHaveLength(8);
+    expect(slots.filter((s) => s.period === Period.Overnight)).toHaveLength(4);
   });
 });
 
