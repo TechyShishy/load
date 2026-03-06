@@ -107,7 +107,7 @@ jobs:
         run: yarn workspace @load/web build
 
       - name: Sync Capacitor Android
-        run: cd packages/mobile && npx cap sync android
+        run: yarn workspace @load/mobile exec cap sync android
 
       - name: Make gradlew executable
         run: chmod +x packages/mobile/android/gradlew
@@ -150,3 +150,65 @@ jobs:
           files: artifacts/**/*
           prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
           generate_release_notes: true
+
+  publish-itchio:
+    needs: [build-web, build-electron]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-zip
+          path: artifacts/web-zip
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-linux
+          path: artifacts/electron-linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-windows
+          path: artifacts/electron-windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-macos
+          path: artifacts/electron-macos
+
+      - name: Install butler
+        run: |
+          curl -L -o butler.zip https://github.com/itchio/butler/releases/latest/download/butler-linux-amd64.zip
+          unzip butler.zip
+          chmod +x linux-amd64/butler
+          sudo mv linux-amd64/butler /usr/local/bin/butler
+          butler -V
+
+      - name: Resolve platform artifact paths
+        run: |
+          echo "LINUX_PKG=$(find artifacts/electron-linux -name '*.AppImage' | head -1)" >> "$GITHUB_ENV"
+          echo "WINDOWS_PKG=$(find artifacts/electron-windows -name '*.exe' | head -1)" >> "$GITHUB_ENV"
+          echo "MACOS_PKG=$(find artifacts/electron-macos -name '*.dmg' | head -1)" >> "$GITHUB_ENV"
+
+      - name: Push HTML5 build to itch.io
+        run: butler push "artifacts/web-zip/load-web-${{ github.ref_name }}.zip" techyshishy/load:html5 --userversion "${{ github.ref_name }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+
+      - name: Push Linux build to itch.io
+        run: butler push "${{ env.LINUX_PKG }}" techyshishy/load:linux --userversion "${{ github.ref_name }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+
+      - name: Push Windows build to itch.io
+        run: butler push "${{ env.WINDOWS_PKG }}" techyshishy/load:windows --userversion "${{ github.ref_name }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+
+      - name: Push macOS build to itch.io
+        run: butler push "${{ env.MACOS_PKG }}" techyshishy/load:osx --userversion "${{ github.ref_name }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}

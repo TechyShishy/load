@@ -964,7 +964,7 @@ __metadata:
   resolution: "@load/electron@workspace:packages/electron"
   dependencies:
     "@types/node": "npm:^20.0.0"
-    electron: "npm:^30.0.0"
+    electron: "npm:30.5.1"
     electron-builder: "npm:^24.9.0"
   languageName: unknown
   linkType: soft
@@ -3223,7 +3223,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:^30.0.0":
+"electron@npm:30.5.1":
   version: 30.5.1
   resolution: "electron@npm:30.5.1"
   dependencies:
@@ -5278,7 +5278,7 @@ __metadata:
     eslint-plugin-react: "npm:^7.34.0"
     eslint-plugin-react-hooks: "npm:^4.6.0"
     prettier: "npm:^3.2.0"
-    typescript: "npm:^5.4.0"
+    typescript: "npm:^5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -7537,7 +7537,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.3.3, typescript@npm:^5.4.0, typescript@npm:^5.9.3":
+"typescript@npm:^5.3.3, typescript@npm:^5.9.3":
   version: 5.9.3
   resolution: "typescript@npm:5.9.3"
   bin:
@@ -7547,7 +7547,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.4.0#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.9.3#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.9.3#optional!builtin<compat/typescript>":
   version: 5.9.3
   resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5adc0c"
   bin:

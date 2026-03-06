@@ -30,7 +30,9 @@ android {
             storeFile file(System.getenv("ANDROID_KEYSTORE_FILE") ?: "/dev/null")
             storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
             keyAlias System.getenv("ANDROID_KEY_ALIAS")
-            keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            // PKCS12 keystores use the same password for the store and each key entry.
+            keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            storeType "PKCS12"
         }
     }
     buildTypes {
