@@ -79,9 +79,9 @@ describe('buildEventDeck', () => {
 });
 
 describe('buildActionDeck', () => {
-  it('contains 18 cards total', () => {
+  it('contains 21 cards total', () => {
     const deck = buildActionDeck();
-    expect(deck).toHaveLength(18);
+    expect(deck).toHaveLength(21);
   });
 
   it('all cards are Action type', () => {
