@@ -12,6 +12,8 @@ import { PhaseIndicator } from './components/hud/PhaseIndicator.js';
 import { HandZone, ActionCardPreview } from './components/hud/HandZone.js';
 import { WinScreen, LoseScreen } from './components/overlays/EndScreens.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
+import { EventModal } from './components/overlays/EventModal.js';
+import { ResolutionSummary } from './components/overlays/ResolutionSummary.js';
 import { ErrorBoundary } from 'react-error-boundary';
 import { SoftErrorFallback } from './components/overlays/ErrorFallbacks.js';
 
@@ -141,7 +143,7 @@ export function App() {
     [playAction, context.timeSlots, showFeedback],
   );
 
-  const canAdvance = phase === 'scheduling' || phase === 'crisis';
+  const canAdvance = phase === 'scheduling' || phase === 'crisis' || phase === 'resolution';
   const canPlayCard = phase === 'scheduling' || phase === 'crisis';
 
   return (
@@ -195,6 +197,17 @@ export function App() {
           onSettings={() => {}}
           onQuit={handleQuit}
         />
+      )}
+      {phase === 'crisis' && context.pendingEvents.length > 0 && (
+        <EventModal
+          event={context.pendingEvents[0]!}
+          hand={context.hand}
+          onMitigate={(card) => playAction(card)}
+          onAdvance={advance}
+        />
+      )}
+      {phase === 'resolution' && context.lastRoundSummary !== null && (
+        <ResolutionSummary summary={context.lastRoundSummary} />
       )}
       {isWon && <WinScreen context={context} onPlayAgain={handlePlayAgain} />}
       {isLost && <LoseScreen context={context} onPlayAgain={handlePlayAgain} />}

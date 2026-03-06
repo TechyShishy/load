@@ -26,8 +26,11 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     pendingEvents: [],
     mitigatedEventIds: [],
     activePhase: PhaseId.Crisis,
-    trafficEventDeck: [],
-    trafficEventDiscard: [],
+    trafficDeck: [],
+    trafficDiscard: [],
+    eventDeck: [],
+    eventDiscard: [],
+    spawnedTrafficQueue: [],
     actionDeck: ACTION_CARDS,
     actionDiscard: [],
     lastRoundSummary: null,
@@ -205,26 +208,26 @@ describe('processCrisis', () => {
     expect(context.pendingEvents).toHaveLength(0);
   });
 
-  it('moves processed event cards into trafficEventDiscard', () => {
+  it('moves processed event cards into eventDiscard', () => {
     const ctx = makeCtx({
       pendingEvents: [ddosEvent, activationEvent],
-      trafficEventDiscard: [],
+      eventDiscard: [],
     });
     const { context } = processCrisis(ctx);
-    expect(context.trafficEventDiscard).toHaveLength(2);
-    expect(context.trafficEventDiscard).toContainEqual(ddosEvent);
-    expect(context.trafficEventDiscard).toContainEqual(activationEvent);
+    expect(context.eventDiscard).toHaveLength(2);
+    expect(context.eventDiscard).toContainEqual(ddosEvent);
+    expect(context.eventDiscard).toContainEqual(activationEvent);
   });
 
-  it('appends to an existing trafficEventDiscard', () => {
-    const existingCard = TRAFFIC_CARDS[0]!;
+  it('appends to an existing eventDiscard', () => {
+    const existingCard = EVENT_CARDS[0]!;
     const ctx = makeCtx({
       pendingEvents: [ddosEvent],
-      trafficEventDiscard: [existingCard],
+      eventDiscard: [existingCard],
     });
     const { context } = processCrisis(ctx);
-    expect(context.trafficEventDiscard).toHaveLength(2);
-    expect(context.trafficEventDiscard).toContainEqual(existingCard);
-    expect(context.trafficEventDiscard).toContainEqual(ddosEvent);
+    expect(context.eventDiscard).toHaveLength(2);
+    expect(context.eventDiscard).toContainEqual(existingCard);
+    expect(context.eventDiscard).toContainEqual(ddosEvent);
   });
 });

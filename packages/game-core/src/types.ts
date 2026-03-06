@@ -147,8 +147,12 @@ export interface GameContext {
   /** Current phase */
   activePhase: PhaseId;
   /** Decks */
-  trafficEventDeck: Array<TrafficCard | EventCard>;
-  trafficEventDiscard: Array<TrafficCard | EventCard>;
+  trafficDeck: TrafficCard[];
+  trafficDiscard: TrafficCard[];
+  eventDeck: EventCard[];
+  eventDiscard: EventCard[];
+  /** Traffic cards queued by SpawnTraffic events during crisis; placed on the board in resolution */
+  spawnedTrafficQueue: TrafficCard[];
   actionDeck: ActionCard[];
   actionDiscard: ActionCard[];
   /** Round summary populated during Resolution phase */
@@ -170,6 +174,8 @@ export interface RoundSummary {
   resolvedCount: number;
   failedCount: number;
   overloadPenalties: number;
+  /** Number of traffic cards placed on the board from SpawnTraffic events this round */
+  spawnedTrafficCount: number;
 }
 
 export const STARTING_BUDGET = 500_000;
@@ -179,7 +185,7 @@ export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
 export const SLOT_BASE_CAPACITY = 1;
 export const OVERLOAD_PENALTY = 25_000;
-export const DRAW_COUNT = 5;
+export const TRAFFIC_DRAW_COUNT = 5;
 export const PERIOD_SLOT_COUNTS: Record<Period, number> = {
   [Period.Morning]: 4,
   [Period.Afternoon]: 4,

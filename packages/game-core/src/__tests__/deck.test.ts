@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildActionDeck,
-  buildTrafficEventDeck,
+  buildEventDeck,
+  buildTrafficDeck,
   drawN,
   makeRng,
   reshuffleDiscard,
@@ -25,37 +26,54 @@ describe('shuffle', () => {
   });
 });
 
-describe('buildTrafficEventDeck', () => {
-  it('contains 24 cards total', () => {
-    const deck = buildTrafficEventDeck();
-    expect(deck).toHaveLength(24);
-  });
-
+describe('buildTrafficDeck', () => {
   it('contains 16 Traffic cards', () => {
-    const deck = buildTrafficEventDeck();
-    expect(deck.filter((c) => c.type === CardType.Traffic)).toHaveLength(16);
-  });
-
-  it('contains 8 Event cards', () => {
-    const deck = buildTrafficEventDeck();
-    expect(deck.filter((c) => c.type === CardType.Event)).toHaveLength(8);
+    const deck = buildTrafficDeck();
+    expect(deck).toHaveLength(16);
+    expect(deck.every((c) => c.type === CardType.Traffic)).toBe(true);
   });
 
   it('all card IDs are unique', () => {
-    const deck = buildTrafficEventDeck();
+    const deck = buildTrafficDeck();
     const ids = deck.map((c) => c.id);
     expect(new Set(ids).size).toBe(deck.length);
   });
 
   it('produces identical card IDs when given the same seed', () => {
-    const deck1 = buildTrafficEventDeck(makeRng('test-seed'));
-    const deck2 = buildTrafficEventDeck(makeRng('test-seed'));
+    const deck1 = buildTrafficDeck(makeRng('test-seed'));
+    const deck2 = buildTrafficDeck(makeRng('test-seed'));
     expect(deck1.map((c) => c.id)).toEqual(deck2.map((c) => c.id));
   });
 
   it('produces different card IDs when given different seeds', () => {
-    const deck1 = buildTrafficEventDeck(makeRng('seed-a'));
-    const deck2 = buildTrafficEventDeck(makeRng('seed-b'));
+    const deck1 = buildTrafficDeck(makeRng('seed-a'));
+    const deck2 = buildTrafficDeck(makeRng('seed-b'));
+    expect(deck1.map((c) => c.id)).not.toEqual(deck2.map((c) => c.id));
+  });
+});
+
+describe('buildEventDeck', () => {
+  it('contains 8 Event cards', () => {
+    const deck = buildEventDeck();
+    expect(deck).toHaveLength(8);
+    expect(deck.every((c) => c.type === CardType.Event)).toBe(true);
+  });
+
+  it('all card IDs are unique', () => {
+    const deck = buildEventDeck();
+    const ids = deck.map((c) => c.id);
+    expect(new Set(ids).size).toBe(deck.length);
+  });
+
+  it('produces identical card IDs when given the same seed', () => {
+    const deck1 = buildEventDeck(makeRng('test-seed'));
+    const deck2 = buildEventDeck(makeRng('test-seed'));
+    expect(deck1.map((c) => c.id)).toEqual(deck2.map((c) => c.id));
+  });
+
+  it('produces different card IDs when given different seeds', () => {
+    const deck1 = buildEventDeck(makeRng('seed-a'));
+    const deck2 = buildEventDeck(makeRng('seed-b'));
     expect(deck1.map((c) => c.id)).not.toEqual(deck2.map((c) => c.id));
   });
 });
@@ -163,10 +181,16 @@ describe('makeRng / seeded shuffle', () => {
     expect(deck1).toEqual(deck2);
   });
 
-  it('seeded buildTrafficEventDeck is deterministic', () => {
-    const deck1 = buildTrafficEventDeck(makeRng('game-seed'));
-    const deck2 = buildTrafficEventDeck(makeRng('game-seed'));
-    // Card IDs differ (crypto.randomUUID), but type and name order must match
+  it('seeded buildTrafficDeck is deterministic', () => {
+    const deck1 = buildTrafficDeck(makeRng('game-seed'));
+    const deck2 = buildTrafficDeck(makeRng('game-seed'));
+    expect(deck1.map((c) => c.type)).toEqual(deck2.map((c) => c.type));
+    expect(deck1.map((c) => c.name)).toEqual(deck2.map((c) => c.name));
+  });
+
+  it('seeded buildEventDeck is deterministic', () => {
+    const deck1 = buildEventDeck(makeRng('game-seed'));
+    const deck2 = buildEventDeck(makeRng('game-seed'));
     expect(deck1.map((c) => c.type)).toEqual(deck2.map((c) => c.type));
     expect(deck1.map((c) => c.name)).toEqual(deck2.map((c) => c.name));
   });

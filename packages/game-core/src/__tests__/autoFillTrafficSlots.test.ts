@@ -2,17 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { autoFillTrafficSlots } from '../autoFillTrafficSlots.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
 import { ACTION_CARDS } from '../data/actionCards.js';
-import { EVENT_CARDS } from '../data/eventCards.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import {
-  CardType,
-  EventSubtype,
   Period,
   PhaseId,
-  type EventCard,
   type GameContext,
   type TrafficCard,
 } from '../types.js';
+
+/** rng that always returns 0.0 → always picks Morning (index 0) */
+const alwaysMorning = () => 0;
+/** rng that always returns 0.5 → always picks Evening (index 2 = floor(0.5 * 4)) */
+const alwaysEvening = () => 0.5;
 
 function makeBaseContext(): GameContext {
   return {
@@ -27,8 +28,11 @@ function makeBaseContext(): GameContext {
     pendingEvents: [],
     mitigatedEventIds: [],
     activePhase: PhaseId.Scheduling,
-    trafficEventDeck: [],
-    trafficEventDiscard: [],
+    trafficDeck: [],
+    trafficDiscard: [],
+    eventDeck: [],
+    eventDiscard: [],
+    spawnedTrafficQueue: [],
     actionDeck: [],
     actionDiscard: ACTION_CARDS,
     lastRoundSummary: null,
@@ -39,98 +43,68 @@ function makeBaseContext(): GameContext {
 }
 
 const iotCard: TrafficCard = TRAFFIC_CARDS.find((c) => c.id === 'traffic-iot-burst')!;
-const ddosEvent: EventCard = EVENT_CARDS.find((c) => c.id === 'event-ddos-attack')!;
-const awsOutageEvent: EventCard = EVENT_CARDS.find((c) => c.id === 'event-aws-outage')!;
 
 describe('autoFillTrafficSlots', () => {
-  it('places a single traffic card in the first Morning slot', () => {
+  it('places a single traffic card in the period chosen by rng', () => {
     const ctx = makeBaseContext();
-    const { context } = autoFillTrafficSlots(ctx, [iotCard]);
+    const { context } = autoFillTrafficSlots(ctx, [iotCard], alwaysMorning);
     const morningSlotsWithCards = context.timeSlots.filter(
       (s) => s.period === Period.Morning && s.cards.length > 0,
     );
-    expect(morningSlotsWithCards.length).toBeGreaterThan(0);
+    expect(morningSlotsWithCards.length).toBe(1);
+    // No other period should have cards
+    const otherCards = context.timeSlots
+      .filter((s) => s.period !== Period.Morning)
+      .flatMap((s) => s.cards);
+    expect(otherCards).toHaveLength(0);
   });
 
-  it('puts event cards in pendingEvents, not time slots', () => {
+  it('places card in Evening when rng returns 0.5', () => {
     const ctx = makeBaseContext();
-    const { context } = autoFillTrafficSlots(ctx, [ddosEvent]);
-    expect(context.pendingEvents).toHaveLength(1);
-    expect(context.pendingEvents[0]?.id).toBe('event-ddos-attack');
-    const allCards = context.timeSlots.flatMap((s) => s.cards);
-    expect(allCards.every((c) => c.type === CardType.Traffic)).toBe(true);
+    const { context } = autoFillTrafficSlots(ctx, [iotCard], alwaysEvening);
+    const eveningSlotsWithCards = context.timeSlots.filter(
+      (s) => s.period === Period.Evening && s.cards.length > 0,
+    );
+    expect(eveningSlotsWithCards.length).toBe(1);
   });
 
   it('fills up to capacity without overload', () => {
     const ctx = makeBaseContext();
-    // 3 cards each go into a separate slot (capacity 1 per slot), should fit
-    const cards: TrafficCard[] = [iotCard, iotCard, iotCard];
-    const { context, overloadCount } = autoFillTrafficSlots(ctx, cards);
+    // 4 cards all directed to Morning (4 slots × capacity 1 = fits all)
+    const cards: TrafficCard[] = Array.from({ length: 4 }, () => iotCard);
+    const { overloadCount, context } = autoFillTrafficSlots(ctx, cards, alwaysMorning);
     expect(overloadCount).toBe(0);
     expect(context.budget).toBe(500_000);
+    const morningCards = context.timeSlots
+      .filter((s) => s.period === Period.Morning)
+      .flatMap((s) => s.cards);
+    expect(morningCards).toHaveLength(4);
   });
 
-  it('triggers Overload penalty when all slots are full', () => {
+  it('triggers Overload when target period is full', () => {
     const ctx = makeBaseContext();
-    // Fill all 20 slots × 1 capacity = 20 slots. We'll overflow by 1.
-    const manyCards: TrafficCard[] = Array.from({ length: 21 }, () => iotCard);
-    const { overloadCount, context } = autoFillTrafficSlots(ctx, manyCards);
-    expect(overloadCount).toBeGreaterThan(0);
-    expect(context.budget).toBeLessThan(500_000);
+    // Morning has 4 slots. Send 5 cards to Morning → 1 overload.
+    const cards: TrafficCard[] = Array.from({ length: 5 }, () => iotCard);
+    const { overloadCount, context } = autoFillTrafficSlots(ctx, cards, alwaysMorning);
+    expect(overloadCount).toBe(1);
+    expect(context.budget).toBe(500_000 - 25_000);
   });
 
-  it('spawns additional traffic cards from SpawnTraffic event', () => {
+  it('overload disables a slot in the next period (Afternoon when Morning overflows)', () => {
     const ctx = makeBaseContext();
-    // AWS Outage spawns 2 Cloud Backup cards
-    const { context } = autoFillTrafficSlots(ctx, [awsOutageEvent]);
-    const allCards = context.timeSlots.flatMap((s) => s.cards);
-    // Should have 2 spawned cloud backup cards (IDs are now UUIDs; match by name)
-    expect(allCards.filter((c) => c.name === 'Cloud Backup')).toHaveLength(2);
-  });
-
-  it('overload disables a slot in the period after the last attempted period, not always Afternoon', () => {
-    // Fill all periods to full capacity (1 card per slot)
-    // so no slots remain. The next card triggers overload after exhausting
-    // Overnight (lastPeriodIndex = 3), so the overflow target wraps to Morning (index 0),
-    // NOT Afternoon (index 1) as the bug produced.
-    const ctx = makeBaseContext();
-    const totalSlots = ctx.timeSlots.length; // 20 slots (4+4+4+8)
-    const capacity = 1; // default baseCapacity
-
-    // Fill Morning (4 × 1 = 4), Afternoon (4), Evening (4), Overnight (8) = 20 cards total,
-    // then 1 more to trigger overload
-    const fillCount = totalSlots * capacity + 1;
-    const manyCards: TrafficCard[] = Array.from({ length: fillCount }, () => iotCard);
-    const { overloadCount, context } = autoFillTrafficSlots(ctx, manyCards);
-
-    expect(overloadCount).toBeGreaterThan(0);
-    // The overload exhausted all periods (last attempted = Overnight, index 3),
-    // so overflow wraps to Morning (index 0) — not Afternoon.
+    // Fill Morning (4 slots) and send 1 more → overflow to Afternoon
+    const cards: TrafficCard[] = Array.from({ length: 5 }, () => iotCard);
+    const { context } = autoFillTrafficSlots(ctx, cards, alwaysMorning);
     const disabledAfternoon = context.timeSlots.filter(
       (s) => s.period === Period.Afternoon && s.unavailable,
     );
-    const disabledMorning = context.timeSlots.filter(
-      (s) => s.period === Period.Morning && s.unavailable,
-    );
-    expect(disabledMorning.length).toBeGreaterThan(0);
-    expect(disabledAfternoon.length).toBe(0);
+    expect(disabledAfternoon.length).toBeGreaterThan(0);
   });
 
-  it('SpawnVendor events are ignored (noOpMVP)', () => {
-    const vendorEvent: EventCard = {
-      id: 'event-vendor-spawn-test',
-      type: CardType.Event,
-      name: 'Vendor Spawn Test',
-      subtype: EventSubtype.SpawnVendor,
-      unmitigatedPenalty: 0,
-      downtimePenaltyHours: 0,
-      noOpMVP: true,
-      description: 'Test no-op vendor spawn event',
-    };
+  it('returns overloadCount 0 for empty drawn array', () => {
     const ctx = makeBaseContext();
-    const { context } = autoFillTrafficSlots(ctx, [vendorEvent]);
-    // Vendor event goes to pendingEvents but spawns nothing
-    expect(context.pendingEvents[0]?.id).toBe('event-vendor-spawn-test');
+    const { overloadCount, context } = autoFillTrafficSlots(ctx, [], alwaysMorning);
+    expect(overloadCount).toBe(0);
     expect(context.timeSlots.flatMap((s) => s.cards)).toHaveLength(0);
   });
 });

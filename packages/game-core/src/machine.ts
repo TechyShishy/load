@@ -1,6 +1,6 @@
 import { assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track } from './types.js';
-import { buildActionDeck, buildTrafficEventDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
+import { BANKRUPT_THRESHOLD, TRAFFIC_DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track } from './types.js';
+import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
   createInitialTracks,
@@ -14,7 +14,8 @@ import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRo
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
 export function createInitialContext(rng: Rng = Math.random): GameContext {
-  const trafficEventDeck = buildTrafficEventDeck(rng);
+  const trafficDeck = buildTrafficDeck(rng);
+  const eventDeck = buildEventDeck(rng);
   const actionDeck = buildActionDeck(rng);
   const [initialHand, remainingActionDeck] = drawN(actionDeck, HAND_SIZE);
 
@@ -30,8 +31,11 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     pendingEvents: [],
     mitigatedEventIds: [],
     activePhase: PhaseId.Draw,
-    trafficEventDeck,
-    trafficEventDiscard: [],
+    trafficDeck,
+    trafficDiscard: [],
+    eventDeck,
+    eventDiscard: [],
+    spawnedTrafficQueue: [],
     actionDeck: remainingActionDeck,
     actionDiscard: [],
     lastRoundSummary: null,
@@ -67,28 +71,30 @@ export const gameMachine = setup({
       // Reset board slots for the new round
       const freshSlots = resetSlotsForRound(context.timeSlots);
 
-      // Reshuffle if exhausted, then draw traffic/event cards
-      const [teDeckInit, teDiscard] = reshuffleDiscard(
-        context.trafficEventDeck,
-        context.trafficEventDiscard,
-        makeRng(context.seed + '-te-' + context.round),
+      // Reshuffle if exhausted, then draw traffic cards
+      const drawRng = makeRng(context.seed + '-te-' + context.round);
+      const [trafficDeckInit, trafficDiscard] = reshuffleDiscard(
+        context.trafficDeck,
+        context.trafficDiscard,
+        drawRng,
       );
-      let teDeck = teDeckInit;
-      const [drawn, remaining] = drawN(teDeck, DRAW_COUNT);
-      teDeck = remaining;
+      const [drawn, remainingTrafficDeck] = drawN(trafficDeckInit, TRAFFIC_DRAW_COUNT);
 
       const baseCtx: GameContext = {
         ...context,
         timeSlots: freshSlots,
-        trafficEventDeck: teDeck,
-        trafficEventDiscard: teDiscard,
+        trafficDeck: remainingTrafficDeck,
+        trafficDiscard,
         playedThisRound: [],
         mitigatedEventIds: [],
-            activePhase: PhaseId.Scheduling,
+        pendingEvents: [],
+        spawnedTrafficQueue: [],
+        activePhase: PhaseId.Scheduling,
       };
 
-      // Auto-fill slots immediately after draw
-      const { context: filled, overloadCount } = autoFillTrafficSlots(baseCtx, drawn);
+      // Auto-fill slots with a fresh sub-rng so placement is deterministic
+      const fillRng = makeRng(context.seed + '-fill-' + context.round);
+      const { context: filled, overloadCount } = autoFillTrafficSlots(baseCtx, drawn, fillRng);
       return { ...filled, pendingOverloadCount: overloadCount, activePhase: PhaseId.Scheduling };
     }),
 
@@ -97,13 +103,47 @@ export const gameMachine = setup({
       activePhase: PhaseId.Execution,
     })),
 
-    performCrisis: assign(({ context }) => {
+    performDrawCrisisEvent: assign(({ context }) => {
+      // Draw one event from the event deck (reshuffle if exhausted)
+      const eventRng = makeRng(context.seed + '-ev-' + context.round);
+      const [eventDeckInit, eventDiscard] = reshuffleDiscard(
+        context.eventDeck,
+        context.eventDiscard,
+        eventRng,
+      );
+      const [drawn, remainingEventDeck] = drawN(eventDeckInit, 1);
+      return {
+        ...context,
+        eventDeck: remainingEventDeck,
+        eventDiscard,
+        pendingEvents: drawn,
+        activePhase: PhaseId.Crisis,
+      };
+    }),
+
+    performResolveCrisisEvent: assign(({ context }) => {
       const { context: updated } = processCrisis(context);
-      return { ...updated, activePhase: PhaseId.Crisis };
+      return { ...updated };
     }),
 
     performResolution: assign(({ context }) => {
-      const { context: resolved, summary } = resolveRound(context);
+      // Place any SpawnTraffic-spawned cards onto the board so they are visible this round
+      let resolveCtx = context;
+      let spawnOverloadCount = 0;
+      if (context.spawnedTrafficQueue.length > 0) {
+        const spawnRng = makeRng(context.seed + '-spawn-' + context.round);
+        const { context: spawned, overloadCount } = autoFillTrafficSlots(
+          context,
+          context.spawnedTrafficQueue,
+          spawnRng,
+        );
+        resolveCtx = { ...spawned, spawnedTrafficQueue: [] };
+        spawnOverloadCount = overloadCount;
+      }
+      const { context: resolved, summary } = resolveRound(
+        { ...resolveCtx, pendingOverloadCount: resolveCtx.pendingOverloadCount + spawnOverloadCount },
+        context.spawnedTrafficQueue.length,
+      );
       return {
         ...resolved,
         lastRoundSummary: { ...summary },
@@ -115,9 +155,9 @@ export const gameMachine = setup({
       // Return played Action cards to discard; unplayed cards carry over
       const newActionDiscard = [...context.actionDiscard, ...context.playedThisRound];
 
-      // Move Traffic/Event cards from time slots into TE discard
+      // Move Traffic cards from time slots into traffic discard
       const usedTraffic = context.timeSlots.flatMap((s) => s.cards);
-      const newTeDiscard = [...context.trafficEventDiscard, ...usedTraffic];
+      const newTrafficDiscard = [...context.trafficDiscard, ...usedTraffic];
 
       // Replenish hand to HAND_SIZE from action deck if < HAND_SIZE
       let actionDeck = context.actionDeck;
@@ -144,7 +184,7 @@ export const gameMachine = setup({
         hand,
         actionDeck,
         actionDiscard,
-        trafficEventDiscard: newTeDiscard,
+        trafficDiscard: newTrafficDiscard,
         playedThisRound: [],
         activePhase: PhaseId.End,
       };
@@ -195,10 +235,10 @@ export const gameMachine = setup({
       always: { target: 'crisis' },
     },
     crisis: {
-      entry: 'performCrisis',
+      entry: 'performDrawCrisisEvent',
       on: {
         PLAY_ACTION: { actions: 'applyPlayAction' },
-        ADVANCE: { target: 'resolution' },
+        ADVANCE: { target: 'resolution', actions: 'performResolveCrisisEvent' },
       },
     },
     resolution: {
@@ -207,8 +247,10 @@ export const gameMachine = setup({
         { guard: 'isBankrupt', target: 'gameLost', actions: 'markGameLost' },
         { guard: 'isSLAExceeded', target: 'gameLost', actions: 'markGameLost' },
         { guard: 'isGameWon', target: 'gameWon', actions: 'markGameWon' },
-        { target: 'end' },
       ],
+      on: {
+        ADVANCE: { target: 'end' },
+      },
     },
     end: {
       entry: 'performEnd',

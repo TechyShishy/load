@@ -12,7 +12,7 @@ export interface ResolutionResult {
  * 3. Increment slaCount for unresolved cards.
  * 4. Return a RoundSummary.
  */
-export function resolveRound(ctx: GameContext): ResolutionResult {
+export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): ResolutionResult {
   let resolvedCount = 0;
   let failedCount = 0;
   let revenue = 0;
@@ -43,6 +43,7 @@ export function resolveRound(ctx: GameContext): ResolutionResult {
     resolvedCount,
     failedCount,
     overloadPenalties: ctx.pendingOverloadCount * OVERLOAD_PENALTY,
+    spawnedTrafficCount,
   };
 
   const context: GameContext = {

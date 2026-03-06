@@ -14,7 +14,7 @@ export {
   HAND_SIZE,
   SLOT_BASE_CAPACITY,
   OVERLOAD_PENALTY,
-  DRAW_COUNT,
+  TRAFFIC_DRAW_COUNT,
   PERIOD_SLOT_COUNTS,
 } from './types.js';
 export type {

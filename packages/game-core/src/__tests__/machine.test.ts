@@ -3,7 +3,7 @@ import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { createInitialTimeSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
-import { DRAW_COUNT, OVERLOAD_PENALTY, type TrafficCard } from '../types.js';
+import { TRAFFIC_DRAW_COUNT, OVERLOAD_PENALTY, type TrafficCard } from '../types.js';
 
 /** Build a deterministic safeContext where the deck has only traffic cards (no events),
  * so a round will always complete without game-over from bad draws. */
@@ -12,7 +12,14 @@ function safeContext() {
   const trafficDeck: TrafficCard[] = Array.from({ length: 24 }, (_, i) =>
     TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!,
   );
-  return { ...createInitialContext(), trafficEventDeck: trafficDeck };
+  return {
+    ...createInitialContext(),
+    trafficDeck,
+    trafficDiscard: [] as TrafficCard[],
+    eventDeck: [],
+    eventDiscard: [],
+    spawnedTrafficQueue: [] as TrafficCard[],
+  };
 }
 
 describe('gameMachine initial state', () => {
@@ -57,13 +64,23 @@ describe('gameMachine phase transitions', () => {
     expect(actor.getSnapshot().value).toBe('crisis');
   });
 
-  it('ADVANCE from crisis → resolution → end → draw (next round scheduling)', () => {
+  it('ADVANCE from crisis → resolution (stable) → end → draw (next round scheduling)', () => {
     const actor = getToScheduling();
     actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw → scheduling
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable — pauses here)
+    expect(actor.getSnapshot().value).toBe('resolution');
+    actor.send({ type: 'ADVANCE' }); // resolution → end → draw → scheduling
     const snap = actor.getSnapshot();
     expect(snap.value).toBe('scheduling');
     expect(snap.context.round).toBe(2);
+  });
+
+  it('resolution state is stable — waits for ADVANCE before ending round', () => {
+    const actor = getToScheduling();
+    actor.send({ type: 'ADVANCE' }); // → crisis
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution
+    // resolution must pause here, not auto-advance
+    expect(actor.getSnapshot().value).toBe('resolution');
   });
 });
 
@@ -120,11 +137,11 @@ describe('gameMachine overload penalties', () => {
     actor.start();
     expect(actor.getSnapshot().value).toBe('scheduling');
     actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw (next scheduling)
+    actor.send({ type: 'ADVANCE' }); // → resolution (stable)
     const summary = actor.getSnapshot().context.lastRoundSummary;
     expect(summary).not.toBeNull();
-    // All DRAW_COUNT traffic cards overflow zero-capacity slots → each costs OVERLOAD_PENALTY
-    expect(summary!.overloadPenalties).toBe(DRAW_COUNT * OVERLOAD_PENALTY);
+    // All TRAFFIC_DRAW_COUNT traffic cards overflow zero-capacity slots → each costs OVERLOAD_PENALTY
+    expect(summary!.overloadPenalties).toBe(TRAFFIC_DRAW_COUNT * OVERLOAD_PENALTY);
   });
 
   it('reflects updated overloadPenalties in the second round', () => {
@@ -132,11 +149,12 @@ describe('gameMachine overload penalties', () => {
     const actor = createActor(gameMachine, { input: zeroCapacityContext() });
     actor.start();
     actor.send({ type: 'ADVANCE' }); // round 1 → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw → scheduling (round 2)
+    actor.send({ type: 'ADVANCE' }); // → resolution (stable)
+    actor.send({ type: 'ADVANCE' }); // → end → draw → scheduling (round 2)
     actor.send({ type: 'ADVANCE' }); // round 2 → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution → end → draw → scheduling (round 3)
+    actor.send({ type: 'ADVANCE' }); // → resolution (stable)
     const summary = actor.getSnapshot().context.lastRoundSummary;
     expect(summary).not.toBeNull();
-    expect(summary!.overloadPenalties).toBe(DRAW_COUNT * OVERLOAD_PENALTY);
+    expect(summary!.overloadPenalties).toBe(TRAFFIC_DRAW_COUNT * OVERLOAD_PENALTY);
   });
 });

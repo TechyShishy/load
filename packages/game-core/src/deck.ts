@@ -24,22 +24,29 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
 }
 
 /**
- * Build the Traffic + Event deck.
- * Composition: 16 Traffic cards (shuffle 3 base cards, repeat to fill) + 8 Event cards.
+ * Build the Traffic deck.
+ * Composition: 16 Traffic cards, cycling through the 3 base templates.
  */
-export function buildTrafficEventDeck(rng: Rng = Math.random): Array<TrafficCard | EventCard> {
+export function buildTrafficDeck(rng: Rng = Math.random): TrafficCard[] {
   const traffic: TrafficCard[] = [];
-  // Fill to 16 by cycling through the 3 base traffic cards
   for (let i = 0; i < 16; i++) {
     const template = TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!;
     traffic.push({ ...template, id: `${template.id}-${Math.floor(rng() * 1e9)}` });
   }
+  return shuffle(traffic, rng);
+}
+
+/**
+ * Build the Event deck.
+ * Composition: 8 Event cards, cycling through the 3 base templates.
+ */
+export function buildEventDeck(rng: Rng = Math.random): EventCard[] {
   const events: EventCard[] = [];
   for (let i = 0; i < 8; i++) {
     const template = EVENT_CARDS[i % EVENT_CARDS.length]!;
     events.push({ ...template, id: `${template.id}-${Math.floor(rng() * 1e9)}` });
   }
-  return shuffle([...traffic, ...events], rng);
+  return shuffle(events, rng);
 }
 
 /**

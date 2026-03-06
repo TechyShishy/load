@@ -92,6 +92,7 @@ export const RoundSummarySchema = z.object({
   resolvedCount: z.number(),
   failedCount: z.number(),
   overloadPenalties: z.number(),
+  spawnedTrafficCount: z.number(),
 });
 
 // ─── GameContext Schema ───────────────────────────────────────────────────────
@@ -108,11 +109,15 @@ export const GameContextSchema = z.object({
   pendingEvents: z.array(EventCardSchema),
   mitigatedEventIds: z.array(z.string()),
   activePhase: PhaseIdSchema,
-  trafficEventDeck: z.array(z.union([TrafficCardSchema, EventCardSchema])),
-  trafficEventDiscard: z.array(z.union([TrafficCardSchema, EventCardSchema])),
+  trafficDeck: z.array(TrafficCardSchema),
+  trafficDiscard: z.array(TrafficCardSchema),
+  eventDeck: z.array(EventCardSchema),
+  eventDiscard: z.array(EventCardSchema),
+  spawnedTrafficQueue: z.array(TrafficCardSchema),
   actionDeck: z.array(ActionCardSchema),
   actionDiscard: z.array(ActionCardSchema),
   lastRoundSummary: RoundSummarySchema.nullable(),
   loseReason: LoseReasonSchema.nullable(),
+  pendingOverloadCount: z.number(),
   seed: z.string(),
 });

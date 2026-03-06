@@ -1,4 +1,5 @@
 import { ActionEffectType, EventSubtype, SLOT_BASE_CAPACITY, type ActionCard, type GameContext, type Period, type TimeSlot, type Track } from './types.js';
+import { TRAFFIC_CARDS } from './data/index.js';
 
 export interface CrisisResult {
   context: GameContext;
@@ -155,6 +156,21 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     }
 
     if (!isMitigated && event.subtype !== EventSubtype.SpawnVendor) {
+      // SpawnTraffic: queue the spawned cards for placement during Resolution
+      if (event.subtype === EventSubtype.SpawnTraffic && event.spawnCount && event.spawnTrafficId) {
+        const template = TRAFFIC_CARDS.find((t) => t.id === event.spawnTrafficId);
+        if (template) {
+          const spawned = Array.from({ length: event.spawnCount }, () => ({
+            ...template,
+            id: crypto.randomUUID(),
+          }));
+          context = {
+            ...context,
+            spawnedTrafficQueue: [...context.spawnedTrafficQueue, ...spawned],
+          };
+        }
+      }
+
       context = {
         ...context,
         budget: context.budget - event.unmitigatedPenalty,
@@ -177,10 +193,10 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     }
   }
 
-  // Return consumed event cards to the TE discard pile, then clear
+  // Return consumed event cards to the event discard pile, then clear
   context = {
     ...context,
-    trafficEventDiscard: [...context.trafficEventDiscard, ...context.pendingEvents],
+    eventDiscard: [...context.eventDiscard, ...context.pendingEvents],
     pendingEvents: [],
   };
 
