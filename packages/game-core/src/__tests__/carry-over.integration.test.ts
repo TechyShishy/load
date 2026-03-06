@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
-import { TRAFFIC_CARDS } from '../data/trafficCards.js';
+import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { type TrafficCard } from '../types.js';
 
 /**

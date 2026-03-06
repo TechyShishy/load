@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { autoFillTrafficSlots } from '../autoFillTrafficSlots.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
-import { ACTION_CARDS } from '../data/actionCards.js';
-import { TRAFFIC_CARDS } from '../data/trafficCards.js';
+import { ACTION_CARDS } from '../data/actions/index.js';
+import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import {
   Period,
   PhaseId,

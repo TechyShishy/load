@@ -1,5 +1,4 @@
-import { ActionEffectType, EventSubtype, SLOT_BASE_CAPACITY, type ActionCard, type GameContext, type Period, type TimeSlot, type Track } from './types.js';
-import { TRAFFIC_CARDS } from './data/index.js';
+import { type ActionCard, type GameContext, type Period, type Track } from './types.js';
 
 export interface CrisisResult {
   context: GameContext;
@@ -28,110 +27,14 @@ export function playActionCard(
     return ctx;
   }
 
-  let context = {
+  const commit = (): GameContext => ({
     ...ctx,
     budget: ctx.budget - card.cost,
     hand: ctx.hand.filter((c) => c.id !== card.id),
     playedThisRound: [...ctx.playedThisRound, card],
-  };
+  });
 
-  switch (card.effectType) {
-    case ActionEffectType.ClearTicket: {
-      const resolvedTrack = targetTrack ?? card.targetTrack;
-      const track = ctx.tracks.find((t) => t.track === resolvedTrack);
-      if (track && track.tickets.length > 0) {
-        context = {
-          ...context,
-          tracks: context.tracks.map((t) =>
-            t.track === resolvedTrack
-              ? { ...t, tickets: t.tickets.slice(1) } // remove the oldest ticket
-              : t,
-          ),
-        };
-      }
-      break;
-    }
-    case ActionEffectType.RemoveTrafficCard: {
-      // Remove the targeted Traffic card from the board and collect its revenue.
-      // targetTrafficCardId param takes precedence over card.targetTrafficCardId so
-      // the caller can supply the target dynamically (e.g. from UI selection).
-      const target = targetTrafficCardId ?? card.targetTrafficCardId;
-      if (target) {
-        let collectedRevenue = 0;
-        context = {
-          ...context,
-          timeSlots: context.timeSlots.map((slot) => {
-            const cardToRemove = slot.cards.find((c) => c.id === target);
-            if (cardToRemove) {
-              collectedRevenue += cardToRemove.revenue;
-              return { ...slot, cards: slot.cards.filter((c) => c.id !== target) };
-            }
-            return slot;
-          }),
-        };
-        if (collectedRevenue > 0) {
-          context = {
-            ...context,
-            budget: context.budget + collectedRevenue,
-            pendingRevenue: context.pendingRevenue + collectedRevenue,
-          };
-        }
-      }
-      break;
-    }
-    case ActionEffectType.BoostSlotCapacity: {
-      const resolvedPeriod = targetPeriod ?? card.targetPeriod;
-      if (resolvedPeriod) {
-        const existingCount = context.timeSlots.filter((s) => s.period === resolvedPeriod).length;
-        const newSlots: TimeSlot[] = Array.from({ length: card.effectValue }, (_, i) => ({
-          period: resolvedPeriod,
-          index: existingCount + i,
-          baseCapacity: SLOT_BASE_CAPACITY,
-          cards: [],
-          unavailable: false,
-          temporary: true,
-        }));
-        context = {
-          ...context,
-          timeSlots: [...context.timeSlots, ...newSlots],
-        };
-      }
-      break;
-    }
-    case ActionEffectType.MitigateDDoS: {
-      // If no explicit target is given, auto-target the first unmitigated pending event.
-      const resolvedTarget =
-        targetEventId ?? ctx.pendingEvents.find((e) => !ctx.mitigatedEventIds.includes(e.id))?.id;
-      if (resolvedTarget) {
-        context = {
-          ...context,
-          mitigatedEventIds: [...context.mitigatedEventIds, resolvedTarget],
-        };
-      }
-      break;
-    }
-    case ActionEffectType.AddOvernightSlots: {
-      const resolvedPeriod = targetPeriod ?? card.targetPeriod;
-      if (resolvedPeriod) {
-        const existingCount = context.timeSlots.filter((s) => s.period === resolvedPeriod).length;
-        const newSlots: TimeSlot[] = Array.from({ length: card.effectValue }, (_, i) => ({
-          period: resolvedPeriod,
-          index: existingCount + i,
-          baseCapacity: SLOT_BASE_CAPACITY,
-          cards: [],
-          unavailable: false,
-          weeklyTemporary: true,
-        }));
-        context = {
-          ...context,
-          timeSlots: [...context.timeSlots, ...newSlots],
-        };
-      }
-      break;
-    }
-  }
-
-  return context;
+  return card.apply(ctx, commit, targetEventId, targetTrafficCardId, targetPeriod, targetTrack);
 }
 
 /**
@@ -146,55 +49,9 @@ export function processCrisis(ctx: GameContext): CrisisResult {
 
   for (const event of ctx.pendingEvents) {
     const isMitigated = ctx.mitigatedEventIds.includes(event.id);
-
-    if (!isMitigated && event.subtype === EventSubtype.IssueTicket && event.targetTrack) {
-      // Only issue the ticket when the event is NOT mitigated.
-      // A mitigated IssueTicket (e.g. Security Patch on a DDoS Attack) cancels
-      // both the financial penalty and the ticket itself.
-      context = {
-        ...context,
-        tracks: context.tracks.map((t) =>
-          t.track === event.targetTrack ? { ...t, tickets: [...t.tickets, event] } : t,
-        ),
-      };
-    }
-
-    if (!isMitigated && event.subtype !== EventSubtype.SpawnVendor) {
-      // SpawnTraffic: queue the spawned cards for placement during Resolution
-      if (event.subtype === EventSubtype.SpawnTraffic && event.spawnCount && event.spawnTrafficId) {
-        const template = TRAFFIC_CARDS.find((t) => t.id === event.spawnTrafficId);
-        if (template) {
-          const spawned = Array.from({ length: event.spawnCount }, () => ({
-            ...template,
-            id: crypto.randomUUID(),
-          }));
-          context = {
-            ...context,
-            spawnedTrafficQueue: [...context.spawnedTrafficQueue, ...spawned],
-          };
-        }
-      }
-
-      context = {
-        ...context,
-        budget: context.budget - event.unmitigatedPenalty,
-      };
-      penaltiesApplied += event.unmitigatedPenalty;
-
-      // Apply downtime: mark slots unavailable in the current first available period
-      if (event.downtimePenaltyHours > 0) {
-        let hoursRemaining = event.downtimePenaltyHours;
-        const updatedSlots = [...context.timeSlots];
-        for (let i = 0; i < updatedSlots.length && hoursRemaining > 0; i++) {
-          const slot = updatedSlots[i]!;
-          if (!slot.unavailable) {
-            updatedSlots[i] = { ...slot, unavailable: true };
-            hoursRemaining--;
-          }
-        }
-        context = { ...context, timeSlots: updatedSlots };
-      }
-    }
+    const budgetBefore = context.budget;
+    context = event.onCrisis(context, isMitigated);
+    penaltiesApplied += budgetBefore - context.budget;
   }
 
   // Return consumed event cards to the event discard pile, then clear

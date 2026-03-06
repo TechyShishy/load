@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { playActionCard, processCrisis } from '../processCrisis.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
-import { ACTION_CARDS } from '../data/actionCards.js';
-import { EVENT_CARDS } from '../data/eventCards.js';
-import { TRAFFIC_CARDS } from '../data/trafficCards.js';
+import { ACTION_CARDS } from '../data/actions/index.js';
+import { EVENT_CARDS } from '../data/events/index.js';
+import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import {
   Period,
   PhaseId,
@@ -106,13 +106,13 @@ describe('playActionCard', () => {
     expect(updated.timeSlots).toEqual(ctx.timeSlots);
   });
 
-  it('BoostSlotCapacity adds new temporary slots for target period', () => {
+  it('BoostSlotCapacity adds new weeklyTemporary slots for target period', () => {
     const ctx = makeCtx({ hand: [bwUpgrade] });
-    const beforeCount = ctx.timeSlots.filter((s) => s.period === bwUpgrade.targetPeriod).length;
+    const beforeCount = ctx.timeSlots.filter((s) => s.period === Period.Afternoon).length;
     const updated = playActionCard(ctx, bwUpgrade);
-    const afterSlots = updated.timeSlots.filter((s) => s.period === bwUpgrade.targetPeriod);
-    expect(afterSlots.length).toBe(beforeCount + bwUpgrade.effectValue);
-    expect(afterSlots.filter((s) => s.temporary).length).toBe(bwUpgrade.effectValue);
+    const afterSlots = updated.timeSlots.filter((s) => s.period === Period.Afternoon);
+    expect(afterSlots.length).toBe(beforeCount + 1);
+    expect(afterSlots.filter((s) => s.weeklyTemporary).length).toBe(1);
   });
 
   it('BoostSlotCapacity runtime targetPeriod overrides card.targetPeriod', () => {
@@ -123,8 +123,8 @@ describe('playActionCard', () => {
     const updated = playActionCard(ctx, bwUpgrade, undefined, undefined, Period.Morning);
     const morningSlots = updated.timeSlots.filter((s) => s.period === Period.Morning);
     const afternoonSlots = updated.timeSlots.filter((s) => s.period === Period.Afternoon);
-    expect(morningSlots.length).toBe(beforeMorning + bwUpgrade.effectValue);
-    expect(morningSlots.filter((s) => s.temporary).length).toBe(bwUpgrade.effectValue);
+    expect(morningSlots.length).toBe(beforeMorning + 1);
+    expect(morningSlots.filter((s) => s.weeklyTemporary).length).toBe(1);
     expect(afternoonSlots.length).toBe(beforeAfternoon);
   });
 
@@ -151,8 +151,8 @@ describe('playActionCard', () => {
     const updated = playActionCard(ctx, dcExpansion, undefined, undefined, Period.Evening);
     const eveningSlots = updated.timeSlots.filter((s) => s.period === Period.Evening);
     const overnightSlots = updated.timeSlots.filter((s) => s.period === Period.Overnight);
-    expect(eveningSlots.length).toBe(beforeEvening + dcExpansion.effectValue);
-    expect(eveningSlots.filter((s) => s.weeklyTemporary).length).toBe(dcExpansion.effectValue);
+    expect(eveningSlots.length).toBe(beforeEvening + 2);
+    expect(eveningSlots.filter((s) => s.weeklyTemporary).length).toBe(2);
     expect(overnightSlots.length).toBe(beforeOvernight);
   });
 
@@ -180,8 +180,8 @@ describe('processCrisis', () => {
   it('applies penalty for unmitigated DDoS event', () => {
     const ctx = makeCtx({ pendingEvents: [ddosEvent] });
     const { context, penaltiesApplied } = processCrisis(ctx);
-    expect(context.budget).toBe(500_000 - ddosEvent.unmitigatedPenalty);
-    expect(penaltiesApplied).toBe(ddosEvent.unmitigatedPenalty);
+    expect(context.budget).toBe(500_000 - 50_000);
+    expect(penaltiesApplied).toBe(50_000);
   });
 
   it('skips penalty for mitigated DDoS event', () => {

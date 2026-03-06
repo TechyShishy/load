@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { useGame } from './hooks/useGame.js';
-import { ActionEffectType, Period, Track } from '@load/game-core';
+import { Period, Track } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { GameCanvas } from './components/canvas/GameCanvas.js';
 import { BoardDropZones } from './components/canvas/BoardDropZones.js';
@@ -71,17 +71,14 @@ export function App() {
 
       if (typeof over.id === 'string' && over.id.startsWith('period-')) {
         const period = over.id.slice('period-'.length) as Period;
-        if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          const firstCard = context.timeSlots
-            .filter((s) => s.period === period)
-            .sort((a, b) => a.index - b.index)
-            .flatMap((s) => s.cards)[0];
-          if (!firstCard) {
-            showFeedback(`${card.name}: No traffic cards in ${period}.`);
-            return;
-          }
-          playAction(card, undefined, firstCard.id);
-          showFeedback(`${card.name}: Removing traffic from ${period} (-$${card.cost.toLocaleString()})`);
+        if (card.templateId === 'action-traffic-prioritization') {
+          showFeedback(`${card.name}: Drop on a specific slot to remove a traffic card.`);
+        } else if (card.templateId === 'action-datacenter-expansion') {
+          playAction(card, undefined, undefined, period);
+          showFeedback(`${card.name}: +2 slots for ${period} this round (-$${card.cost.toLocaleString()})`);
+        } else if (card.templateId === 'action-bandwidth-upgrade') {
+          playAction(card, undefined, undefined, period);
+          showFeedback(`${card.name}: +1 slot for ${period} this round (-$${card.cost.toLocaleString()})`);
         }
       } else if (typeof over.id === 'string' && over.id.startsWith('slot-')) {
         // id format: "slot-Morning-0"
@@ -90,52 +87,50 @@ export function App() {
         const slot = context.timeSlots.find((s) => s.period === period && s.index === slotIndex);
         if (!slot) return;
 
-        if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          showFeedback(`${card.name}: Drop on a period column to remove a traffic card.`);
-        } else if (
-          card.effectType === ActionEffectType.BoostSlotCapacity ||
-          card.effectType === ActionEffectType.AddOvernightSlots
-        ) {
-          playAction(card, undefined, undefined, slot.period);
-          showFeedback(`${card.name}: +${card.effectValue} capacity for ${slot.period} slots (-$${card.cost.toLocaleString()})`);
-        } else if (card.effectType === ActionEffectType.ClearTicket) {
+        if (card.templateId === 'action-traffic-prioritization') {
+          const firstCard = slot.cards[0];
+          if (!firstCard) {
+            showFeedback(`${card.name}: No traffic cards in this slot.`);
+            return;
+          }
+          playAction(card, undefined, firstCard.id);
+          showFeedback(`${card.name}: Removing traffic from slot (-$${card.cost.toLocaleString()})`);
+        } else if (card.templateId === 'action-datacenter-expansion') {
+          showFeedback(`${card.name}: Drop on a period column to add slots.`);
+        } else if (card.templateId === 'action-bandwidth-upgrade') {
+          showFeedback(`${card.name}: Drop on a period column to add a slot.`);
+        } else if (card.templateId === 'action-emergency-maintenance') {
           showFeedback(`${card.name}: Drop on a track row to clear a ticket.`);
         } else {
-          // MitigateDDoS — any drop zone activates it
+          // action-security-patch — any drop zone activates it
           playAction(card);
           showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
         }
       } else if (typeof over.id === 'string' && over.id.startsWith('track-')) {
         const trackName = over.id.slice('track-'.length) as Track;
 
-        if (card.effectType === ActionEffectType.ClearTicket) {
+        if (card.templateId === 'action-emergency-maintenance') {
           playAction(card, undefined, undefined, undefined, trackName);
           showFeedback(`${card.name}: Clearing a ticket from the ${trackName} track (-$${card.cost.toLocaleString()})`);
-        } else if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          showFeedback(`${card.name}: Drop on a period column to remove a traffic card.`);
-        } else if (
-          card.effectType === ActionEffectType.BoostSlotCapacity ||
-          card.effectType === ActionEffectType.AddOvernightSlots
-        ) {
+        } else if (card.templateId === 'action-bandwidth-upgrade') {
           showFeedback(`${card.name}: Drop on a time slot to apply the capacity boost.`);
+        } else if (card.templateId === 'action-datacenter-expansion') {
+          showFeedback(`${card.name}: Drop on a period column to add slots.`);
         } else {
-          // MitigateDDoS
+          // action-security-patch
           playAction(card);
           showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
         }
       } else {
         // board-area fallback
-        if (card.effectType === ActionEffectType.MitigateDDoS) {
+        if (card.templateId === 'action-security-patch') {
           playAction(card);
           showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
-        } else if (card.effectType === ActionEffectType.RemoveTrafficCard) {
-          showFeedback(`${card.name}: Drop on a period column to remove a traffic card.`);
-        } else if (
-          card.effectType === ActionEffectType.BoostSlotCapacity ||
-          card.effectType === ActionEffectType.AddOvernightSlots
-        ) {
+        } else if (card.templateId === 'action-bandwidth-upgrade') {
           showFeedback(`${card.name}: Drop on a time slot to boost its period's capacity.`);
-        } else if (card.effectType === ActionEffectType.ClearTicket) {
+        } else if (card.templateId === 'action-datacenter-expansion') {
+          showFeedback(`${card.name}: Drop on a period column to add slots.`);
+        } else if (card.templateId === 'action-emergency-maintenance') {
           showFeedback(`${card.name}: Drop on a track row to clear a ticket.`);
         }
       }

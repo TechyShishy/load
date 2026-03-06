@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { ActionEffectType, Period, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
+import { Period, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
 import { computePeriodRect, computeSlotRect, computeTrackRect } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
@@ -53,12 +53,17 @@ interface PeriodDropZoneProps {
   periodIndex: number;
   slotCount: number;
   containerWidth: number;
+  variant: 'remove' | 'add';
 }
 
-function PeriodDropZone({ period, periodIndex, slotCount, containerWidth }: PeriodDropZoneProps) {
+function PeriodDropZone({ period, periodIndex, slotCount, containerWidth, variant }: PeriodDropZoneProps) {
   const id = `period-${period}`;
   const { isOver, setNodeRef } = useDroppable({ id, data: { type: 'period', period } });
   const rect = computePeriodRect(periodIndex, slotCount, containerWidth);
+  const overClass =
+    variant === 'add'
+      ? 'border-2 border-cyan-400 bg-cyan-900/30 ring-1 ring-cyan-400/60'
+      : 'border-2 border-red-400 bg-red-900/30 ring-1 ring-red-400/60';
 
   return (
     <div
@@ -73,11 +78,7 @@ function PeriodDropZone({ period, periodIndex, slotCount, containerWidth }: Peri
         pointerEvents: 'auto',
         zIndex: 2,
       }}
-      className={
-        isOver
-          ? 'border-2 border-red-400 bg-red-900/30 ring-1 ring-red-400/60'
-          : 'border-2 border-transparent'
-      }
+      className={isOver ? overClass : 'border-2 border-transparent'}
     />
   );
 }
@@ -88,12 +89,13 @@ interface TrackDropZoneProps {
   track: TrackSlot;
   trackIndex: number;
   containerWidth: number;
+  maxSlotCount: number;
 }
 
-function TrackDropZone({ track, trackIndex, containerWidth }: TrackDropZoneProps) {
+function TrackDropZone({ track, trackIndex, containerWidth, maxSlotCount }: TrackDropZoneProps) {
   const id = `track-${track.track}`;
   const { isOver, setNodeRef } = useDroppable({ id, data: { type: 'track', track } });
-  const rect = computeTrackRect(trackIndex, containerWidth);
+  const rect = computeTrackRect(trackIndex, containerWidth, maxSlotCount);
   const overClass = TRACK_OVER_CLASS[track.track] ?? 'border-purple-500 bg-purple-900/20';
 
   return (
@@ -153,11 +155,22 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
 
   if (containerWidth === 0) return null;
 
-  const showPeriodZones = activeCard?.effectType === ActionEffectType.RemoveTrafficCard;
+  const isPeriodSlotsCard = activeCard?.templateId === 'action-datacenter-expansion';
+  const isBoostCard = activeCard?.templateId === 'action-bandwidth-upgrade';
+  const isClearTicketCard = activeCard?.templateId === 'action-emergency-maintenance';
+  const isRemoveTrafficCard = activeCard?.templateId === 'action-traffic-prioritization';
+  const showPeriodZones = isPeriodSlotsCard || isBoostCard;
+  const showSlotZones = !isPeriodSlotsCard && !isBoostCard && !isClearTicketCard;
+  const showTrackZones = !isPeriodSlotsCard && !isBoostCard && !isRemoveTrafficCard;
+  const showBoardArea = !isPeriodSlotsCard && !isBoostCard && !isClearTicketCard && !isRemoveTrafficCard;
+  const periodZoneVariant: 'remove' | 'add' = isPeriodSlotsCard || isBoostCard ? 'add' : 'remove';
+  const maxSlotCount = Math.max(
+    ...PERIOD_ORDER.map((p) => context.timeSlots.filter((s) => s.period === p).length),
+  );
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}>
-      <BoardAreaDropZone />
+      {showBoardArea && <BoardAreaDropZone />}
       {showPeriodZones &&
         PERIOD_ORDER.map((period, pi) => {
           const slotCount = context.timeSlots.filter((s) => s.period === period).length;
@@ -168,10 +181,12 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
               periodIndex={pi}
               slotCount={slotCount}
               containerWidth={containerWidth}
+              variant={periodZoneVariant}
             />
           );
         })}
-      {context.timeSlots.map((slot) => {
+      {showSlotZones && context.timeSlots.map((slot) => {
+        if (isRemoveTrafficCard && slot.cards.length === 0) return null;
         const periodIndex = PERIOD_ORDER.indexOf(slot.period);
         return (
           <SlotDropZone
@@ -182,12 +197,13 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           />
         );
       })}
-      {context.tracks.map((track, ti) => (
+      {showTrackZones && context.tracks.map((track, ti) => (
         <TrackDropZone
           key={`track-${track.track}`}
           track={track}
           trackIndex={ti}
           containerWidth={containerWidth}
+          maxSlotCount={maxSlotCount}
         />
       ))}
     </div>

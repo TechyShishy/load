@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
-import { ACTION_CARDS } from '../data/actionCards.js';
-import { TRAFFIC_CARDS } from '../data/trafficCards.js';
+import { ACTION_CARDS } from '../data/actions/index.js';
+import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { Period, PERIOD_SLOT_COUNTS, SLOT_BASE_CAPACITY, type TimeSlot, type TrafficCard } from '../types.js';
 
 const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
@@ -53,8 +53,8 @@ describe('integration: Data Center Expansion persists until Monday', () => {
     const eveningSlots = actor.getSnapshot().context.timeSlots.filter(
       (s) => s.period === Period.Evening,
     );
-    expect(eveningSlots).toHaveLength(beforeCount + dcExpansion.effectValue);
-    expect(eveningSlots.filter((s) => s.weeklyTemporary)).toHaveLength(dcExpansion.effectValue);
+    expect(eveningSlots).toHaveLength(beforeCount + 2);
+    expect(eveningSlots.filter((s) => s.weeklyTemporary)).toHaveLength(2);
     expect(eveningSlots.filter((s) => s.temporary)).toHaveLength(0);
   });
 

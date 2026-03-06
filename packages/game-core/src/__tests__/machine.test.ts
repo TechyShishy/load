@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { createInitialTimeSlots } from '../boardState.js';
-import { TRAFFIC_CARDS } from '../data/trafficCards.js';
-import { ACTION_CARDS } from '../data/actionCards.js';
-import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, OVERLOAD_PENALTY, HAND_SIZE, ActionEffectType, CardType, EventSubtype, Track, type TrafficCard, type ActionCard } from '../types.js';
+import { TRAFFIC_CARDS } from '../data/traffic/index.js';
+import { ACTION_CARDS } from '../data/actions/index.js';
+import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, OVERLOAD_PENALTY, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
+import { EmergencyMaintenanceCard } from '../data/actions/index.js';
+import { DDoSAttackCard } from '../data/events/index.js';
 
 /** Build a deterministic safeContext where the deck has only traffic cards (no events),
  * so a round will always complete without game-over from bad draws. */
@@ -165,8 +167,8 @@ describe('gameMachine overload penalties', () => {
 
 describe('gameMachine Traffic Prioritization revenue', () => {
   it('records removal revenue in lastRoundSummary.budgetDelta', () => {
-    const tpCard: ActionCard = ACTION_CARDS.find(
-      (c) => c.effectType === ActionEffectType.RemoveTrafficCard,
+    const tpCard = ACTION_CARDS.find(
+      (c) => c.templateId === 'action-traffic-prioritization',
     )!;
     expect(tpCard).toBeDefined();
 
@@ -306,16 +308,13 @@ describe('gameMachine weekend mechanics', () => {
   });
 
   it('allows Security Patch (MitigateDDoS) during weekend crisis', () => {
-    const securityPatch: ActionCard = {
-      ...ACTION_CARDS.find(c => c.effectType === ActionEffectType.MitigateDDoS)!,
-      id: 'test-security-patch',
-    };
+    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
     const ctx = {
       ...safeContext(),
       round: 6,
       hand: [securityPatch],
       // Add a pending event to mitigate
-      eventDeck: [{ id: 'ev-1', type: CardType.Event as const, name: 'Test', subtype: EventSubtype.IssueTicket as const, targetTrack: Track.BreakFix, unmitigatedPenalty: 10000, downtimePenaltyHours: 4, description: 'test' }],
+      eventDeck: [new DDoSAttackCard('ev-1')],
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
@@ -327,10 +326,7 @@ describe('gameMachine weekend mechanics', () => {
   });
 
   it('allows Emergency Maintenance (ClearTicket) during weekend crisis', () => {
-    const emergencyMaint: ActionCard = {
-      ...ACTION_CARDS.find(c => c.effectType === ActionEffectType.ClearTicket)!,
-      id: 'test-emergency-maint',
-    };
+    const emergencyMaint = ACTION_CARDS.find(c => c.templateId === 'action-emergency-maintenance')!;
     const ctx = {
       ...safeContext(),
       round: 6,
@@ -346,10 +342,7 @@ describe('gameMachine weekend mechanics', () => {
   });
 
   it('rejects non-weekend action cards during weekend crisis', () => {
-    const bandwidthUpgrade: ActionCard = {
-      ...ACTION_CARDS.find(c => c.effectType === ActionEffectType.BoostSlotCapacity)!,
-      id: 'test-bandwidth',
-    };
+    const bandwidthUpgrade = ACTION_CARDS.find(c => c.templateId === 'action-bandwidth-upgrade')!;
     const ctx = {
       ...safeContext(),
       round: 6,
@@ -371,8 +364,8 @@ describe('gameMachine weekend mechanics', () => {
       ...safeContext(),
       round: 5, // Friday
       hand: [
-        { ...ACTION_CARDS[0]!, id: 'keep-1' },
-        { ...ACTION_CARDS[0]!, id: 'keep-2' },
+        new EmergencyMaintenanceCard('keep-1'),
+        new EmergencyMaintenanceCard('keep-2'),
       ],
     };
     const actor = createActor(gameMachine, { input: ctx });
@@ -401,8 +394,8 @@ describe('gameMachine weekend mechanics', () => {
       ...safeContext(),
       round: 3, // Wednesday
       hand: [
-        { ...ACTION_CARDS[0]!, id: 'carry-1' },
-        { ...ACTION_CARDS[0]!, id: 'carry-2' },
+        new EmergencyMaintenanceCard('carry-1'),
+        new EmergencyMaintenanceCard('carry-2'),
       ],
     };
     const actor = createActor(gameMachine, { input: ctx });

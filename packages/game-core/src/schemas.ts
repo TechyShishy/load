@@ -1,8 +1,5 @@
 import { z } from 'zod';
 import {
-  ActionEffectType,
-  CardType,
-  EventSubtype,
   LoseReason,
   Period,
   PhaseId,
@@ -14,71 +11,30 @@ import {
 export const PeriodSchema = z.nativeEnum(Period);
 export const TrackSchema = z.nativeEnum(Track);
 export const PhaseIdSchema = z.nativeEnum(PhaseId);
-export const CardTypeSchema = z.nativeEnum(CardType);
-export const EventSubtypeSchema = z.nativeEnum(EventSubtype);
 export const LoseReasonSchema = z.nativeEnum(LoseReason);
-export const ActionEffectTypeSchema = z.nativeEnum(ActionEffectType);
 
-// ─── Card Schemas ─────────────────────────────────────────────────────────────
+// ─── Serialized Card Reference ────────────────────────────────────────────────
 
-export const TrafficCardSchema = z.object({
-  id: z.string(),
-  type: z.literal(CardType.Traffic),
-  name: z.string(),
-  hoursRequired: z.number(),
-  revenue: z.number(),
-  description: z.string(),
+export const SerializedCardSchema = z.object({
+  templateId: z.string(),
+  instanceId: z.string(),
 });
-
-export const EventCardSchema = z.object({
-  id: z.string(),
-  type: z.literal(CardType.Event),
-  name: z.string(),
-  subtype: EventSubtypeSchema,
-  targetTrack: TrackSchema.optional(),
-  spawnCount: z.number().optional(),
-  spawnTrafficId: z.string().optional(),
-  unmitigatedPenalty: z.number(),
-  downtimePenaltyHours: z.number(),
-  noOpMVP: z.boolean().optional(),
-  description: z.string(),
-});
-
-export const ActionCardSchema = z.object({
-  id: z.string(),
-  type: z.literal(CardType.Action),
-  name: z.string(),
-  cost: z.number(),
-  effectType: ActionEffectTypeSchema,
-  effectValue: z.number(),
-  targetTrack: TrackSchema.optional(),
-  targetPeriod: PeriodSchema.optional(),
-  targetTrafficCardId: z.string().optional(),
-  description: z.string(),
-  deckCount: z.number().optional(),
-});
-
-export const CardSchema = z.discriminatedUnion('type', [
-  TrafficCardSchema,
-  EventCardSchema,
-  ActionCardSchema,
-]);
 
 // ─── Board State Schemas ──────────────────────────────────────────────────────
 
-export const TimeSlotSchema = z.object({
+export const SerializedTimeSlotSchema = z.object({
   period: PeriodSchema,
   index: z.number(),
   baseCapacity: z.number(),
-  cards: z.array(TrafficCardSchema),
+  cards: z.array(SerializedCardSchema),
   unavailable: z.boolean(),
   temporary: z.boolean().optional(),
   weeklyTemporary: z.boolean().optional(),
 });
 
-export const TrackSlotSchema = z.object({
+export const SerializedTrackSlotSchema = z.object({
   track: TrackSchema,
-  tickets: z.array(EventCardSchema),
+  tickets: z.array(SerializedCardSchema),
 });
 
 export const VendorSlotSchema = z.object({
@@ -96,27 +52,27 @@ export const RoundSummarySchema = z.object({
   spawnedTrafficCount: z.number(),
 });
 
-// ─── GameContext Schema ───────────────────────────────────────────────────────
+// ─── SerializedGameContext Schema (= what lives in JSON storage) ──────────────
 
 export const GameContextSchema = z.object({
   budget: z.number(),
   round: z.number(),
   slaCount: z.number(),
-  hand: z.array(ActionCardSchema),
-  playedThisRound: z.array(ActionCardSchema),
-  timeSlots: z.array(TimeSlotSchema),
-  tracks: z.array(TrackSlotSchema),
+  hand: z.array(SerializedCardSchema),
+  playedThisRound: z.array(SerializedCardSchema),
+  timeSlots: z.array(SerializedTimeSlotSchema),
+  tracks: z.array(SerializedTrackSlotSchema),
   vendorSlots: z.array(VendorSlotSchema),
-  pendingEvents: z.array(EventCardSchema),
+  pendingEvents: z.array(SerializedCardSchema),
   mitigatedEventIds: z.array(z.string()),
   activePhase: PhaseIdSchema,
-  trafficDeck: z.array(TrafficCardSchema),
-  trafficDiscard: z.array(TrafficCardSchema),
-  eventDeck: z.array(EventCardSchema),
-  eventDiscard: z.array(EventCardSchema),
-  spawnedTrafficQueue: z.array(TrafficCardSchema),
-  actionDeck: z.array(ActionCardSchema),
-  actionDiscard: z.array(ActionCardSchema),
+  trafficDeck: z.array(SerializedCardSchema),
+  trafficDiscard: z.array(SerializedCardSchema),
+  eventDeck: z.array(SerializedCardSchema),
+  eventDiscard: z.array(SerializedCardSchema),
+  spawnedTrafficQueue: z.array(SerializedCardSchema),
+  actionDeck: z.array(SerializedCardSchema),
+  actionDiscard: z.array(SerializedCardSchema),
   lastRoundSummary: RoundSummarySchema.nullable(),
   loseReason: LoseReasonSchema.nullable(),
   pendingOverloadCount: z.number(),

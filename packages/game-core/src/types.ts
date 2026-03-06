@@ -30,12 +30,6 @@ export enum CardType {
   Action = 'Action',
 }
 
-export enum EventSubtype {
-  SpawnTraffic = 'SpawnTraffic',
-  IssueTicket = 'IssueTicket',
-  SpawnVendor = 'SpawnVendor',
-}
-
 export enum LoseReason {
   Bankrupt = 'Bankrupt',
   SLAExceeded = 'SLAExceeded',
@@ -43,62 +37,103 @@ export enum LoseReason {
 
 // ─── Card Definitions ─────────────────────────────────────────────────────────
 
-export interface TrafficCard {
-  readonly id: string;
-  readonly type: CardType.Traffic;
-  readonly name: string;
-  readonly hoursRequired: number;
-  readonly revenue: number;
-  readonly description: string;
+/**
+ * Base class for all event cards.
+ * Serialized form: { templateId, instanceId }.
+ * Concrete subclasses implement onCrisis() to encode their effect.
+ */
+export abstract class EventCard {
+  abstract readonly templateId: string;
+  abstract readonly id: string;
+  abstract readonly name: string;
+  abstract readonly label: string;
+  abstract readonly description: string;
+  readonly type = CardType.Event as const;
+
+  /** Apply this event's effect. Called once per crisis phase. */
+  abstract onCrisis(ctx: GameContext, mitigated: boolean): GameContext;
 }
 
-export interface EventCard {
-  readonly id: string;
-  readonly type: CardType.Event;
-  readonly name: string;
-  readonly subtype: EventSubtype;
-  /** Track to assign a ticket to (IssueTicket subtype only) */
-  readonly targetTrack?: Track;
-  /** Number of extra Traffic cards to spawn (SpawnTraffic subtype only) */
-  readonly spawnCount?: number;
-  /** Which traffic card template to spawn (SpawnTraffic subtype only) */
-  readonly spawnTrafficId?: string;
-  /** Financial penalty if not mitigated */
-  readonly unmitigatedPenalty: number;
-  /** Hours of downtime if not mitigated (removes slots from next period) */
-  readonly downtimePenaltyHours: number;
-  /** No-op this event during MVP when true (SpawnVendor) */
-  readonly noOpMVP?: boolean;
-  readonly description: string;
+/**
+ * Base class for all traffic cards.
+ * Serialized form: { templateId, instanceId }.
+ * Concrete subclasses may implement onPlace() for placement effects.
+ */
+export abstract class TrafficCard {
+  abstract readonly templateId: string;
+  abstract readonly id: string;
+  abstract readonly name: string;
+  abstract readonly hoursRequired: number;
+  abstract readonly revenue: number;
+  abstract readonly description: string;
+  readonly type = CardType.Traffic as const;
+
+  /** Optional hook called when the card is placed into a slot. */
+  onPlace?(ctx: GameContext, slotIndex: number): GameContext;
 }
 
-export interface ActionCard {
-  readonly id: string;
-  readonly type: CardType.Action;
-  readonly name: string;
-  readonly cost: number;
-  readonly effectType: ActionEffectType;
-  readonly effectValue: number;
-  /** Track this action targets (for ticket-clearing actions) */
-  readonly targetTrack?: Track;
-  /** Period this action targets (for slot-modification actions) */
-  readonly targetPeriod?: Period;
-  /** Traffic card instance to remove (for RemoveTrafficCard actions) */
-  readonly targetTrafficCardId?: string;
-  readonly description: string;
+/**
+ * Base class for all action cards.
+ * Serialized form: { templateId, instanceId }.
+ * The commit() callback passed to apply() handles cost deduction, hand removal,
+ * and playedThisRound tracking. The card decides when during apply() to call it.
+ */
+export abstract class ActionCard {
+  abstract readonly templateId: string;
+  abstract readonly id: string;
+  abstract readonly name: string;
+  abstract readonly cost: number;
+  abstract readonly description: string;
+  abstract readonly allowedOnWeekend: boolean;
+  readonly type = CardType.Action as const;
   /** Number of copies to include in the action deck. Defaults to 3. */
-  readonly deckCount?: number;
-}
+  readonly deckCount: number = 3;
 
-export enum ActionEffectType {
-  ClearTicket = 'ClearTicket',
-  RemoveTrafficCard = 'RemoveTrafficCard',
-  BoostSlotCapacity = 'BoostSlotCapacity',
-  MitigateDDoS = 'MitigateDDoS',
-  AddOvernightSlots = 'AddOvernightSlots',
+  abstract apply(
+    ctx: GameContext,
+    commit: () => GameContext,
+    targetEventId?: string,
+    targetTrafficCardId?: string,
+    targetPeriod?: Period,
+    targetTrack?: Track,
+  ): GameContext;
 }
 
 export type Card = TrafficCard | EventCard | ActionCard;
+
+// ─── Serialized card reference ────────────────────────────────────────────────
+
+export interface SerializedCard {
+  readonly templateId: string;
+  readonly instanceId: string;
+}
+
+/** GameContext shape as stored in JSON — cards are { templateId, instanceId } pairs. */
+export interface SerializedGameContext {
+  budget: number;
+  round: number;
+  slaCount: number;
+  hand: SerializedCard[];
+  playedThisRound: SerializedCard[];
+  timeSlots: Array<Omit<TimeSlot, 'cards'> & { cards: SerializedCard[] }>;
+  tracks: Array<{ track: Track; tickets: SerializedCard[] }>;
+  vendorSlots: VendorSlot[];
+  pendingEvents: SerializedCard[];
+  mitigatedEventIds: string[];
+  activePhase: PhaseId;
+  trafficDeck: SerializedCard[];
+  trafficDiscard: SerializedCard[];
+  eventDeck: SerializedCard[];
+  eventDiscard: SerializedCard[];
+  spawnedTrafficQueue: SerializedCard[];
+  actionDeck: SerializedCard[];
+  actionDiscard: SerializedCard[];
+  lastRoundSummary: RoundSummary | null;
+  loseReason: LoseReason | null;
+  pendingOverloadCount: number;
+  pendingRevenue: number;
+  seed: string;
+}
 
 // ─── Board State ──────────────────────────────────────────────────────────────
 
@@ -198,10 +233,6 @@ export const WEEKEND_EVENT_DRAW = 1;
 export const DAYS_PER_WEEK = 7;
 export const WORKDAYS_PER_WEEK = 5;
 export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-export const WEEKEND_ALLOWED_EFFECTS: readonly ActionEffectType[] = [
-  ActionEffectType.MitigateDDoS,
-  ActionEffectType.ClearTicket,
-];
 export const PERIOD_SLOT_COUNTS: Record<Period, number> = {
   [Period.Morning]: 4,
   [Period.Afternoon]: 4,

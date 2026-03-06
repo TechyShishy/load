@@ -1,5 +1,5 @@
 import seedrandom from 'seedrandom';
-import { ACTION_CARDS, EVENT_CARDS, TRAFFIC_CARDS } from './data/index.js';
+import { ACTION_CARDS, ACTION_CARD_REGISTRY, EVENT_CARDS, EVENT_CARD_REGISTRY, TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY } from './data/index.js';
 import type { ActionCard, EventCard, TrafficCard } from './types.js';
 
 /** Injectable RNG function — default is Math.random, tests can seed it. */
@@ -31,7 +31,9 @@ export function buildTrafficDeck(rng: Rng = Math.random): TrafficCard[] {
   const traffic: TrafficCard[] = [];
   for (let i = 0; i < 16; i++) {
     const template = TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!;
-    traffic.push({ ...template, id: `${template.id}-${Math.floor(rng() * 1e9)}` });
+    const instanceId = `${template.templateId}-${Math.floor(rng() * 1e9)}`;
+    const Ctor = TRAFFIC_CARD_REGISTRY.get(template.templateId)!;
+    traffic.push(new Ctor(instanceId));
   }
   return shuffle(traffic, rng);
 }
@@ -44,22 +46,26 @@ export function buildEventDeck(rng: Rng = Math.random): EventCard[] {
   const events: EventCard[] = [];
   for (let i = 0; i < 8; i++) {
     const template = EVENT_CARDS[i % EVENT_CARDS.length]!;
-    events.push({ ...template, id: `${template.id}-${Math.floor(rng() * 1e9)}` });
+    const instanceId = `${template.templateId}-${Math.floor(rng() * 1e9)}`;
+    const Ctor = EVENT_CARD_REGISTRY.get(template.templateId)!;
+    events.push(new Ctor(instanceId));
   }
   return shuffle(events, rng);
 }
 
 /**
  * Build the Action deck.
- * Composition: each card is included `card.deckCount ?? 3` times.
+ * Composition: each card is included `card.deckCount` times.
  * Default: 3 copies per card (18 total with Traffic Prioritization at 6 copies).
  */
 export function buildActionDeck(rng: Rng = Math.random): ActionCard[] {
   const cards: ActionCard[] = [];
   for (const card of ACTION_CARDS) {
-    const copies = card.deckCount ?? 3;
+    const copies = card.deckCount;
+    const Ctor = ACTION_CARD_REGISTRY.get(card.templateId)!;
     for (let i = 0; i < copies; i++) {
-      cards.push({ ...card, id: `${card.id}-${Math.floor(rng() * 1e9)}` });
+      const instanceId = `${card.templateId}-${Math.floor(rng() * 1e9)}`;
+      cards.push(new Ctor(instanceId));
     }
   }
   return shuffle(cards, rng);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { checkLoseCondition, checkWinCondition, resolveRound } from '../resolveRound.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
-import { TRAFFIC_CARDS } from '../data/trafficCards.js';
-import { ACTION_CARDS } from '../data/actionCards.js';
+import { TRAFFIC_CARDS } from '../data/traffic/index.js';
+import { ACTION_CARDS } from '../data/actions/index.js';
 import {
   MAX_ROUNDS,
   MAX_SLA_FAILURES,

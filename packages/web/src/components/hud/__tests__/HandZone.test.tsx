@@ -3,20 +3,18 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import type { ActionCard } from '@load/game-core';
-import { ActionEffectType, CardType } from '@load/game-core';
+import { CardType } from '@load/game-core';
 import { HandZone } from '../HandZone.js';
 
-function makeCard(overrides: Partial<ActionCard> = {}): ActionCard {
+function makeCard(overrides: Partial<Pick<ActionCard, 'id' | 'name' | 'cost' | 'description'>> = {}): ActionCard {
   return {
     id: 'test-card-1',
     type: CardType.Action,
     name: 'Test Card',
     cost: 10_000,
-    effectType: ActionEffectType.ClearTicket,
-    effectValue: 1,
     description: 'A test card.',
     ...overrides,
-  };
+  } as unknown as ActionCard;
 }
 
 /** Wrap in DndContext so useDraggable has a context to register with. */

@@ -27,7 +27,7 @@ vi.mock('../../save.js', () => ({
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 import { useMachine } from '@xstate/react';
 import { useGame } from '../useGame.js';
-import { CardType, ActionEffectType } from '@load/game-core';
+import { ACTION_CARDS } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 
 // ─── Audio stub ───────────────────────────────────────────────────────────────
@@ -45,15 +45,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) =>
   React.createElement(AudioCtx.Provider, { value: mockAudio }, children);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fakeCard: ActionCard = {
-  id: 'test-action',
-  type: CardType.Action,
-  name: 'Test Action',
-  cost: 5_000,
-  effectType: ActionEffectType.ClearTicket,
-  effectValue: 1,
-  description: 'A test action card.',
-};
+const fakeCard: ActionCard = ACTION_CARDS.find((c) => c.id === 'action-emergency-maintenance')!;
 
 function mockPhase(phase: string) {
   vi.mocked(useMachine).mockReturnValue([

@@ -1,5 +1,5 @@
 import { assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, WEEKEND_ALLOWED_EFFECTS, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
+import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
@@ -71,7 +71,7 @@ export const gameMachine = setup({
     isWeekendActionAllowed: ({ context, event }) => {
       if (!isWeekend(context.round)) return true;
       if (event.type !== 'PLAY_ACTION') return false;
-      return WEEKEND_ALLOWED_EFFECTS.includes(event.card.effectType);
+      return event.card.allowedOnWeekend;
     },
   },
   actions: {

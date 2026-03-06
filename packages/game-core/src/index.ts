@@ -4,9 +4,10 @@ export {
   Track,
   PhaseId,
   CardType,
-  EventSubtype,
   LoseReason,
-  ActionEffectType,
+  EventCard,
+  TrafficCard,
+  ActionCard,
   STARTING_BUDGET,
   MAX_ROUNDS,
   BANKRUPT_THRESHOLD,
@@ -21,7 +22,6 @@ export {
   DAYS_PER_WEEK,
   WORKDAYS_PER_WEEK,
   DAY_NAMES,
-  WEEKEND_ALLOWED_EFFECTS,
   PERIOD_SLOT_COUNTS,
   getDayOfWeek,
   getDayName,
@@ -30,24 +30,30 @@ export {
   isFriday,
 } from './types.js';
 export type {
-  TrafficCard,
-  EventCard,
-  ActionCard,
   Card,
   TimeSlot,
   TrackSlot,
   VendorSlot,
   GameContext,
   RoundSummary,
+  SerializedCard,
+  SerializedGameContext,
   StorageAdapter,
 } from './types.js';
 
 // ── Persistence schema (for save/load validation) ─────────────────────────────
 export { GameContextSchema } from './schemas.js';
 
+// ── Serialization (dehydrate/hydrate) ─────────────────────────────────────────
+export { dehydrateContext, hydrateContext } from './serialization.js';
+
 // ── State machine (public façade) ─────────────────────────────────────────────
 export { gameMachine, createInitialContext } from './machine.js';
 export type { GameEvent } from './machine.js';
 
 // ── Game content ──────────────────────────────────────────────────────────────
-export { TRAFFIC_CARDS, EVENT_CARDS, ACTION_CARDS } from './data/index.js';
+export {
+  TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY,
+  EVENT_CARDS, EVENT_CARD_REGISTRY,
+  ACTION_CARDS, ACTION_CARD_REGISTRY,
+} from './data/index.js';

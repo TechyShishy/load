@@ -1,6 +1,5 @@
 import React from 'react';
 import FocusTrap from 'focus-trap-react';
-import { ActionEffectType, EventSubtype } from '@load/game-core';
 import type { ActionCard, EventCard } from '@load/game-core';
 
 interface EventModalProps {
@@ -10,15 +9,9 @@ interface EventModalProps {
   onAdvance: () => void;
 }
 
-const SUBTYPE_LABEL: Record<EventSubtype, string> = {
-  [EventSubtype.SpawnTraffic]: 'TRAFFIC SPIKE',
-  [EventSubtype.IssueTicket]: 'ISSUE TICKET',
-  [EventSubtype.SpawnVendor]: 'VENDOR',
-};
-
 export function EventModal({ event, hand, onMitigate, onAdvance }: EventModalProps) {
   const mitigateCards = hand.filter(
-    (c) => c.effectType === ActionEffectType.MitigateDDoS,
+    (c) => c.templateId === 'action-security-patch',
   );
 
   return (
@@ -32,7 +25,7 @@ export function EventModal({ event, hand, onMitigate, onAdvance }: EventModalPro
         <div className="border border-red-700 bg-gray-950 rounded-lg p-6 max-w-sm w-full shadow-2xl">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-red-900 border border-red-700 text-red-300 uppercase tracking-widest">
-              {SUBTYPE_LABEL[event.subtype]}
+              {event.label}
             </span>
           </div>
           <h2
@@ -43,14 +36,6 @@ export function EventModal({ event, hand, onMitigate, onAdvance }: EventModalPro
           </h2>
           <p className="text-gray-400 text-sm mb-4">{event.description}</p>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono mb-4">
-            <dt className="text-gray-500">Penalty</dt>
-            <dd className="text-red-400">${event.unmitigatedPenalty.toLocaleString()}</dd>
-            {event.downtimePenaltyHours > 0 && (
-              <>
-                <dt className="text-gray-500">Downtime</dt>
-                <dd className="text-orange-400">{event.downtimePenaltyHours}h</dd>
-              </>
-            )}
           </dl>
           {mitigateCards.length > 0 && (
             <div className="mb-4">
