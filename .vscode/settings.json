@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+      "npx playwright": true,
+      "yarn workspace": true,
+      "diff": true,
+      "git ls-tree": true
+    }
+}

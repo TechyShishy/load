@@ -7,3 +7,6 @@ coverage/
 .DS_Store
 android/
 ios/
+**/test-results/
+playwright-report/
+.playwright-mcp/
