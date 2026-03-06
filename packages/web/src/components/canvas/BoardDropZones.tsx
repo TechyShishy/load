@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Period, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
-import { computePeriodRect, computeSlotRect, computeTrackRect } from './canvasLayout.js';
+import { computePeriodRect, computeSlotRect, computeTrackRect, rowsForPeriod } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
@@ -17,12 +17,13 @@ interface SlotDropZoneProps {
   slot: TimeSlot;
   periodIndex: number;
   containerWidth: number;
+  periodSlotCount: number;
 }
 
-function SlotDropZone({ slot, periodIndex, containerWidth }: SlotDropZoneProps) {
+function SlotDropZone({ slot, periodIndex, containerWidth, periodSlotCount }: SlotDropZoneProps) {
   const id = `slot-${slot.period}-${slot.index}`;
   const { isOver, setNodeRef } = useDroppable({ id, data: { type: 'slot', slot } });
-  const rect = computeSlotRect(periodIndex, slot.index, containerWidth);
+  const rect = computeSlotRect(periodIndex, slot.index, containerWidth, periodSlotCount);
 
   return (
     <div
@@ -165,8 +166,8 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
   const showTrackZones = zones.includes('track');
   const showBoardArea = zones.includes('board');
   const periodZoneVariant: 'remove' | 'add' = activeCard?.periodZoneVariant ?? 'remove';
-  const maxSlotCount = Math.max(
-    ...PERIOD_ORDER.map((p) => context.timeSlots.filter((s) => s.period === p).length),
+  const maxRows = Math.max(
+    ...PERIOD_ORDER.map((p) => rowsForPeriod(context.timeSlots.filter((s) => s.period === p).length)),
   );
 
   return (
@@ -189,12 +190,14 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
       {showSlotZones && context.timeSlots.map((slot) => {
         if (zones.includes('occupied-slot') && slot.cards.length === 0) return null;
         const periodIndex = PERIOD_ORDER.indexOf(slot.period);
+        const periodSlotCount = context.timeSlots.filter((s) => s.period === slot.period).length;
         return (
           <SlotDropZone
             key={`slot-${slot.period}-${slot.index}`}
             slot={slot}
             periodIndex={periodIndex}
             containerWidth={containerWidth}
+            periodSlotCount={periodSlotCount}
           />
         );
       })}
@@ -204,7 +207,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           track={track}
           trackIndex={ti}
           containerWidth={containerWidth}
-          maxSlotCount={maxSlotCount}
+          maxSlotCount={maxRows}
         />
       ))}
     </div>

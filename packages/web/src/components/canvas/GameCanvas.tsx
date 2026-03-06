@@ -13,7 +13,8 @@ import {
   PERIOD_PADDING,
   CARD_PADDING,
   BOARD_START_Y,
-  TRACKS_Y_OFFSET,
+  computeTracksYOffset,
+  rowsForPeriod,
 } from './canvasLayout.js';
 interface GameCanvasProps {
   context: GameContext;
@@ -145,7 +146,7 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
       periodX,
       BOARD_START_Y - 8,
       periodW - 8,
-      32 + periodSlots.length * (SLOT_H + SLOT_GAP),
+      32 + rowsForPeriod(periodSlots.length) * (SLOT_H + SLOT_GAP),
       8,
     );
     colBg.fill({ color: PERIOD_COLORS[period], alpha: 0.15 });
@@ -160,8 +161,11 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
     for (let si = 0; si < periodSlots.length; si++) {
       const slot = periodSlots[si]!;
       const slotKey = `${period}-${si}`;
-      const slotX = periodX + PERIOD_PADDING;
-      const slotY = BOARD_START_Y + 24 + si * (SLOT_H + SLOT_GAP);
+      const rows = rowsForPeriod(periodSlots.length);
+      const subCol = Math.floor(si / rows);
+      const row = si % rows;
+      const slotX = periodX + PERIOD_PADDING + subCol * (SLOT_W + SLOT_GAP);
+      const slotY = BOARD_START_Y + 24 + row * (SLOT_H + SLOT_GAP);
 
       // Slot background.
       const bg = new Graphics();
@@ -192,10 +196,14 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
   }
 
   // Tracks — static row backgrounds with dynamic ticket containers.
+  const maxRows = Math.max(
+    ...Object.values(Period).map((p) => rowsForPeriod(ctx.timeSlots.filter((s) => s.period === p).length)),
+  );
+  const tracksYOffset = computeTracksYOffset(maxRows);
   for (let ti = 0; ti < ctx.tracks.length; ti++) {
     const track = ctx.tracks[ti]!;
     const trackX = 20;
-    const trackY = TRACKS_Y_OFFSET + ti * 36;
+    const trackY = tracksYOffset + ti * 36;
     const trackW = app.screen.width - 40;
     const tColor = TRACK_COLORS[track.track] ?? 0x555555;
 
@@ -238,7 +246,7 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
 function paintSlotCards(slot: TimeSlot, slotX: number, slotY: number, container: Container): void {
   for (let ci = 0; ci < slot.cards.length; ci++) {
     const card = slot.cards[ci]!;
-    const cardH = Math.floor((SLOT_H - CARD_PADDING * 2) / 3);
+    const cardH = SLOT_H - CARD_PADDING * 2;
     const cardY = slotY + CARD_PADDING + ci * (cardH + 2);
 
     const cardBg = new Graphics();

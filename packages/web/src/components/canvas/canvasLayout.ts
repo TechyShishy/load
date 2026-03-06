@@ -6,10 +6,19 @@ export const SLOT_H = 60;
 export const SLOT_GAP = 8;
 export const PERIOD_PADDING = 16;
 export const CARD_PADDING = 4;
+
 export const BOARD_START_Y = 40;
 
-/** Y-offset of the first track row. Derived from the tallest period column (4 slots). */
-export const TRACKS_Y_OFFSET = BOARD_START_Y + 24 + 4 * (SLOT_H + SLOT_GAP) + 20;
+/**
+ * Y-offset of the first track row, derived from the tallest period column.
+ * @param maxSlotCount  the maximum number of slots in any single period
+ */
+export function computeTracksYOffset(maxSlotCount: number): number {
+  return BOARD_START_Y + 24 + maxSlotCount * (SLOT_H + SLOT_GAP) + 20;
+}
+
+/** @deprecated Use computeTracksYOffset(maxSlotCount) for a dynamic board. Kept for back-compat. */
+export const TRACKS_Y_OFFSET = computeTracksYOffset(4);
 
 /** Visual height of a single track row background rect. */
 export const TRACK_H = 28;
@@ -19,6 +28,17 @@ export const TRACK_ROW_GAP = 36;
 
 /** Number of period columns rendered on the board. */
 export const PERIOD_COUNT = 4;
+
+/** Number of sub-columns within a period before growing row count. */
+export const MAX_SUB_COLS = 3;
+
+/**
+ * Number of slot rows for a period given its current slot count.
+ * Always MAX_SUB_COLS sub-columns; rows grow as ceil(slotCount / MAX_SUB_COLS), minimum 4.
+ */
+export function rowsForPeriod(slotCount: number): number {
+  return Math.max(4, Math.ceil(slotCount / MAX_SUB_COLS));
+}
 
 export interface SlotRect {
   x: number;
@@ -37,13 +57,17 @@ export function computeSlotRect(
   periodIndex: number,
   slotIndex: number,
   containerWidth: number,
+  periodSlotCount = 4,
 ): SlotRect {
+  const rows = rowsForPeriod(periodSlotCount);
   const availableW = containerWidth - 40;
   const periodW = availableW / PERIOD_COUNT;
   const periodX = 20 + periodIndex * periodW;
+  const subCol = Math.floor(slotIndex / rows);
+  const row = slotIndex % rows;
   return {
-    x: periodX + PERIOD_PADDING,
-    y: BOARD_START_Y + 24 + slotIndex * (SLOT_H + SLOT_GAP),
+    x: periodX + PERIOD_PADDING + subCol * (SLOT_W + SLOT_GAP),
+    y: BOARD_START_Y + 24 + row * (SLOT_H + SLOT_GAP),
     w: SLOT_W,
     h: SLOT_H,
   };
@@ -68,7 +92,7 @@ export function computePeriodRect(
     x: periodX,
     y: BOARD_START_Y - 8,
     w: periodW - 8,
-    h: 32 + slotCount * (SLOT_H + SLOT_GAP),
+    h: 32 + rowsForPeriod(slotCount) * (SLOT_H + SLOT_GAP),
   };
 }
 
@@ -76,12 +100,14 @@ export function computePeriodRect(
  * Compute the pixel rect of a track row given the canvas container CSS width.
  * @param trackIndex    0-based track index
  * @param containerWidth  clientWidth of the canvas container div
+ * @param maxSlotCount  maximum slot count across all periods (default 4)
  */
-export function computeTrackRect(trackIndex: number, containerWidth: number): SlotRect {
+export function computeTrackRect(trackIndex: number, containerWidth: number, maxSlotCount = 4): SlotRect {
   return {
     x: 20,
-    y: TRACKS_Y_OFFSET + trackIndex * TRACK_ROW_GAP,
+    y: computeTracksYOffset(maxSlotCount) + trackIndex * TRACK_ROW_GAP,
     w: containerWidth - 40,
     h: TRACK_H,
   };
 }
+
