@@ -91,7 +91,7 @@ export const DEFAULT_ACTION_DECK: ReadonlyArray<{
   readonly count: number;
 }> = [
   { templateId: 'action-emergency-maintenance',   count: 3 },
-  { templateId: 'action-traffic-prioritization',  count: 6 },
+  { templateId: 'action-traffic-prioritization',  count: 12 },
   { templateId: 'action-bandwidth-upgrade',       count: 3 },
   { templateId: 'action-security-patch',          count: 3 },
   { templateId: 'action-datacenter-expansion',    count: 3 },

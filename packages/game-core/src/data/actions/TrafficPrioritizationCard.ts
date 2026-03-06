@@ -3,7 +3,7 @@ import { ActionCard, type GameContext } from '../../types.js';
 export class TrafficPrioritizationCard extends ActionCard {
   readonly templateId = 'action-traffic-prioritization';
   readonly name = 'Traffic Prioritization';
-  readonly cost = 10_000;
+  readonly cost = 0;
   readonly description = 'Remove 1 Traffic card from the board, collecting its revenue.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['occupied-slot'] as const;

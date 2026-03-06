@@ -79,9 +79,9 @@ describe('buildEventDeck', () => {
 });
 
 describe('buildActionDeck', () => {
-  it('contains 21 cards total', () => {
+  it('contains 27 cards total', () => {
     const deck = buildActionDeck();
-    expect(deck).toHaveLength(21);
+    expect(deck).toHaveLength(27);
   });
 
   it('all cards are Action type', () => {
@@ -95,7 +95,7 @@ describe('buildActionDeck', () => {
     for (const card of deck) {
       counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
     }
-    expect(counts.get('Traffic Prioritization')).toBe(6);
+    expect(counts.get('Traffic Prioritization')).toBe(12);
     for (const [name, count] of counts) {
       if (name !== 'Traffic Prioritization') {
         expect(count).toBe(3);
