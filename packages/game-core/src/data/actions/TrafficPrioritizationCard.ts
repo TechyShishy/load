@@ -6,7 +6,6 @@ export class TrafficPrioritizationCard extends ActionCard {
   readonly cost = 10_000;
   readonly description = 'Remove 1 Traffic card from the board, collecting its revenue.';
   readonly allowedOnWeekend = false;
-  override readonly deckCount = 6;
 
   constructor(public readonly id: string = 'action-traffic-prioritization') {
     super();

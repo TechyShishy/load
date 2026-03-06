@@ -86,8 +86,6 @@ export abstract class ActionCard {
   abstract readonly description: string;
   abstract readonly allowedOnWeekend: boolean;
   readonly type = CardType.Action as const;
-  /** Number of copies to include in the action deck. Defaults to 3. */
-  readonly deckCount: number = 3;
 
   abstract apply(
     ctx: GameContext,

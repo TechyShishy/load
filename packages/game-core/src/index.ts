@@ -57,3 +57,6 @@ export {
   EVENT_CARDS, EVENT_CARD_REGISTRY,
   ACTION_CARDS, ACTION_CARD_REGISTRY,
 } from './data/index.js';
+
+// ── Deck constants ────────────────────────────────────────────────────────────
+export { DEFAULT_ACTION_DECK, DEFAULT_TRAFFIC_DECK, DEFAULT_EVENT_DECK } from './deck.js';

@@ -1,5 +1,5 @@
 import seedrandom from 'seedrandom';
-import { ACTION_CARDS, ACTION_CARD_REGISTRY, EVENT_CARDS, EVENT_CARD_REGISTRY, TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY } from './data/index.js';
+import { ACTION_CARD_REGISTRY, EVENT_CARD_REGISTRY, TRAFFIC_CARD_REGISTRY } from './data/index.js';
 import type { ActionCard, EventCard, TrafficCard } from './types.js';
 
 /** Injectable RNG function — default is Math.random, tests can seed it. */
@@ -24,47 +24,89 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
 }
 
 /**
+ * Canonical traffic-deck composition.
+ * Total: 16 cards (FourKStream×6, IoTBurst×5, CloudBackup×5).
+ */
+export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<{
+  readonly templateId: string;
+  readonly count: number;
+}> = [
+  { templateId: 'traffic-4k-stream',    count: 6 },
+  { templateId: 'traffic-iot-burst',    count: 5 },
+  { templateId: 'traffic-cloud-backup', count: 5 },
+];
+
+/**
  * Build the Traffic deck.
- * Composition: 16 Traffic cards, cycling through the 3 base templates.
+ * Composition is defined by DEFAULT_TRAFFIC_DECK.
  */
 export function buildTrafficDeck(rng: Rng = Math.random): TrafficCard[] {
   const traffic: TrafficCard[] = [];
-  for (let i = 0; i < 16; i++) {
-    const template = TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!;
-    const instanceId = `${template.templateId}-${Math.floor(rng() * 1e9)}`;
-    const Ctor = TRAFFIC_CARD_REGISTRY.get(template.templateId)!;
-    traffic.push(new Ctor(instanceId));
+  for (const { templateId, count } of DEFAULT_TRAFFIC_DECK) {
+    const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId)!;
+    for (let i = 0; i < count; i++) {
+      const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
+      traffic.push(new Ctor(instanceId));
+    }
   }
   return shuffle(traffic, rng);
 }
 
 /**
+ * Canonical event-deck composition.
+ * Total: 8 cards (DDoSAttack×3, AWSOutage×3, FiveGActivation×2).
+ */
+export const DEFAULT_EVENT_DECK: ReadonlyArray<{
+  readonly templateId: string;
+  readonly count: number;
+}> = [
+  { templateId: 'event-ddos-attack',    count: 3 },
+  { templateId: 'event-aws-outage',     count: 3 },
+  { templateId: 'event-5g-activation',  count: 2 },
+];
+
+/**
  * Build the Event deck.
- * Composition: 8 Event cards, cycling through the 3 base templates.
+ * Composition is defined by DEFAULT_EVENT_DECK.
  */
 export function buildEventDeck(rng: Rng = Math.random): EventCard[] {
   const events: EventCard[] = [];
-  for (let i = 0; i < 8; i++) {
-    const template = EVENT_CARDS[i % EVENT_CARDS.length]!;
-    const instanceId = `${template.templateId}-${Math.floor(rng() * 1e9)}`;
-    const Ctor = EVENT_CARD_REGISTRY.get(template.templateId)!;
-    events.push(new Ctor(instanceId));
+  for (const { templateId, count } of DEFAULT_EVENT_DECK) {
+    const Ctor = EVENT_CARD_REGISTRY.get(templateId)!;
+    for (let i = 0; i < count; i++) {
+      const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
+      events.push(new Ctor(instanceId));
+    }
   }
   return shuffle(events, rng);
 }
 
 /**
+ * Canonical action-deck composition.
+ * Each entry specifies how many copies of a given template to include.
+ * Total: 18 cards (Emergency×3, TrafficPrioritization×6, Bandwidth×3, SecurityPatch×3, DataCenter×3).
+ */
+export const DEFAULT_ACTION_DECK: ReadonlyArray<{
+  readonly templateId: string;
+  readonly count: number;
+}> = [
+  { templateId: 'action-emergency-maintenance',   count: 3 },
+  { templateId: 'action-traffic-prioritization',  count: 6 },
+  { templateId: 'action-bandwidth-upgrade',       count: 3 },
+  { templateId: 'action-security-patch',          count: 3 },
+  { templateId: 'action-datacenter-expansion',    count: 3 },
+];
+
+/**
  * Build the Action deck.
- * Composition: each card is included `card.deckCount` times.
- * Default: 3 copies per card (18 total with Traffic Prioritization at 6 copies).
+ * Composition is defined by DEFAULT_ACTION_DECK.
  */
 export function buildActionDeck(rng: Rng = Math.random): ActionCard[] {
   const cards: ActionCard[] = [];
-  for (const card of ACTION_CARDS) {
-    const copies = card.deckCount;
-    const Ctor = ACTION_CARD_REGISTRY.get(card.templateId)!;
-    for (let i = 0; i < copies; i++) {
-      const instanceId = `${card.templateId}-${Math.floor(rng() * 1e9)}`;
+  for (const { templateId, count } of DEFAULT_ACTION_DECK) {
+    const Ctor = ACTION_CARD_REGISTRY.get(templateId)!;
+    for (let i = 0; i < count; i++) {
+      const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
       cards.push(new Ctor(instanceId));
     }
   }
