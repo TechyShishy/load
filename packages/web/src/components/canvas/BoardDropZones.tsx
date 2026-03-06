@@ -26,6 +26,7 @@ function SlotDropZone({ slot, periodIndex, containerWidth }: SlotDropZoneProps) 
 
   return (
     <div
+      id={id}
       ref={setNodeRef}
       style={{
         position: 'absolute',
@@ -67,6 +68,7 @@ function PeriodDropZone({ period, periodIndex, slotCount, containerWidth, varian
 
   return (
     <div
+      id={id}
       ref={setNodeRef}
       style={{
         position: 'absolute',
@@ -100,6 +102,7 @@ function TrackDropZone({ track, trackIndex, containerWidth, maxSlotCount }: Trac
 
   return (
     <div
+      id={id}
       ref={setNodeRef}
       style={{
         position: 'absolute',
@@ -123,6 +126,7 @@ function BoardAreaDropZone() {
 
   return (
     <div
+      id="board-area"
       ref={setNodeRef}
       style={{ position: 'absolute', inset: 0, pointerEvents: 'auto', zIndex: 0 }}
       className={isOver ? 'ring-1 ring-inset ring-purple-400/40 bg-purple-900/10' : ''}
@@ -155,15 +159,12 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
 
   if (containerWidth === 0) return null;
 
-  const isPeriodSlotsCard = activeCard?.templateId === 'action-datacenter-expansion';
-  const isBoostCard = activeCard?.templateId === 'action-bandwidth-upgrade';
-  const isClearTicketCard = activeCard?.templateId === 'action-emergency-maintenance';
-  const isRemoveTrafficCard = activeCard?.templateId === 'action-traffic-prioritization';
-  const showPeriodZones = isPeriodSlotsCard || isBoostCard;
-  const showSlotZones = !isPeriodSlotsCard && !isBoostCard && !isClearTicketCard;
-  const showTrackZones = !isPeriodSlotsCard && !isBoostCard && !isRemoveTrafficCard;
-  const showBoardArea = !isPeriodSlotsCard && !isBoostCard && !isClearTicketCard && !isRemoveTrafficCard;
-  const periodZoneVariant: 'remove' | 'add' = isPeriodSlotsCard || isBoostCard ? 'add' : 'remove';
+  const zones = activeCard?.validDropZones ?? [];
+  const showPeriodZones = zones.includes('period');
+  const showSlotZones = zones.some((z) => z === 'slot' || z === 'occupied-slot');
+  const showTrackZones = zones.includes('track');
+  const showBoardArea = zones.includes('board');
+  const periodZoneVariant: 'remove' | 'add' = activeCard?.periodZoneVariant ?? 'remove';
   const maxSlotCount = Math.max(
     ...PERIOD_ORDER.map((p) => context.timeSlots.filter((s) => s.period === p).length),
   );
@@ -186,7 +187,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           );
         })}
       {showSlotZones && context.timeSlots.map((slot) => {
-        if (isRemoveTrafficCard && slot.cards.length === 0) return null;
+        if (zones.includes('occupied-slot') && slot.cards.length === 0) return null;
         const periodIndex = PERIOD_ORDER.indexOf(slot.period);
         return (
           <SlotDropZone

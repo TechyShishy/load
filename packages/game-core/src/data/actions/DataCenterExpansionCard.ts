@@ -6,6 +6,9 @@ export class DataCenterExpansionCard extends ActionCard {
   readonly cost = 30_000;
   readonly description = 'Add 2 bonus slots to any period this round.';
   readonly allowedOnWeekend = false;
+  readonly validDropZones = ['period'] as const;
+  override readonly invalidZoneFeedback = 'Drop on a period column to add slots.';
+  override readonly periodZoneVariant = 'add' as const;
 
   constructor(public readonly id: string = 'action-datacenter-expansion') {
     super();

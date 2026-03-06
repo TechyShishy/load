@@ -6,6 +6,9 @@ export class BandwidthUpgradeCard extends ActionCard {
   readonly cost = 20_000;
   readonly description = 'Add 1 bonus slot to a Period until Monday.';
   readonly allowedOnWeekend = false;
+  readonly validDropZones = ['period'] as const;
+  override readonly invalidZoneFeedback = 'Drop on a period column to boost its capacity.';
+  override readonly periodZoneVariant = 'add' as const;
 
   constructor(public readonly id: string = 'action-bandwidth-upgrade') {
     super();

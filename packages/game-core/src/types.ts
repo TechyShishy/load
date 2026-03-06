@@ -35,6 +35,10 @@ export enum LoseReason {
   SLAExceeded = 'SLAExceeded',
 }
 
+export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'board';
+
+export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'board';
+
 // ─── Card Definitions ─────────────────────────────────────────────────────────
 
 /**
@@ -85,6 +89,9 @@ export abstract class ActionCard {
   abstract readonly cost: number;
   abstract readonly description: string;
   abstract readonly allowedOnWeekend: boolean;
+  abstract readonly validDropZones: readonly DropZoneTarget[];
+  abstract readonly invalidZoneFeedback: string;
+  readonly periodZoneVariant?: 'add' | 'remove';
   readonly crisisOnly?: boolean;
   /** When set, this card may only be played against events whose templateId is in this list. */
   readonly validForEventTemplateIds?: readonly string[];

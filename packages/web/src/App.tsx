@@ -68,17 +68,15 @@ export function App() {
       if (!over) return;
       const card = active.data.current?.card as ActionCard | undefined;
       if (!card) return;
+      const zones = card.validDropZones;
 
       if (typeof over.id === 'string' && over.id.startsWith('period-')) {
         const period = over.id.slice('period-'.length) as Period;
-        if (card.templateId === 'action-traffic-prioritization') {
-          showFeedback(`${card.name}: Drop on a specific slot to remove a traffic card.`);
-        } else if (card.templateId === 'action-datacenter-expansion') {
+        if (zones.includes('period')) {
           playAction(card, undefined, undefined, period);
-          showFeedback(`${card.name}: +2 slots for ${period} this round (-$${card.cost.toLocaleString()})`);
-        } else if (card.templateId === 'action-bandwidth-upgrade') {
-          playAction(card, undefined, undefined, period);
-          showFeedback(`${card.name}: +1 slot for ${period} this round (-$${card.cost.toLocaleString()})`);
+          showFeedback(`${card.name}: Applied to ${period} (-$${card.cost.toLocaleString()})`);
+        } else {
+          showFeedback(`${card.name}: ${card.invalidZoneFeedback}`);
         }
       } else if (typeof over.id === 'string' && over.id.startsWith('slot-')) {
         // id format: "slot-Morning-0"
@@ -87,7 +85,7 @@ export function App() {
         const slot = context.timeSlots.find((s) => s.period === period && s.index === slotIndex);
         if (!slot) return;
 
-        if (card.templateId === 'action-traffic-prioritization') {
+        if (zones.includes('occupied-slot')) {
           const firstCard = slot.cards[0];
           if (!firstCard) {
             showFeedback(`${card.name}: No traffic cards in this slot.`);
@@ -95,43 +93,33 @@ export function App() {
           }
           playAction(card, undefined, firstCard.id);
           showFeedback(`${card.name}: Removing traffic from slot (-$${card.cost.toLocaleString()})`);
-        } else if (card.templateId === 'action-datacenter-expansion') {
-          showFeedback(`${card.name}: Drop on a period column to add slots.`);
-        } else if (card.templateId === 'action-bandwidth-upgrade') {
-          showFeedback(`${card.name}: Drop on a period column to add a slot.`);
-        } else if (card.templateId === 'action-emergency-maintenance') {
-          showFeedback(`${card.name}: Drop on a track row to clear a ticket.`);
-        } else {
-          // action-security-patch — any drop zone activates it
+        } else if (zones.includes('slot')) {
           playAction(card);
           showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
+        } else {
+          showFeedback(`${card.name}: ${card.invalidZoneFeedback}`);
         }
       } else if (typeof over.id === 'string' && over.id.startsWith('track-')) {
         const trackName = over.id.slice('track-'.length) as Track;
-
-        if (card.templateId === 'action-emergency-maintenance') {
+        if (zones.includes('track')) {
           playAction(card, undefined, undefined, undefined, trackName);
-          showFeedback(`${card.name}: Clearing a ticket from the ${trackName} track (-$${card.cost.toLocaleString()})`);
-        } else if (card.templateId === 'action-bandwidth-upgrade') {
-          showFeedback(`${card.name}: Drop on a time slot to apply the capacity boost.`);
-        } else if (card.templateId === 'action-datacenter-expansion') {
-          showFeedback(`${card.name}: Drop on a period column to add slots.`);
+          // Cards that target only tracks (e.g. EmergencyMaintenance) get track-specific feedback;
+          // cards that accept multiple zone types (e.g. SecurityPatch) treat the track as a fire trigger.
+          if (zones.length === 1) {
+            showFeedback(`${card.name}: Clearing a ticket from the ${trackName} track (-$${card.cost.toLocaleString()})`);
+          } else {
+            showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
+          }
         } else {
-          // action-security-patch
-          playAction(card);
-          showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
+          showFeedback(`${card.name}: ${card.invalidZoneFeedback}`);
         }
       } else {
         // board-area fallback
-        if (card.templateId === 'action-security-patch') {
+        if (zones.includes('board')) {
           playAction(card);
           showFeedback(`${card.name}: Mitigating the next pending event (-$${card.cost.toLocaleString()})`);
-        } else if (card.templateId === 'action-bandwidth-upgrade') {
-          showFeedback(`${card.name}: Drop on a time slot to boost its period's capacity.`);
-        } else if (card.templateId === 'action-datacenter-expansion') {
-          showFeedback(`${card.name}: Drop on a period column to add slots.`);
-        } else if (card.templateId === 'action-emergency-maintenance') {
-          showFeedback(`${card.name}: Drop on a track row to clear a ticket.`);
+        } else {
+          showFeedback(`${card.name}: ${card.invalidZoneFeedback}`);
         }
       }
     },

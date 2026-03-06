@@ -28,6 +28,7 @@ export {
   getWeekNumber,
   isWeekend,
   isFriday,
+  DropZoneTarget,
 } from './types.js';
 export type {
   Card,
@@ -39,6 +40,7 @@ export type {
   SerializedCard,
   SerializedGameContext,
   StorageAdapter,
+  DropZoneTarget,
 } from './types.js';
 
 // ── Persistence schema (for save/load validation) ─────────────────────────────

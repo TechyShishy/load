@@ -9,6 +9,8 @@ export class SecurityPatchCard extends ActionCard {
   readonly allowedOnWeekend = true;
   override readonly crisisOnly = true as const;
   override readonly validForEventTemplateIds = ['event-ddos-attack'] as const;
+  readonly validDropZones = [] as const;
+  override readonly invalidZoneFeedback = 'Security Patch can only be used during a crisis.';
 
   constructor(public readonly id: string = 'action-security-patch') {
     super();

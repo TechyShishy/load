@@ -6,6 +6,8 @@ export class EmergencyMaintenanceCard extends ActionCard {
   readonly cost = 15_000;
   readonly description = 'Clear 1 ticket from the Break/Fix track.';
   readonly allowedOnWeekend = true;
+  readonly validDropZones = ['track'] as const;
+  override readonly invalidZoneFeedback = 'Drop on a track row to clear a ticket.';
 
   constructor(public readonly id: string = 'action-emergency-maintenance') {
     super();
