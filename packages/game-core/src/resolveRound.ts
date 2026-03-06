@@ -13,29 +13,25 @@ export interface ResolutionResult {
  * 4. Return a RoundSummary.
  */
 export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): ResolutionResult {
-  // TODO-0006: Revenue-on-removal — revenue should be collected only when traffic
-  // cards are removed from the board (e.g., via Traffic Prioritization), not during
-  // round resolution.
   let resolvedCount = 0;
   let failedCount = 0;
-  let revenue = 0;
 
   for (const slot of ctx.timeSlots) {
-    for (const card of slot.cards) {
-      // A card is "resolved" if the slot is not unavailable
-      if (!slot.unavailable) {
-        resolvedCount++;
-        revenue += card.revenue;
-      } else {
-        failedCount++;
-      }
+    // A card is "resolved" if the slot is not unavailable (tracked for SLA and summary)
+    if (!slot.unavailable) {
+      resolvedCount += slot.cards.length;
+    } else {
+      failedCount += slot.cards.length;
     }
   }
 
   const newSlaCount = ctx.slaCount + failedCount;
 
-  const budgetDelta = revenue;
-  const updatedBudget = ctx.budget + budgetDelta;
+  // Revenue was collected during the round when traffic cards were removed from the board
+  // (see processCrisis.ts RemoveTrafficCard). pendingRevenue accumulates those amounts;
+  // budget was already updated at that point, so we only report it here and reset.
+  const budgetDelta = ctx.pendingRevenue;
+  const updatedBudget = ctx.budget;
 
   // Overload penalties were already deducted during fill phase; track them separately if needed.
   // Here we just compute the round summary delta from revenue alone.
@@ -55,6 +51,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
     slaCount: newSlaCount,
     mitigatedEventIds: [],
     pendingOverloadCount: 0,
+    pendingRevenue: 0,
     lastRoundSummary: summary,
   };
 

@@ -161,6 +161,42 @@ describe('gameMachine overload penalties', () => {
   });
 });
 
+// ─── Traffic Prioritization Revenue ─────────────────────────────────────────
+
+describe('gameMachine Traffic Prioritization revenue', () => {
+  it('records removal revenue in lastRoundSummary.budgetDelta', () => {
+    const tpCard: ActionCard = ACTION_CARDS.find(
+      (c) => c.effectType === ActionEffectType.RemoveTrafficCard,
+    )!;
+    expect(tpCard).toBeDefined();
+
+    const initial = safeContext();
+    const actor = createActor(gameMachine, { input: { ...initial, hand: [tpCard] } });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+
+    actor.send({ type: 'ADVANCE' }); // scheduling → crisis
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    const boardCards = actor.getSnapshot().context.timeSlots.flatMap((s) => s.cards);
+    expect(boardCards.length).toBeGreaterThan(0);
+    const targetCard = boardCards[0]!;
+
+    // Compute the expected revenue: RemoveTrafficCard removes ALL cards with that id
+    // (board may have duplicate ids from the cycling safeContext deck).
+    const expectedDelta = boardCards
+      .filter((c) => c.id === targetCard.id)
+      .reduce((sum, c) => sum + c.revenue, 0);
+
+    actor.send({ type: 'PLAY_ACTION', card: tpCard, targetTrafficCardId: targetCard.id });
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable)
+    expect(actor.getSnapshot().value).toBe('resolution');
+
+    const summary = actor.getSnapshot().context.lastRoundSummary!;
+    expect(summary.budgetDelta).toBe(expectedDelta);
+  });
+});
+
 // ─── Calendar Helpers ────────────────────────────────────────────────────────
 
 describe('calendar helpers', () => {

@@ -38,19 +38,18 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     lastRoundSummary: null,
     loseReason: null,
     pendingOverloadCount: 0,
+    pendingRevenue: 0,
     seed: 'test-seed',
     ...overrides,
   };
 }
 
 describe('resolveRound', () => {
-  it('awards revenue for cards in available slots', () => {
-    const slots = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [iotCard] } : s,
-    );
-    const ctx = makeCtx({ timeSlots: slots });
-    const { context } = resolveRound(ctx);
-    expect(context.budget).toBe(500_000 + iotCard.revenue);
+  it('applies pendingRevenue as budgetDelta without modifying budget', () => {
+    const ctx = makeCtx({ pendingRevenue: iotCard.revenue });
+    const { context, summary } = resolveRound(ctx);
+    expect(context.budget).toBe(500_000); // budget not modified during resolveRound
+    expect(summary.budgetDelta).toBe(iotCard.revenue);
   });
 
   it('does not award revenue for cards in unavailable slots, increments SLA', () => {
@@ -63,7 +62,11 @@ describe('resolveRound', () => {
     expect(context.slaCount).toBe(1);
   });
 
-
+  it('resets pendingRevenue to 0 after resolution', () => {
+    const ctx = makeCtx({ pendingRevenue: 12_000 });
+    const { context } = resolveRound(ctx);
+    expect(context.pendingRevenue).toBe(0);
+  });
 
   it('sets overloadPenalties from pendingOverloadCount and resets it to 0', () => {
     const ctx = makeCtx({ pendingOverloadCount: 2 });
@@ -76,7 +79,8 @@ describe('resolveRound', () => {
     const slots = createInitialTimeSlots().map((s, i) =>
       i === 0 ? { ...s, cards: [cloudCard] } : s,
     );
-    const ctx = makeCtx({ timeSlots: slots });
+    // pendingRevenue simulates revenue collected when cloudCard was removed this round
+    const ctx = makeCtx({ timeSlots: slots, pendingRevenue: cloudCard.revenue });
     const { summary } = resolveRound(ctx);
     expect(summary.resolvedCount).toBe(1);
     expect(summary.budgetDelta).toBe(cloudCard.revenue);

@@ -41,6 +41,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     lastRoundSummary: null,
     loseReason: null,
     pendingOverloadCount: 0,
+    pendingRevenue: 0,
     seed: crypto.randomUUID(),
   };
 }

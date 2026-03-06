@@ -36,6 +36,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     lastRoundSummary: null,
     loseReason: null,
     pendingOverloadCount: 0,
+    pendingRevenue: 0,
     seed: 'test-seed',
     ...overrides,
   };
@@ -96,6 +97,7 @@ describe('playActionCard', () => {
     const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
     const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
     expect(updated.budget).toBe(500_000 - trafficPrio.cost + trafficCard.revenue);
+    expect(updated.pendingRevenue).toBe(trafficCard.revenue);
   });
 
   it('RemoveTrafficCard is a no-op when no targetTrafficCardId is given', () => {

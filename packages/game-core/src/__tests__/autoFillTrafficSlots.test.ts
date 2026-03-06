@@ -38,6 +38,7 @@ function makeBaseContext(): GameContext {
     lastRoundSummary: null,
     loseReason: null,
     pendingOverloadCount: 0,
+    pendingRevenue: 0,
     seed: 'test-seed',
   };
 }

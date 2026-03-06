@@ -119,5 +119,6 @@ export const GameContextSchema = z.object({
   lastRoundSummary: RoundSummarySchema.nullable(),
   loseReason: LoseReasonSchema.nullable(),
   pendingOverloadCount: z.number(),
+  pendingRevenue: z.number(),
   seed: z.string(),
 });

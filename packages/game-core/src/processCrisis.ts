@@ -70,7 +70,11 @@ export function playActionCard(
           }),
         };
         if (collectedRevenue > 0) {
-          context = { ...context, budget: context.budget + collectedRevenue };
+          context = {
+            ...context,
+            budget: context.budget + collectedRevenue,
+            pendingRevenue: context.pendingRevenue + collectedRevenue,
+          };
         }
       }
       break;

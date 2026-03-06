@@ -163,6 +163,10 @@ export interface GameContext {
    * Set by performDraw, consumed by resolveRound to populate RoundSummary.overloadPenalties,
    * then reset to 0. */
   pendingOverloadCount: number;
+  /** Revenue collected by traffic card removals during the current round.
+   * Set by playActionCard (RemoveTrafficCard), consumed by resolveRound to populate
+   * RoundSummary.budgetDelta, then reset to 0. */
+  pendingRevenue: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
 }
