@@ -24,7 +24,14 @@
     },
     "files": [
       "main.js",
-      "../web/dist/**/*"
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web-dist",
+        "filter": ["**/*"]
+      }
     ],
     "linux": {
       "target": "AppImage"

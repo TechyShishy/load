@@ -17,7 +17,9 @@ function createWindow() {
   });
 
   // In production, load from the built web package
-  const indexPath = path.join(__dirname, '../web/dist/index.html');
+  const indexPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'web-dist', 'index.html')
+    : path.join(__dirname, '../web/dist/index.html');
   void win.loadFile(indexPath);
 
   // Open DevTools in development
