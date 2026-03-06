@@ -164,10 +164,6 @@ export const gameMachine = setup({
       // Return played Action cards to discard; unplayed cards carry over
       const newActionDiscard = [...context.actionDiscard, ...context.playedThisRound];
 
-      // Move Traffic cards from time slots into traffic discard
-      const usedTraffic = context.timeSlots.flatMap((s) => s.cards);
-      const newTrafficDiscard = [...context.trafficDiscard, ...usedTraffic];
-
       // On Friday, discard entire hand before replenishing (fresh start for the new week)
       const friday = isFriday(context.round);
       let actionDeck = context.actionDeck;
@@ -196,7 +192,7 @@ export const gameMachine = setup({
         hand,
         actionDeck,
         actionDiscard,
-        trafficDiscard: newTrafficDiscard,
+        trafficDiscard: context.trafficDiscard,
         playedThisRound: [],
         activePhase: PhaseId.End,
       };

@@ -69,14 +69,17 @@ describe('getAvailableSlots', () => {
 });
 
 describe('resetSlotsForRound', () => {
-  it('clears cards from all slots', () => {
+  it('preserves cards on permanent slots during round reset', () => {
     const slots = createInitialTimeSlots();
     // Manually add a fake card object reference
     const withCards = slots.map((s, i) =>
       i === 0 ? { ...s, cards: [{ id: 'fake' } as never] } : s,
     );
     const reset = resetSlotsForRound(withCards);
-    expect(reset.every((s) => s.cards.length === 0)).toBe(true);
+    expect(reset[0]!.cards).toHaveLength(1);
+    expect(reset[0]!.cards[0]).toEqual({ id: 'fake' });
+    // Other slots remain empty
+    expect(reset.slice(1).every((s) => s.cards.length === 0)).toBe(true);
   });
 
   it('strips temporary slots on reset', () => {
