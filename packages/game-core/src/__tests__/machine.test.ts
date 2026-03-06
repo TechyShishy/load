@@ -3,7 +3,9 @@ import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { createInitialTimeSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
-import { TRAFFIC_DRAW_COUNT, OVERLOAD_PENALTY, type TrafficCard } from '../types.js';
+import { ACTION_CARDS } from '../data/actionCards.js';
+import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, OVERLOAD_PENALTY, HAND_SIZE, ActionEffectType, CardType, EventSubtype, Track, type TrafficCard, type ActionCard } from '../types.js';
+import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
 
 /** Build a deterministic safeContext where the deck has only traffic cards (no events),
  * so a round will always complete without game-over from bad draws. */
@@ -110,14 +112,14 @@ describe('gameMachine win/lose conditions', () => {
     expect(actor.getSnapshot().value).toBe('scheduling');
   });
 
-  it('reaches gameWon at round 12 with budget in (-100K, 0)', () => {
+  it('reaches gameWon at round 28 with budget in (-100K, 0)', () => {
     // Regression: previously checkWinCondition required budget >= 0, so a net-negative
     // but non-bankrupt end-of-game had no matching guard and looped forever.
-    const ctx = { ...safeContext(), round: 12, budget: -50_000 };
+    // Round 28 is a Sunday (weekend), so draw transitions directly to crisis.
+    const ctx = { ...safeContext(), round: 28, budget: -50_000 };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    expect(actor.getSnapshot().value).toBe('scheduling'); // sanity
-    actor.send({ type: 'ADVANCE' }); // scheduling → execution (transient) → crisis
+    expect(actor.getSnapshot().value).toBe('crisis'); // weekend: draw → crisis
     actor.send({ type: 'ADVANCE' }); // crisis → resolution → always → gameWon
     expect(actor.getSnapshot().value).toBe('gameWon');
   });
@@ -140,8 +142,8 @@ describe('gameMachine overload penalties', () => {
     actor.send({ type: 'ADVANCE' }); // → resolution (stable)
     const summary = actor.getSnapshot().context.lastRoundSummary;
     expect(summary).not.toBeNull();
-    // All TRAFFIC_DRAW_COUNT traffic cards overflow zero-capacity slots → each costs OVERLOAD_PENALTY
-    expect(summary!.overloadPenalties).toBe(TRAFFIC_DRAW_COUNT * OVERLOAD_PENALTY);
+    // All WEEKDAY_TRAFFIC_DRAW traffic cards overflow zero-capacity slots → each costs OVERLOAD_PENALTY
+    expect(summary!.overloadPenalties).toBe(WEEKDAY_TRAFFIC_DRAW * OVERLOAD_PENALTY);
   });
 
   it('reflects updated overloadPenalties in the second round', () => {
@@ -155,6 +157,229 @@ describe('gameMachine overload penalties', () => {
     actor.send({ type: 'ADVANCE' }); // → resolution (stable)
     const summary = actor.getSnapshot().context.lastRoundSummary;
     expect(summary).not.toBeNull();
-    expect(summary!.overloadPenalties).toBe(TRAFFIC_DRAW_COUNT * OVERLOAD_PENALTY);
+    expect(summary!.overloadPenalties).toBe(WEEKDAY_TRAFFIC_DRAW * OVERLOAD_PENALTY);
+  });
+});
+
+// ─── Calendar Helpers ────────────────────────────────────────────────────────
+
+describe('calendar helpers', () => {
+  describe('getDayOfWeek', () => {
+    it.each([
+      [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7],
+      [8, 1], [14, 7], [28, 7],
+    ])('round %d → day %d', (round, expected) => {
+      expect(getDayOfWeek(round)).toBe(expected);
+    });
+  });
+
+  describe('getDayName', () => {
+    it.each([
+      [1, 'Mon'], [5, 'Fri'], [6, 'Sat'], [7, 'Sun'], [8, 'Mon'],
+    ])('round %d → %s', (round, expected) => {
+      expect(getDayName(round)).toBe(expected);
+    });
+  });
+
+  describe('getWeekNumber', () => {
+    it.each([
+      [1, 1], [7, 1], [8, 2], [14, 2], [15, 3], [28, 4],
+    ])('round %d → week %d', (round, expected) => {
+      expect(getWeekNumber(round)).toBe(expected);
+    });
+  });
+
+  describe('isWeekend', () => {
+    it.each([
+      [1, false], [5, false], [6, true], [7, true], [8, false], [13, true], [14, true],
+    ])('round %d → %s', (round, expected) => {
+      expect(isWeekend(round)).toBe(expected);
+    });
+  });
+
+  describe('isFriday', () => {
+    it.each([
+      [1, false], [4, false], [5, true], [6, false], [12, true], [19, true],
+    ])('round %d → %s', (round, expected) => {
+      expect(isFriday(round)).toBe(expected);
+    });
+  });
+});
+
+// ─── Weekend Mechanics ───────────────────────────────────────────────────────
+
+describe('gameMachine weekend mechanics', () => {
+  /** Advance a workday: scheduling → crisis → resolution → end */
+  function advanceWorkday(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
+    actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution
+    actor.send({ type: 'ADVANCE' }); // resolution → end → draw → next state
+  }
+
+  /** Advance a weekend day: crisis → resolution → end */
+  function advanceWeekendDay(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution
+    actor.send({ type: 'ADVANCE' }); // resolution → end → draw → next state
+  }
+
+  it('weekdays go to scheduling, weekends skip to crisis', () => {
+    const ctx = { ...safeContext(), round: 5 }; // Friday (workday)
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+
+    // Advance through Friday
+    advanceWorkday(actor);
+    // Round 6 = Saturday → should be crisis
+    expect(actor.getSnapshot().value).toBe('crisis');
+    expect(actor.getSnapshot().context.round).toBe(6);
+  });
+
+  it('round 6 (Sat) and 7 (Sun) skip scheduling, round 8 (Mon) returns to scheduling', () => {
+    const ctx = { ...safeContext(), round: 6 }; // Saturday
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('crisis'); // Sat → crisis
+
+    advanceWeekendDay(actor);
+    expect(actor.getSnapshot().value).toBe('crisis'); // Sun → crisis
+    expect(actor.getSnapshot().context.round).toBe(7);
+
+    advanceWeekendDay(actor);
+    expect(actor.getSnapshot().value).toBe('scheduling'); // Mon → scheduling
+    expect(actor.getSnapshot().context.round).toBe(8);
+  });
+
+  it('weekend draws fewer traffic cards than weekdays', () => {
+    // Weekday (round 1) should draw WEEKDAY_TRAFFIC_DRAW traffic cards
+    const weekdayCtx = safeContext();
+    const weekdayActor = createActor(gameMachine, { input: weekdayCtx });
+    weekdayActor.start();
+    const weekdayTrafficOnBoard = weekdayActor.getSnapshot().context.timeSlots
+      .flatMap(s => s.cards).length;
+
+    // Weekend (round 6) should draw WEEKEND_TRAFFIC_DRAW traffic cards
+    const weekendCtx = { ...safeContext(), round: 6 };
+    const weekendActor = createActor(gameMachine, { input: weekendCtx });
+    weekendActor.start();
+    const weekendTrafficOnBoard = weekendActor.getSnapshot().context.timeSlots
+      .flatMap(s => s.cards).length;
+
+    expect(weekdayTrafficOnBoard).toBe(WEEKDAY_TRAFFIC_DRAW);
+    expect(weekendTrafficOnBoard).toBe(WEEKEND_TRAFFIC_DRAW);
+  });
+
+  it('allows Security Patch (MitigateDDoS) during weekend crisis', () => {
+    const securityPatch: ActionCard = {
+      ...ACTION_CARDS.find(c => c.effectType === ActionEffectType.MitigateDDoS)!,
+      id: 'test-security-patch',
+    };
+    const ctx = {
+      ...safeContext(),
+      round: 6,
+      hand: [securityPatch],
+      // Add a pending event to mitigate
+      eventDeck: [{ id: 'ev-1', type: CardType.Event as const, name: 'Test', subtype: EventSubtype.IssueTicket as const, targetTrack: Track.BreakFix, unmitigatedPenalty: 10000, downtimePenaltyHours: 4, description: 'test' }],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    // Should accept Security Patch
+    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-1' });
+    expect(actor.getSnapshot().context.mitigatedEventIds).toContain('ev-1');
+  });
+
+  it('allows Emergency Maintenance (ClearTicket) during weekend crisis', () => {
+    const emergencyMaint: ActionCard = {
+      ...ACTION_CARDS.find(c => c.effectType === ActionEffectType.ClearTicket)!,
+      id: 'test-emergency-maint',
+    };
+    const ctx = {
+      ...safeContext(),
+      round: 6,
+      hand: [emergencyMaint],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    // Should accept Emergency Maintenance (even if no tickets, the action is allowed)
+    actor.send({ type: 'PLAY_ACTION', card: emergencyMaint });
+    expect(actor.getSnapshot().context.playedThisRound).toHaveLength(1);
+  });
+
+  it('rejects non-weekend action cards during weekend crisis', () => {
+    const bandwidthUpgrade: ActionCard = {
+      ...ACTION_CARDS.find(c => c.effectType === ActionEffectType.BoostSlotCapacity)!,
+      id: 'test-bandwidth',
+    };
+    const ctx = {
+      ...safeContext(),
+      round: 6,
+      hand: [bandwidthUpgrade],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    // Should reject Bandwidth Upgrade — not a weekend-allowed effect
+    actor.send({ type: 'PLAY_ACTION', card: bandwidthUpgrade });
+    // Card should NOT have been played
+    expect(actor.getSnapshot().context.playedThisRound).toHaveLength(0);
+    expect(actor.getSnapshot().context.hand).toHaveLength(1);
+  });
+
+  it('Friday discards hand and redraws fresh', () => {
+    const ctx = {
+      ...safeContext(),
+      round: 5, // Friday
+      hand: [
+        { ...ACTION_CARDS[0]!, id: 'keep-1' },
+        { ...ACTION_CARDS[0]!, id: 'keep-2' },
+      ],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+
+    const handBefore = actor.getSnapshot().context.hand;
+    const handIdsBefore = handBefore.map(c => c.id);
+
+    // Advance through Friday
+    actor.send({ type: 'ADVANCE' }); // → crisis
+    actor.send({ type: 'ADVANCE' }); // → resolution
+    actor.send({ type: 'ADVANCE' }); // → end → draw (Sat)
+
+    // Hand should be fully refreshed (HAND_SIZE cards, none of the old IDs)
+    const handAfter = actor.getSnapshot().context.hand;
+    expect(handAfter).toHaveLength(HAND_SIZE);
+    // Old hand cards should have been discarded
+    for (const oldId of handIdsBefore) {
+      expect(handAfter.find(c => c.id === oldId)).toBeUndefined();
+    }
+  });
+
+  it('non-Friday workday keeps unplayed hand cards', () => {
+    const ctx = {
+      ...safeContext(),
+      round: 3, // Wednesday
+      hand: [
+        { ...ACTION_CARDS[0]!, id: 'carry-1' },
+        { ...ACTION_CARDS[0]!, id: 'carry-2' },
+      ],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+
+    actor.send({ type: 'ADVANCE' }); // → crisis
+    actor.send({ type: 'ADVANCE' }); // → resolution
+    actor.send({ type: 'ADVANCE' }); // → end → draw (Thu)
+
+    const handAfter = actor.getSnapshot().context.hand;
+    expect(handAfter).toHaveLength(HAND_SIZE);
+    // Old cards should still be present
+    expect(handAfter.find(c => c.id === 'carry-1')).toBeDefined();
+    expect(handAfter.find(c => c.id === 'carry-2')).toBeDefined();
   });
 });

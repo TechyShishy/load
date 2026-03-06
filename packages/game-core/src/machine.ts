@@ -1,5 +1,5 @@
 import { assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, TRAFFIC_DRAW_COUNT, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track } from './types.js';
+import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, WEEKEND_ALLOWED_EFFECTS, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
@@ -65,6 +65,12 @@ export const gameMachine = setup({
     isGameWon: ({ context }) => checkWinCondition(context),
     isBankrupt: ({ context }) => context.budget < BANKRUPT_THRESHOLD,
     isSLAExceeded: ({ context }) => context.slaCount >= MAX_SLA_FAILURES,
+    isWeekendRound: ({ context }) => isWeekend(context.round),
+    isWeekendActionAllowed: ({ context, event }) => {
+      if (!isWeekend(context.round)) return true;
+      if (event.type !== 'PLAY_ACTION') return false;
+      return WEEKEND_ALLOWED_EFFECTS.includes(event.card.effectType);
+    },
   },
   actions: {
     performDraw: assign(({ context }) => {
@@ -78,7 +84,8 @@ export const gameMachine = setup({
         context.trafficDiscard,
         drawRng,
       );
-      const [drawn, remainingTrafficDeck] = drawN(trafficDeckInit, TRAFFIC_DRAW_COUNT);
+      const trafficDrawCount = isWeekend(context.round) ? WEEKEND_TRAFFIC_DRAW : WEEKDAY_TRAFFIC_DRAW;
+      const [drawn, remainingTrafficDeck] = drawN(trafficDeckInit, trafficDrawCount);
 
       const baseCtx: GameContext = {
         ...context,
@@ -104,14 +111,15 @@ export const gameMachine = setup({
     })),
 
     performDrawCrisisEvent: assign(({ context }) => {
-      // Draw one event from the event deck (reshuffle if exhausted)
+      // Draw event card(s) from the event deck (reshuffle if exhausted)
       const eventRng = makeRng(context.seed + '-ev-' + context.round);
       const [eventDeckInit, eventDiscard] = reshuffleDiscard(
         context.eventDeck,
         context.eventDiscard,
         eventRng,
       );
-      const [drawn, remainingEventDeck] = drawN(eventDeckInit, 1);
+      const eventDrawCount = isWeekend(context.round) ? WEEKEND_EVENT_DRAW : WEEKDAY_EVENT_DRAW;
+      const [drawn, remainingEventDeck] = drawN(eventDeckInit, eventDrawCount);
       return {
         ...context,
         eventDeck: remainingEventDeck,
@@ -159,10 +167,13 @@ export const gameMachine = setup({
       const usedTraffic = context.timeSlots.flatMap((s) => s.cards);
       const newTrafficDiscard = [...context.trafficDiscard, ...usedTraffic];
 
-      // Replenish hand to HAND_SIZE from action deck if < HAND_SIZE
+      // On Friday, discard entire hand before replenishing (fresh start for the new week)
+      const friday = isFriday(context.round);
       let actionDeck = context.actionDeck;
-      let actionDiscard = newActionDiscard;
-      const hand = [...context.hand]; // carry-over unplayed cards
+      let actionDiscard = friday
+        ? [...newActionDiscard, ...context.hand]
+        : newActionDiscard;
+      const hand: ActionCard[] = friday ? [] : [...context.hand];
       const deficit = HAND_SIZE - hand.length;
 
       if (deficit > 0) {
@@ -221,6 +232,7 @@ export const gameMachine = setup({
       entry: 'performDraw',
       always: [
         { guard: 'isGameLost', target: 'gameLost', actions: 'markGameLost' },
+        { guard: 'isWeekendRound', target: 'crisis' },
         { target: 'scheduling' },
       ],
     },
@@ -237,7 +249,7 @@ export const gameMachine = setup({
     crisis: {
       entry: 'performDrawCrisisEvent',
       on: {
-        PLAY_ACTION: { actions: 'applyPlayAction' },
+        PLAY_ACTION: { guard: 'isWeekendActionAllowed', actions: 'applyPlayAction' },
         ADVANCE: { target: 'resolution', actions: 'performResolveCrisisEvent' },
       },
     },

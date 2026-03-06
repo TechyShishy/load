@@ -1,4 +1,5 @@
 import React from 'react';
+import { getDayName, getWeekNumber, isWeekend } from '@load/game-core';
 
 const PHASES: { id: string; label: string }[] = [
   { id: 'draw', label: 'Draw' },
@@ -16,10 +17,23 @@ interface PhaseIndicatorProps {
 
 export function PhaseIndicator({ currentPhase, round }: PhaseIndicatorProps) {
   const activePhase = PHASES.find((p) => p.id === currentPhase);
+  const dayName = getDayName(round);
+  const weekNum = getWeekNumber(round);
+  const weekend = isWeekend(round);
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-xs opacity-50 mr-2 font-mono" aria-hidden="true">R{round}</span>
+      <span
+        className={`text-xs mr-2 font-mono ${weekend ? 'text-amber-400 opacity-80' : 'opacity-50'}`}
+        aria-hidden="true"
+      >
+        {dayName}, W{weekNum}
+      </span>
+      {weekend && (
+        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-800 text-amber-200 font-mono mr-1" aria-hidden="true">
+          Weekend
+        </span>
+      )}
       {PHASES.map((phase) => {
         const isActive = currentPhase === phase.id;
         return (
@@ -37,7 +51,7 @@ export function PhaseIndicator({ currentPhase, round }: PhaseIndicatorProps) {
         );
       })}
       <span role="status" aria-live="polite" className="sr-only">
-        Round {round} – {activePhase?.label ?? currentPhase} phase
+        {dayName}, Week {weekNum} – {activePhase?.label ?? currentPhase} phase
       </span>
     </div>
   );

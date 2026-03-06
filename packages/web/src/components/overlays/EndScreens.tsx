@@ -1,4 +1,4 @@
-import { LoseReason } from '@load/game-core';
+import { LoseReason, MAX_ROUNDS } from '@load/game-core';
 import React from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { GameContext } from '@load/game-core';
@@ -19,10 +19,10 @@ export function WinScreen({ context, onPlayAgain }: WinScreenProps) {
       >
         <div className="border border-green-500 bg-gray-950 rounded-lg p-8 max-w-md w-full text-center shadow-2xl">
           <h2 id="win-screen-title" className="text-green-400 text-4xl font-bold font-mono mb-2">NETWORK STABLE</h2>
-          <div className="text-gray-400 text-sm mb-6">All 12 rounds complete. Infrastructure secured.</div>
+          <div className="text-gray-400 text-sm mb-6">All {MAX_ROUNDS} days complete. Infrastructure secured.</div>
           <dl className="grid grid-cols-3 gap-4 mb-6">
             <Stat label="Final Budget" value={`$${context.budget.toLocaleString()}`} color="text-green-400" />
-            <Stat label="Rounds" value={`${context.round - 1} / 12`} color="text-cyan-400" />
+            <Stat label="Days" value={`${context.round - 1} / ${MAX_ROUNDS}`} color="text-cyan-400" />
             <Stat label="SLA Fails" value={`${context.slaCount}`} color="text-yellow-400" />
           </dl>
           <button

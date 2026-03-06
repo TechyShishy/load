@@ -179,19 +179,57 @@ export interface RoundSummary {
 }
 
 export const STARTING_BUDGET = 500_000;
-export const MAX_ROUNDS = 12;
+export const MAX_ROUNDS = 28;
 export const BANKRUPT_THRESHOLD = -100_000;
 export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
 export const SLOT_BASE_CAPACITY = 1;
 export const OVERLOAD_PENALTY = 25_000;
-export const TRAFFIC_DRAW_COUNT = 5;
+export const WEEKDAY_TRAFFIC_DRAW = 5;
+export const WEEKDAY_EVENT_DRAW = 1;
+export const WEEKEND_TRAFFIC_DRAW = 1;
+export const WEEKEND_EVENT_DRAW = 1;
+export const DAYS_PER_WEEK = 7;
+export const WORKDAYS_PER_WEEK = 5;
+export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const WEEKEND_ALLOWED_EFFECTS: readonly ActionEffectType[] = [
+  ActionEffectType.MitigateDDoS,
+  ActionEffectType.ClearTicket,
+];
 export const PERIOD_SLOT_COUNTS: Record<Period, number> = {
   [Period.Morning]: 4,
   [Period.Afternoon]: 4,
   [Period.Evening]: 4,
   [Period.Overnight]: 8,
 };
+
+// ─── Calendar Helpers ─────────────────────────────────────────────────────────
+
+/** Day-of-week index (1 = Mon, 7 = Sun) for a given round number. */
+export function getDayOfWeek(round: number): number {
+  return ((round - 1) % DAYS_PER_WEEK) + 1;
+}
+
+/** Abbreviated day name ('Mon'–'Sun') for a given round number. */
+export function getDayName(round: number): string {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return DAY_NAMES[(round - 1) % DAYS_PER_WEEK]!;
+}
+
+/** Week number (1-based) for a given round number. */
+export function getWeekNumber(round: number): number {
+  return Math.ceil(round / DAYS_PER_WEEK);
+}
+
+/** Whether the given round falls on a weekend (Saturday or Sunday). */
+export function isWeekend(round: number): boolean {
+  return getDayOfWeek(round) >= 6;
+}
+
+/** Whether the given round falls on a Friday (end of work week). */
+export function isFriday(round: number): boolean {
+  return getDayOfWeek(round) === 5;
+}
 
 // ─── Storage Adapter ─────────────────────────────────────────────────────────
 

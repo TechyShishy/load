@@ -106,8 +106,8 @@ test.describe('LOAD – Network Traffic Balancer', () => {
     // App title
     await expect(page.getByText('LOAD').first()).toBeVisible();
 
-    // Phase indicator should show Round 1
-    await expect(page.getByText('R1')).toBeVisible();
+    // Phase indicator should show Day 1
+    await expect(page.getByText('Mon, W1')).toBeVisible();
 
     // ADVANCE button present (enabled in scheduling phase)
     await expect(ADVANCE(page)).toBeVisible();
@@ -146,7 +146,7 @@ test.describe('LOAD – Network Traffic Balancer', () => {
       return;
     }
 
-    await expect(page.getByText('R2')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Tue, W1')).toBeVisible({ timeout: 5_000 });
     await expect(page.getByText('Schedule')).toBeVisible({ timeout: 5_000 });
   });
 
@@ -182,9 +182,9 @@ test.describe('LOAD – Network Traffic Balancer', () => {
 
   // ── Full game playthrough ──────────────────────────────────────────────────
   test('plays through the entire game and reaches a win or lose screen', async ({ page }) => {
-    // The game runs for up to 12 rounds. We give a generous upper bound of 15
+    // The game runs for up to 28 days. We give a generous upper bound of 32
     // to account for early loss scenarios.
-    const MAX_ROUNDS = 15;
+    const MAX_ROUNDS = 32;
     let roundsPlayed = 0;
     let gameEnded = false;
 
@@ -220,7 +220,7 @@ test.describe('LOAD – Network Traffic Balancer', () => {
 
     if (winVisible) {
       // Win screen stats
-      await expect(page.getByText('All 12 rounds complete. Infrastructure secured.')).toBeVisible();
+      await expect(page.getByText('All 28 days complete. Infrastructure secured.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'PLAY AGAIN' })).toBeVisible();
       console.log('Game result: WIN ✓');
     } else {
@@ -236,7 +236,7 @@ test.describe('LOAD – Network Traffic Balancer', () => {
     // Play rounds until a win or lose screen appears (same pattern as the
     // full-playthrough test). This guarantees we always exercise the restart
     // path rather than bailing out early when the game hasn't ended yet.
-    const MAX_ROUNDS = 15;
+    const MAX_ROUNDS = 32;
     let gameEnded = false;
 
     for (let i = 0; i < MAX_ROUNDS; i++) {
@@ -256,7 +256,7 @@ test.describe('LOAD – Network Traffic Balancer', () => {
 
     // After clicking PLAY AGAIN/TRY AGAIN, wait for the machine to complete
     // draw → scheduling transition before asserting ADVANCE is enabled.
-    await expect(page.getByText('R1')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Mon, W1')).toBeVisible({ timeout: 5_000 });
     await expect(ADVANCE(page)).toBeEnabled({ timeout: 10_000 });
     await expect(page.getByText('NETWORK STABLE')).not.toBeVisible();
     await expect(page.getByText('SYSTEM DOWN')).not.toBeVisible();

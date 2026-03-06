@@ -9,7 +9,7 @@ import { WinScreen, LoseScreen } from '../EndScreens.js';
 function makeContext(overrides: Partial<GameContext> = {}): GameContext {
   return {
     budget: 500_000,
-    round: 13,
+    round: 29,
     slaCount: 1,
     loseReason: null,
     hand: [],
@@ -41,10 +41,10 @@ describe('WinScreen', () => {
     expect(screen.getByText('$250,000')).toBeInTheDocument();
   });
 
-  it('displays the completed rounds as (round - 1) / 12', () => {
-    // round=13 means 12 rounds completed
-    render(<WinScreen context={makeContext({ round: 13 })} onPlayAgain={vi.fn()} />);
-    expect(screen.getByText('12 / 12')).toBeInTheDocument();
+  it('displays the completed days as (round - 1) / 28', () => {
+    // round=29 means 28 days completed
+    render(<WinScreen context={makeContext({ round: 29 })} onPlayAgain={vi.fn()} />);
+    expect(screen.getByText('28 / 28')).toBeInTheDocument();
   });
 
   it('displays the SLA failure count', () => {

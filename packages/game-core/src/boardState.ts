@@ -47,6 +47,9 @@ export function getAvailableSlots(slots: TimeSlot[], period: Period): TimeSlot[]
  * Reset per-round transient state on all time slots.
  * Temporary slots (added by BoostSlotCapacity/AddOvernightSlots) are removed entirely;
  * permanent slots have their cards cleared and availability restored.
+ *
+ * TODO-0005: Board carry-over — traffic cards should persist on the board across
+ * rounds instead of being cleared each round.
  */
 export function resetSlotsForRound(slots: TimeSlot[]): TimeSlot[] {
   return slots

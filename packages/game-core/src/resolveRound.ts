@@ -13,6 +13,9 @@ export interface ResolutionResult {
  * 4. Return a RoundSummary.
  */
 export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): ResolutionResult {
+  // TODO-0006: Revenue-on-removal — revenue should be collected only when traffic
+  // cards are removed from the board (e.g., via Traffic Prioritization), not during
+  // round resolution.
   let resolvedCount = 0;
   let failedCount = 0;
   let revenue = 0;
