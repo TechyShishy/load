@@ -85,6 +85,9 @@ export abstract class ActionCard {
   abstract readonly cost: number;
   abstract readonly description: string;
   abstract readonly allowedOnWeekend: boolean;
+  readonly crisisOnly?: boolean;
+  /** When set, this card may only be played against events whose templateId is in this list. */
+  readonly validForEventTemplateIds?: readonly string[];
   readonly type = CardType.Action as const;
 
   abstract apply(

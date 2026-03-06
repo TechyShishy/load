@@ -5,9 +5,10 @@ import type { ActionCard } from '@load/game-core';
 interface HandZoneProps {
   hand: ActionCard[];
   disabled?: boolean;
+  isCardDisabled?: (card: ActionCard) => boolean;
 }
 
-export function HandZone({ hand, disabled = false }: HandZoneProps) {
+export function HandZone({ hand, disabled = false, isCardDisabled }: HandZoneProps) {
   return (
     <div
       role="group"
@@ -23,7 +24,7 @@ export function HandZone({ hand, disabled = false }: HandZoneProps) {
           key={`${card.id}-${i}`}
           dragId={`${card.id}-${i}`}
           card={card}
-          disabled={disabled}
+          disabled={disabled || (isCardDisabled?.(card) ?? false)}
         />
       ))}
     </div>

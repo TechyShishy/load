@@ -1,4 +1,4 @@
-import { assign, setup } from 'xstate';
+import { and, assign, setup } from 'xstate';
 import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
@@ -72,6 +72,38 @@ export const gameMachine = setup({
       if (!isWeekend(context.round)) return true;
       if (event.type !== 'PLAY_ACTION') return false;
       return event.card.allowedOnWeekend;
+    },
+    isNotCrisisOnly: ({ event }) => {
+      if (event.type !== 'PLAY_ACTION') return true;
+      return event.card.crisisOnly !== true;
+    },
+    isActionValidForCrisisTarget: ({ context, event }) => {
+      if (event.type !== 'PLAY_ACTION') return true;
+      const { validForEventTemplateIds } = event.card;
+      if (!validForEventTemplateIds || validForEventTemplateIds.length === 0) return true;
+      const targetId =
+        event.targetEventId ??
+        context.pendingEvents.find((e) => !context.mitigatedEventIds.includes(e.id))?.id;
+      if (!targetId) return false;
+      const targetEvent = context.pendingEvents.find((e) => e.id === targetId);
+      if (!targetEvent) return false;
+      return (validForEventTemplateIds as readonly string[]).includes(targetEvent.templateId);
+    },
+    isNotCrisisOnly: ({ event }) => {
+      if (event.type !== 'PLAY_ACTION') return true;
+      return event.card.crisisOnly !== true;
+    },
+    isActionValidForCrisisTarget: ({ context, event }) => {
+      if (event.type !== 'PLAY_ACTION') return true;
+      const { validForEventTemplateIds } = event.card;
+      if (!validForEventTemplateIds || validForEventTemplateIds.length === 0) return true;
+      const targetId =
+        event.targetEventId ??
+        context.pendingEvents.find((e) => !context.mitigatedEventIds.includes(e.id))?.id;
+      if (!targetId) return false;
+      const targetEvent = context.pendingEvents.find((e) => e.id === targetId);
+      if (!targetEvent) return false;
+      return (validForEventTemplateIds as readonly string[]).includes(targetEvent.templateId);
     },
   },
   actions: {
@@ -239,7 +271,7 @@ export const gameMachine = setup({
     },
     scheduling: {
       on: {
-        PLAY_ACTION: { actions: 'applyPlayAction' },
+        PLAY_ACTION: { guard: 'isNotCrisisOnly', actions: 'applyPlayAction' },
         ADVANCE: { target: 'execution' },
       },
     },
@@ -250,7 +282,7 @@ export const gameMachine = setup({
     crisis: {
       entry: 'performDrawCrisisEvent',
       on: {
-        PLAY_ACTION: { guard: 'isWeekendActionAllowed', actions: 'applyPlayAction' },
+        PLAY_ACTION: { guard: and(['isWeekendActionAllowed', 'isActionValidForCrisisTarget']), actions: 'applyPlayAction' },
         ADVANCE: { target: 'resolution', actions: 'performResolveCrisisEvent' },
       },
     },

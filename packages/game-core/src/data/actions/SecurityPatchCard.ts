@@ -7,6 +7,8 @@ export class SecurityPatchCard extends ActionCard {
   readonly description =
     'Mitigate 1 DDoS-type Event, cancelling its financial penalty and preventing the incident ticket from being filed.';
   readonly allowedOnWeekend = true;
+  override readonly crisisOnly = true as const;
+  override readonly validForEventTemplateIds = ['event-ddos-attack'] as const;
 
   constructor(public readonly id: string = 'action-security-patch') {
     super();
@@ -19,7 +21,10 @@ export class SecurityPatchCard extends ActionCard {
   ): GameContext {
     let context = commit();
     const resolvedTarget =
-      targetEventId ?? ctx.pendingEvents.find((e) => !ctx.mitigatedEventIds.includes(e.id))?.id;
+      targetEventId ??
+      ctx.pendingEvents.find(
+        (e) => !ctx.mitigatedEventIds.includes(e.id) && e.templateId === 'event-ddos-attack',
+      )?.id;
     if (resolvedTarget) {
       context = {
         ...context,

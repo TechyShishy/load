@@ -7,7 +7,7 @@ import { ACTION_CARDS } from '../data/actions/index.js';
 import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, OVERLOAD_PENALTY, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
 import { EmergencyMaintenanceCard } from '../data/actions/index.js';
-import { DDoSAttackCard } from '../data/events/index.js';
+import { AWSOutageCard, DDoSAttackCard, FiveGActivationCard } from '../data/events/index.js';
 
 /** Build a deterministic safeContext where the deck has only traffic cards (no events),
  * so a round will always complete without game-over from bad draws. */
@@ -323,6 +323,82 @@ describe('gameMachine weekend mechanics', () => {
     // Should accept Security Patch
     actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-1' });
     expect(actor.getSnapshot().context.mitigatedEventIds).toContain('ev-1');
+  });
+
+  it('rejects Security Patch during scheduling (crisis-only card)', () => {
+    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+    const ctx = {
+      ...safeContext(),
+      round: 1,
+      hand: [securityPatch],
+      budget: 100_000,
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+
+    actor.send({ type: 'PLAY_ACTION', card: securityPatch });
+    // Card must not be played — hand and budget unchanged
+    expect(actor.getSnapshot().context.playedThisRound).toHaveLength(0);
+    expect(actor.getSnapshot().context.hand).toHaveLength(1);
+    expect(actor.getSnapshot().context.budget).toBe(100_000);
+  });
+
+  it('allows Security Patch during weekday crisis', () => {
+    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+    const ctx = {
+      ...safeContext(),
+      round: 1,
+      hand: [securityPatch],
+      eventDeck: [new DDoSAttackCard('ev-2')],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+
+    actor.send({ type: 'ADVANCE' }); // scheduling → crisis
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-2' });
+    expect(actor.getSnapshot().context.mitigatedEventIds).toContain('ev-2');
+  });
+
+  it('rejects Security Patch against AWS Outage event', () => {
+    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+    const ctx = {
+      ...safeContext(),
+      round: 1,
+      hand: [securityPatch],
+      budget: 100_000,
+      eventDeck: [new AWSOutageCard('ev-aws')],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    actor.send({ type: 'ADVANCE' }); // scheduling → crisis
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-aws' });
+    expect(actor.getSnapshot().context.playedThisRound).toHaveLength(0);
+    expect(actor.getSnapshot().context.budget).toBe(100_000);
+  });
+
+  it('rejects Security Patch against 5G Tower event', () => {
+    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+    const ctx = {
+      ...safeContext(),
+      round: 1,
+      hand: [securityPatch],
+      budget: 100_000,
+      eventDeck: [new FiveGActivationCard('ev-5g')],
+    };
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    actor.send({ type: 'ADVANCE' }); // scheduling → crisis
+    expect(actor.getSnapshot().value).toBe('crisis');
+
+    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-5g' });
+    expect(actor.getSnapshot().context.playedThisRound).toHaveLength(0);
+    expect(actor.getSnapshot().context.budget).toBe(100_000);
   });
 
   it('allows Emergency Maintenance (ClearTicket) during weekend crisis', () => {

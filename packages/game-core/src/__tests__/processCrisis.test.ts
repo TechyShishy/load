@@ -170,21 +170,23 @@ describe('playActionCard', () => {
 });
 
 describe('processCrisis', () => {
-  it('issues ticket to Break/Fix for DDoS event', () => {
+  it('spawns 8 DDoS traffic cards when unmitigated', () => {
     const ctx = makeCtx({ pendingEvents: [ddosEvent] });
     const { context } = processCrisis(ctx);
-    const bfTrack = context.tracks.find((t) => t.track === Track.BreakFix)!;
-    expect(bfTrack.tickets).toHaveLength(1);
+    expect(context.spawnedTrafficQueue).toHaveLength(8);
+    expect(context.spawnedTrafficQueue.every((c) => c.templateId === 'traffic-ddos')).toBe(true);
   });
 
-  it('applies penalty for unmitigated DDoS event', () => {
-    const ctx = makeCtx({ pendingEvents: [ddosEvent] });
-    const { context, penaltiesApplied } = processCrisis(ctx);
-    expect(context.budget).toBe(500_000 - 50_000);
-    expect(penaltiesApplied).toBe(50_000);
+  it('does not spawn traffic cards when DDoS event is mitigated', () => {
+    const ctx = makeCtx({
+      pendingEvents: [ddosEvent],
+      mitigatedEventIds: [ddosEvent.id],
+    });
+    const { context } = processCrisis(ctx);
+    expect(context.spawnedTrafficQueue).toHaveLength(0);
   });
 
-  it('skips penalty for mitigated DDoS event', () => {
+  it('does nothing to budget when DDoS event is mitigated', () => {
     const ctx = makeCtx({
       pendingEvents: [ddosEvent],
       mitigatedEventIds: [ddosEvent.id],
@@ -192,16 +194,6 @@ describe('processCrisis', () => {
     const { context, penaltiesApplied } = processCrisis(ctx);
     expect(context.budget).toBe(500_000);
     expect(penaltiesApplied).toBe(0);
-  });
-
-  it('does not file a ticket when a DDoS IssueTicket event is mitigated', () => {
-    const ctx = makeCtx({
-      pendingEvents: [ddosEvent],
-      mitigatedEventIds: [ddosEvent.id],
-    });
-    const { context } = processCrisis(ctx);
-    const bfTrack = context.tracks.find((t) => t.track === Track.BreakFix)!;
-    expect(bfTrack.tickets).toHaveLength(0);
   });
 
   it('clears pendingEvents after processing', () => {

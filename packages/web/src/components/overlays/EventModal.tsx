@@ -11,7 +11,7 @@ interface EventModalProps {
 
 export function EventModal({ event, hand, onMitigate, onAdvance }: EventModalProps) {
   const mitigateCards = hand.filter(
-    (c) => c.templateId === 'action-security-patch',
+    (c) => c.validForEventTemplateIds?.includes(event.templateId) ?? false,
   );
 
   return (

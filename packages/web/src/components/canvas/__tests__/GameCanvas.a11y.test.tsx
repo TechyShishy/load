@@ -192,6 +192,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
       cards: [
         {
           id: 'c1',
+          templateId: 'WebSurge',
           name: 'WebSurge',
           type: 'Traffic' as never,
           hoursRequired: 2,
@@ -246,6 +247,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
       cards: [
         {
           id: 'c1',
+          templateId: 'APIBlast',
           name: 'APIBlast',
           type: 'Traffic' as never,
           hoursRequired: 2,

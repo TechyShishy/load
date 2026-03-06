@@ -1,12 +1,12 @@
-import { EventCard, Track, type GameContext } from '../../types.js';
-import { applyDowntime, issueTicket } from './helpers.js';
+import { EventCard, type GameContext } from '../../types.js';
+import { DDoSTrafficCard } from '../traffic/DDoSTrafficCard.js';
 
 export class DDoSAttackCard extends EventCard {
   readonly templateId = 'event-ddos-attack';
   readonly name = 'DDoS Attack';
-  readonly label = 'ISSUE TICKET';
+  readonly label = 'TRAFFIC SPIKE';
   readonly description =
-    'A volumetric attack overwhelms your edge nodes. File a Break/Fix ticket immediately.';
+    'A volumetric attack floods your edge nodes with malicious traffic.';
 
   constructor(public readonly id: string = 'event-ddos-attack') {
     super();
@@ -14,9 +14,7 @@ export class DDoSAttackCard extends EventCard {
 
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
-    let context = issueTicket(ctx, Track.BreakFix, this);
-    context = { ...context, budget: context.budget - 50_000 };
-    context = applyDowntime(context, 1);
-    return context;
+    const spawned = Array.from({ length: 8 }, () => new DDoSTrafficCard(crypto.randomUUID()));
+    return { ...ctx, spawnedTrafficQueue: [...ctx.spawnedTrafficQueue, ...spawned] };
   }
 }

@@ -166,6 +166,7 @@ export function App() {
           <HandZone
             hand={context.hand}
             disabled={!canPlayCard}
+            isCardDisabled={(card) => card.crisisOnly === true}
           />
         </div>
         <button
