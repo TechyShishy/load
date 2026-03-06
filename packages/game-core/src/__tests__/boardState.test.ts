@@ -5,6 +5,7 @@ import {
   createVendorSlots,
   getAvailableSlots,
   resetSlotsForRound,
+  stripWeeklyTemporarySlots,
 } from '../boardState.js';
 import { Period, SLOT_BASE_CAPACITY, Track } from '../types.js';
 
@@ -97,5 +98,34 @@ describe('resetSlotsForRound', () => {
     const slots = createInitialTimeSlots().map((s) => ({ ...s, unavailable: true }));
     const reset = resetSlotsForRound(slots);
     expect(reset.every((s) => !s.unavailable)).toBe(true);
+  });
+});
+
+describe('stripWeeklyTemporarySlots', () => {
+  it('removes slots with weeklyTemporary: true', () => {
+    const base = createInitialTimeSlots();
+    const withWeekly = [
+      ...base,
+      { ...base[0]!, index: base.length, weeklyTemporary: true as const },
+    ];
+    const result = stripWeeklyTemporarySlots(withWeekly);
+    expect(result).toHaveLength(base.length);
+    expect(result.every((s) => !s.weeklyTemporary)).toBe(true);
+  });
+
+  it('does not remove temporary (BoostSlotCapacity) slots', () => {
+    const base = createInitialTimeSlots();
+    const withTemporary = [
+      ...base,
+      { ...base[0]!, index: base.length, temporary: true as const },
+    ];
+    const result = stripWeeklyTemporarySlots(withTemporary);
+    expect(result).toHaveLength(base.length + 1);
+  });
+
+  it('does not remove permanent slots', () => {
+    const base = createInitialTimeSlots();
+    const result = stripWeeklyTemporarySlots(base);
+    expect(result).toHaveLength(base.length);
   });
 });

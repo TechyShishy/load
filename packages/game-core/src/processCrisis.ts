@@ -120,7 +120,7 @@ export function playActionCard(
           baseCapacity: SLOT_BASE_CAPACITY,
           cards: [],
           unavailable: false,
-          temporary: true,
+          weeklyTemporary: true,
         }));
         context = {
           ...context,

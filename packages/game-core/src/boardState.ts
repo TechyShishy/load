@@ -45,7 +45,7 @@ export function getAvailableSlots(slots: TimeSlot[], period: Period): TimeSlot[]
 
 /**
  * Reset per-round transient state on all time slots.
- * Temporary slots (added by BoostSlotCapacity/AddPeriodSlots) are removed entirely;
+ * Temporary slots (added by BoostSlotCapacity) are removed entirely;
  * permanent slots have their availability restored and cards preserved (carry-over).
  */
 export function resetSlotsForRound(slots: TimeSlot[]): TimeSlot[] {
@@ -55,4 +55,12 @@ export function resetSlotsForRound(slots: TimeSlot[]): TimeSlot[] {
       ...s,
       unavailable: false,
     }));
+}
+
+/**
+ * Strip weekly-temporary slots added by AddPeriodSlots (Data Center Expansion).
+ * Called at the start of performDraw only on Monday rounds.
+ */
+export function stripWeeklyTemporarySlots(slots: TimeSlot[]): TimeSlot[] {
+  return slots.filter((s) => !s.weeklyTemporary);
 }

@@ -1,11 +1,12 @@
 import { assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, WEEKEND_ALLOWED_EFFECTS, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday } from './types.js';
+import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, WEEKEND_ALLOWED_EFFECTS, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
   createInitialTracks,
   createVendorSlots,
   resetSlotsForRound,
+  stripWeeklyTemporarySlots,
 } from './boardState.js';
 import { autoFillTrafficSlots } from './autoFillTrafficSlots.js';
 import { playActionCard as applyPlayActionCard, processCrisis } from './processCrisis.js';
@@ -76,7 +77,10 @@ export const gameMachine = setup({
   actions: {
     performDraw: assign(({ context }) => {
       // Reset board slots for the new round
-      const freshSlots = resetSlotsForRound(context.timeSlots);
+      const afterReset = resetSlotsForRound(context.timeSlots);
+      const freshSlots = getDayOfWeek(context.round) === 1
+        ? stripWeeklyTemporarySlots(afterReset)
+        : afterReset;
 
       // Reshuffle if exhausted, then draw traffic cards
       const drawRng = makeRng(context.seed + '-te-' + context.round);

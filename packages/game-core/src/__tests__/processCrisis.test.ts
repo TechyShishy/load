@@ -152,7 +152,7 @@ describe('playActionCard', () => {
     const eveningSlots = updated.timeSlots.filter((s) => s.period === Period.Evening);
     const overnightSlots = updated.timeSlots.filter((s) => s.period === Period.Overnight);
     expect(eveningSlots.length).toBe(beforeEvening + dcExpansion.effectValue);
-    expect(eveningSlots.filter((s) => s.temporary).length).toBe(dcExpansion.effectValue);
+    expect(eveningSlots.filter((s) => s.weeklyTemporary).length).toBe(dcExpansion.effectValue);
     expect(overnightSlots.length).toBe(beforeOvernight);
   });
 

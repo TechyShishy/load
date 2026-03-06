@@ -4,7 +4,11 @@ import { createInitialContext, gameMachine } from '../machine.js';
 import { TRAFFIC_CARDS } from '../data/trafficCards.js';
 import { type TrafficCard } from '../types.js';
 
-/** Traffic-only deck — no events — so rounds complete without surprise game-overs. */
+/**
+ * Traffic-only deck — no events — so rounds complete without surprise game-overs.
+ * Uses a fixed seed for deterministic RNG so fill-phase distributions are stable
+ * across runs (prevents flaky failures when autoFill coincidentally triggers Overload).
+ */
 function safeContext() {
   const trafficDeck: TrafficCard[] = Array.from({ length: 24 }, (_, i) =>
     TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!,
@@ -16,6 +20,7 @@ function safeContext() {
     eventDeck: [],
     eventDiscard: [],
     spawnedTrafficQueue: [] as TrafficCard[],
+    seed: 'carry-over-test',
   };
 }
 

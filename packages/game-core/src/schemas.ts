@@ -73,6 +73,7 @@ export const TimeSlotSchema = z.object({
   cards: z.array(TrafficCardSchema),
   unavailable: z.boolean(),
   temporary: z.boolean().optional(),
+  weeklyTemporary: z.boolean().optional(),
 });
 
 export const TrackSlotSchema = z.object({

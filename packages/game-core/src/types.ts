@@ -109,8 +109,10 @@ export interface TimeSlot {
   cards: TrafficCard[];
   /** True if this slot is unavailable due to Overload downtime */
   unavailable: boolean;
-  /** True if this slot was added temporarily by a BoostSlotCapacity/AddOvernightSlots action card; stripped at round reset */
+  /** True if this slot was added temporarily by a BoostSlotCapacity action card; stripped at every round reset */
   readonly temporary?: boolean;
+  /** True if this slot was added by an AddPeriodSlots (Data Center Expansion) card; stripped on Monday */
+  readonly weeklyTemporary?: boolean;
 }
 
 export interface TrackSlot {
