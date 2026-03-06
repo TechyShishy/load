@@ -36,6 +36,8 @@ export type {
   VendorSlot,
   GameContext,
   RoundSummary,
+  DrawLog,
+  DrawLogTrafficEntry,
   SerializedCard,
   SerializedGameContext,
   StorageAdapter,

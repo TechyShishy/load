@@ -80,6 +80,12 @@ describe('useGame', () => {
     expect(mockSend).toHaveBeenCalledWith({ type: 'ADVANCE' });
   });
 
+  it('drawComplete() sends DRAW_COMPLETE', () => {
+    const { result } = renderHook(() => useGame(), { wrapper });
+    act(() => { result.current.drawComplete(); });
+    expect(mockSend).toHaveBeenCalledWith({ type: 'DRAW_COMPLETE' });
+  });
+
   it('reset() calls clearSave and sends RESET', () => {
     const { result } = renderHook(() => useGame(), { wrapper });
     act(() => { result.current.reset(); });

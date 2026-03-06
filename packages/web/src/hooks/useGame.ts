@@ -28,6 +28,10 @@ export function useGame() {
     send({ type: 'ADVANCE' });
   }, [send]);
 
+  const drawComplete = useCallback(() => {
+    send({ type: 'DRAW_COMPLETE' });
+  }, [send]);
+
   const playAction = useCallback(
     (card: ActionCard, targetEventId?: string, targetTrafficCardId?: string, targetPeriod?: Period, targetTrack?: Track) => {
       send({
@@ -58,6 +62,7 @@ export function useGame() {
     context,
     phase,
     advance,
+    drawComplete,
     playAction,
     reset,
     isWon: phase === 'gameWon',

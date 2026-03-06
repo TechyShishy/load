@@ -1,5 +1,5 @@
 import { and, assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, PhaseId, STARTING_BUDGET, type ActionCard, type GameContext, type Period, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
+import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, Period, PhaseId, STARTING_BUDGET, type ActionCard, type DrawLog, type GameContext, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
 import {
   createInitialTimeSlots,
@@ -43,6 +43,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     loseReason: null,
     pendingRevenue: 0,
     seed: crypto.randomUUID(),
+    drawLog: { traffic: [], action: initialHand, events: [] },
   };
 }
 
@@ -50,6 +51,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
 
 export type GameEvent =
   | { type: 'ADVANCE' }
+  | { type: 'DRAW_COMPLETE' }
   | { type: 'PLAY_ACTION'; card: ActionCard; targetEventId?: string; targetTrafficCardId?: string; targetPeriod?: Period; targetTrack?: Track }
   | { type: 'RESET' };
 
@@ -122,7 +124,17 @@ export const gameMachine = setup({
       // Auto-fill slots using round-robin period assignment
       const { context: filled } = autoFillTrafficSlots(baseCtx, drawn);
 
-      return { ...filled, activePhase: PhaseId.Scheduling };
+      // Build draw log: record which period/slot each drawn card landed in
+      const trafficEntries: DrawLog['traffic'] = drawn.map(card => {
+        const slot = filled.timeSlots.find(s => s.cards.some(c => c.id === card.id));
+        return { card, period: slot?.period ?? Period.Morning, slotIndex: slot?.index ?? 0 };
+      });
+
+      return {
+        ...filled,
+        activePhase: PhaseId.Scheduling,
+        drawLog: { traffic: trafficEntries, action: context.drawLog?.action ?? [], events: [] },
+      };
     }),
 
     performExecution: assign(({ context }) => ({
@@ -146,6 +158,7 @@ export const gameMachine = setup({
         eventDiscard,
         pendingEvents: drawn,
         activePhase: PhaseId.Crisis,
+        drawLog: { traffic: [], action: [], events: drawn },
       };
     }),
 
@@ -188,6 +201,7 @@ export const gameMachine = setup({
       const hand: ActionCard[] = friday ? [] : [...context.hand];
       const deficit = HAND_SIZE - hand.length;
 
+      let actionDrawn: ActionCard[] = [];
       if (deficit > 0) {
         const [reshuffled, emptyDiscard] = reshuffleDiscard(
           actionDeck,
@@ -197,6 +211,7 @@ export const gameMachine = setup({
         actionDeck = reshuffled;
         actionDiscard = emptyDiscard;
         const [drawn, remaining] = drawN(actionDeck, deficit);
+        actionDrawn = drawn;
         hand.push(...drawn);
         actionDeck = remaining;
       }
@@ -210,6 +225,7 @@ export const gameMachine = setup({
         trafficDiscard: context.trafficDiscard,
         playedThisRound: [],
         activePhase: PhaseId.End,
+        drawLog: { traffic: [], action: actionDrawn, events: [] },
       };
     }),
 
@@ -242,11 +258,13 @@ export const gameMachine = setup({
   states: {
     draw: {
       entry: 'performDraw',
-      always: [
-        { guard: 'isGameLost', target: 'gameLost', actions: 'markGameLost' },
-        { guard: 'isWeekendRound', target: 'crisis' },
-        { target: 'scheduling' },
-      ],
+      on: {
+        DRAW_COMPLETE: [
+          { guard: 'isGameLost', target: 'gameLost', actions: 'markGameLost' },
+          { guard: 'isWeekendRound', target: 'crisis' },
+          { target: 'scheduling' },
+        ],
+      },
     },
     scheduling: {
       on: {

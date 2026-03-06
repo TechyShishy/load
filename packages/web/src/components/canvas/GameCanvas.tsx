@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, RenderTexture, Text, Ticker, TextStyle } from 'pixi.js';
 import {
   Period,
+  type DrawLog,
+  type ActionCard,
+  type EventCard,
   type GameContext,
   type TimeSlot,
   type TrackSlot,
+  type TrafficCard,
 } from '@load/game-core';
 import {
   SLOT_W,
@@ -13,6 +17,10 @@ import {
   PERIOD_PADDING,
   CARD_PADDING,
   BOARD_START_Y,
+  PILES_ROW_Y,
+  PILE_INTRA_GROUP_GAP,
+  computeDeckPileRect,
+  computeSlotRect,
   computeTracksYOffset,
   rowsForPeriod,
 } from './canvasLayout.js';
@@ -22,6 +30,16 @@ interface GameCanvasProps {
   /** Optional shared ref for the container div. Passed from App so overlay
    * components can compute slot positions without duplicating layout math. */
   containerRef?: React.RefObject<HTMLDivElement>;
+  /** The draw log from the current context — triggers card fly-in animations. */
+  drawLog?: DrawLog | null;
+  /** Card IDs currently mid-animation (not yet arrived at their destination slot). */
+  suppressedCardIds?: ReadonlySet<string>;
+  /** Called by the ticker when a card's fly-in animation reaches its slot. */
+  onCardArrived?: (id: string) => void;
+  /** CSS clientWidth of the canvas container element, for layout math. */
+  containerWidth?: number;
+  /** Animation speed multiplier — 1.5× on round 1, 1× otherwise. */
+  speedMult?: number;
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -51,6 +69,16 @@ const TRACK_COLORS: Record<string, number> = {
 };
 
 const TRAFFIC_COLOR = 0x005f8f;
+const EVENT_COLOR = 0x5c0015;
+
+// ── Deck pile types and colors ────────────────────────────────────────────────
+type DeckType = 'traffic' | 'event' | 'action';
+type PileType = 'draw' | 'discard';
+const PILE_COLORS: Record<DeckType, { bg: number; accent: number }> = {
+  traffic: { bg: 0x003a5c, accent: 0x005f8f },
+  event:   { bg: 0x5c0015, accent: 0xff375f },
+  action:  { bg: 0x013a05, accent: 0x30d158 },
+};
 
 // ── Stable TextStyle instances (module-level, never recreated) ────────────────
 const HEADER_STYLES: Record<Period, TextStyle> = {
@@ -75,8 +103,273 @@ const EMPTY_STYLE = new TextStyle({
   fontFamily: 'Courier New',
   fontStyle: 'italic',
 });
+const PILE_NAME_STYLE = new TextStyle({
+  fill: 0xffffff,
+  fontSize: 9,
+  fontFamily: 'Courier New',
+  fontWeight: 'bold',
+});
+const PILE_LABEL_STYLE = new TextStyle({
+  fill: 0x6b7280,
+  fontSize: 8,
+  fontFamily: 'Courier New',
+});
+// ── Draw-phase card animation ─────────────────────────────────────────────────
+const FLY_MS = 180;
+const FLIP_MS = 280;
+const HOLD_MS = 180;
+
+interface CardAnimJob {
+  cardId: string;
+  mesh: Mesh;
+  geo: MeshGeometry;
+  srcCx: number; srcCy: number;
+  dstCx: number; dstCy: number;
+  w: number; h: number;
+  elapsed: number;
+  totalMs: number;
+  frontTex: RenderTexture;
+  backTex: RenderTexture;
+}
+
+/**
+ * Update a MeshGeometry's vertex positions and UVs for a perspective card flip.
+ * @param geo   geometry to mutate in-place
+ * @param cx    centre-X of the card in canvas pixels
+ * @param cy    centre-Y of the card in canvas pixels
+ * @param W     card width in pixels
+ * @param H     card height in pixels
+ * @param angle flip angle in radians (0 = face-on, π/2 = edge-on, π = flipped)
+ * @param focal focal-length for perspective foreshortening (default 600)
+ */
+export function updateFlipVertices(
+  geo: MeshGeometry,
+  cx: number, cy: number,
+  W: number, H: number,
+  angle: number,
+  focal = 600,
+): void {
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const half = W / 2;
+  const lx = cx + (-half * cosA) * focal / (focal - half * sinA);
+  const rx = cx + (half * cosA) * focal / (focal + half * sinA);
+  const topY = cy - H / 2;
+  const botY = cy + H / 2;
+  // Mirror U coordinate when past the half-turn (back face becomes visible)
+  const u0 = cosA >= 0 ? 0 : 1;
+  const u1 = cosA >= 0 ? 1 : 0;
+  geo.positions = new Float32Array([lx, topY, rx, topY, rx, botY, lx, botY]);
+  geo.uvs = new Float32Array([u0, 0, u1, 0, u1, 1, u0, 1]);
+}
+
+function createCardFrontTexture(app: Application, card: TrafficCard): RenderTexture {
+  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const g = new Graphics();
+  g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
+  g.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
+  const label = new Text({ text: card.name, style: CARD_CHIP_STYLE });
+  label.x = CARD_PADDING + 2;
+  label.y = CARD_PADDING + 2;
+  const c = new Container();
+  c.addChild(g);
+  c.addChild(label);
+  app.renderer.render({ container: c, target: rt });
+  c.destroy({ children: true });
+  return rt;
+}
+
+function createCardBackTexture(app: Application, color = TRAFFIC_COLOR, accent = 0x00f5ff): RenderTexture {
+  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const g = new Graphics();
+  g.roundRect(0, 0, SLOT_W, SLOT_H, 4);
+  g.fill({ color, alpha: 0.5 });
+  g.stroke({ color: accent, width: 1, alpha: 0.4 });
+  app.renderer.render({ container: g, target: rt });
+  g.destroy();
+  return rt;
+}
+
+function createEventCardFrontTexture(app: Application, card: EventCard): RenderTexture {
+  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const g = new Graphics();
+  g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
+  g.fill({ color: EVENT_COLOR, alpha: 0.9 });
+  const label = new Text({ text: card.name, style: new TextStyle({ fill: 0xff375f, fontSize: 8, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - 12 }) });
+  label.x = CARD_PADDING + 2;
+  label.y = CARD_PADDING + 2;
+  const c = new Container();
+  c.addChild(g);
+  c.addChild(label);
+  app.renderer.render({ container: c, target: rt });
+  c.destroy({ children: true });
+  return rt;
+}
+
+function createActionCardFrontTexture(app: Application, card: ActionCard): RenderTexture {
+  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const g = new Graphics();
+  g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
+  g.fill({ color: PILE_COLORS.action.bg, alpha: 0.9 });
+  const label = new Text({ text: card.name, style: new TextStyle({ fill: PILE_COLORS.action.accent, fontSize: 8, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - 12 }) });
+  label.x = CARD_PADDING + 2;
+  label.y = CARD_PADDING + 2;
+  const c = new Container();
+  c.addChild(g);
+  c.addChild(label);
+  app.renderer.render({ container: c, target: rt });
+  c.destroy({ children: true });
+  return rt;
+}
+
 /** Per-track label styles generated once and cached. */
 const TRACK_LABEL_STYLES: Record<string, TextStyle> = {};
+
+/**
+ * Spawn Mesh fly-in/flip animation jobs for a draw log.
+ * Safe to call any time after the PixiJS app and animLayer are ready.
+ * Flushes any stale jobs first so a rapid re-draw never double-animates.
+ */
+function spawnDrawAnimations(
+  app: Application,
+  animLayer: Container,
+  animJobs: CardAnimJob[],
+  log: DrawLog,
+  ctx: GameContext,
+  cw: number,
+  spd: number,
+): void {
+  // Flush any jobs from a previous draw that haven't completed yet.
+  const stale = animJobs.splice(0);
+  for (const job of stale) {
+    animLayer.removeChild(job.mesh);
+    job.mesh.destroy();
+    job.frontTex.destroy();
+    job.backTex.destroy();
+  }
+
+  const totalMs = (FLY_MS + FLIP_MS + HOLD_MS) / spd;
+  const periods = Object.values(Period) as Period[];
+  const srcRect = computeDeckPileRect(0, 'draw', cw);
+  const srcCx = srcRect.x + srcRect.w / 2;
+  const srcCy = srcRect.y + srcRect.h / 2;
+
+  log.traffic.forEach((entry, idx) => {
+    const periodIndex = periods.indexOf(entry.period);
+    if (periodIndex < 0) return;
+
+    const periodSlots = ctx.timeSlots.filter((s) => s.period === entry.period);
+    const dstRect = computeSlotRect(periodIndex, entry.slotIndex, cw, periodSlots.length);
+    const dstCx = dstRect.x + dstRect.w / 2;
+    const dstCy = dstRect.y + dstRect.h / 2;
+
+    const frontTex = createCardFrontTexture(app, entry.card);
+    const backTex = createCardBackTexture(app);
+    const geo = new MeshGeometry({
+      positions: new Float32Array([
+        srcCx - SLOT_W / 2, srcCy - SLOT_H / 2,
+        srcCx + SLOT_W / 2, srcCy - SLOT_H / 2,
+        srcCx + SLOT_W / 2, srcCy + SLOT_H / 2,
+        srcCx - SLOT_W / 2, srcCy + SLOT_H / 2,
+      ]),
+      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    });
+    const mesh = new Mesh({ geometry: geo, texture: backTex });
+    mesh.visible = false; // hidden until its stagger delay expires
+    animLayer.addChild(mesh);
+
+    animJobs.push({
+      cardId: entry.card.id,
+      mesh, geo,
+      srcCx, srcCy,
+      dstCx, dstCy,
+      w: SLOT_W, h: SLOT_H,
+      elapsed: -(idx * (FLY_MS + FLIP_MS) / spd),
+      totalMs,
+      frontTex, backTex,
+    });
+  });
+
+  // Event card fly-ins — from event deck pile to discard pile.
+  if (log.events.length > 0) {
+    const evSrcRect = computeDeckPileRect(1, 'draw', cw);
+    const evSrcCx = evSrcRect.x + evSrcRect.w / 2;
+    const evSrcCy = evSrcRect.y + evSrcRect.h / 2;
+    const evDstRect = computeDeckPileRect(1, 'discard', cw);
+    const evDstCx = evDstRect.x + evDstRect.w / 2;
+    const evDstCy = evDstRect.y + evDstRect.h / 2;
+    const stagger = log.traffic.length; // offset event stagger past traffic cards
+
+    log.events.forEach((card, idx) => {
+      const frontTex = createEventCardFrontTexture(app, card);
+      const backTex = createCardBackTexture(app, EVENT_COLOR, 0xff375f);
+      const geo = new MeshGeometry({
+        positions: new Float32Array([
+          evSrcCx - SLOT_W / 2, evSrcCy - SLOT_H / 2,
+          evSrcCx + SLOT_W / 2, evSrcCy - SLOT_H / 2,
+          evSrcCx + SLOT_W / 2, evSrcCy + SLOT_H / 2,
+          evSrcCx - SLOT_W / 2, evSrcCy + SLOT_H / 2,
+        ]),
+        uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      });
+      const mesh = new Mesh({ geometry: geo, texture: backTex });
+      mesh.visible = false;
+      animLayer.addChild(mesh);
+
+      animJobs.push({
+        cardId: card.id,
+        mesh, geo,
+        srcCx: evSrcCx, srcCy: evSrcCy,
+        dstCx: evDstCx, dstCy: evDstCy,
+        w: SLOT_W, h: SLOT_H,
+        elapsed: -((stagger + idx) * (FLY_MS + FLIP_MS) / spd),
+        totalMs,
+        frontTex, backTex,
+      });
+    });
+  }
+
+  // Action card fly-ins — from action deck pile to bottom edge of canvas.
+  if (log.action.length > 0) {
+    const actSrcRect = computeDeckPileRect(2, 'draw', cw);
+    const actSrcCx = actSrcRect.x + actSrcRect.w / 2;
+    const actSrcCy = actSrcRect.y + actSrcRect.h / 2;
+    const actDstCx = cw / 2;
+    const actDstCy = app.screen.height - SLOT_H / 2;
+    const stagger = log.traffic.length + log.events.length;
+
+    log.action.forEach((card, idx) => {
+      const frontTex = createActionCardFrontTexture(app, card);
+      const backTex = createCardBackTexture(app, PILE_COLORS.action.bg, PILE_COLORS.action.accent);
+      const geo = new MeshGeometry({
+        positions: new Float32Array([
+          actSrcCx - SLOT_W / 2, actSrcCy - SLOT_H / 2,
+          actSrcCx + SLOT_W / 2, actSrcCy - SLOT_H / 2,
+          actSrcCx + SLOT_W / 2, actSrcCy + SLOT_H / 2,
+          actSrcCx - SLOT_W / 2, actSrcCy + SLOT_H / 2,
+        ]),
+        uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      });
+      const mesh = new Mesh({ geometry: geo, texture: backTex });
+      mesh.visible = false;
+      animLayer.addChild(mesh);
+
+      animJobs.push({
+        cardId: card.id,
+        mesh, geo,
+        srcCx: actSrcCx, srcCy: actSrcCy,
+        dstCx: actDstCx, dstCy: actDstCy,
+        w: SLOT_W, h: SLOT_H,
+        elapsed: -((stagger + idx) * (FLY_MS + FLIP_MS) / spd),
+        totalMs,
+        frontTex, backTex,
+      });
+    });
+  }
+}
 function getTrackLabelStyle(trackName: string): TextStyle {
   if (!TRACK_LABEL_STYLES[trackName]) {
     TRACK_LABEL_STYLES[trackName] = new TextStyle({
@@ -118,16 +411,27 @@ interface TrackRefs {
   trackY: number;
 }
 
+interface DeckPileRefs {
+  container: Container;
+  pileX: number;
+  pileY: number;
+  deckType: DeckType;
+  pileType: PileType;
+}
+
 interface SceneRefs {
   /** key: `${period}-${slotIndex}` */
   slots: Map<string, SlotRefs>;
   /** key: track.track (enum string) */
   tracks: Map<string, TrackRefs>;
+  /** key: `${deckType}-${pileType}` e.g. 'traffic-draw' */
+  piles: Map<string, DeckPileRefs>;
 }
 
 // ── Static scene construction ─────────────────────────────────────────────────
 function buildStaticScene(app: Application, board: Container, ctx: GameContext): SceneRefs {
-  const refs: SceneRefs = { slots: new Map(), tracks: new Map() };
+  const piles = buildDeckPiles(app, board, ctx);
+  const refs: SceneRefs = { slots: new Map(), tracks: new Map(), piles };
 
   const periods = Object.values(Period) as Period[];
   const availableW = app.screen.width - 40;
@@ -243,11 +547,17 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
 }
 
 // ── Dynamic paint helpers ─────────────────────────────────────────────────────
-function paintSlotCards(slot: TimeSlot, slotX: number, slotY: number, container: Container): void {
+function paintSlotCards(
+  slot: TimeSlot, slotX: number, slotY: number, container: Container,
+  suppressedCardIds?: ReadonlySet<string>,
+): void {
+  let vi = 0;
   for (let ci = 0; ci < slot.cards.length; ci++) {
     const card = slot.cards[ci]!;
+    if (suppressedCardIds?.has(card.id)) continue;
     const cardH = SLOT_H - CARD_PADDING * 2;
-    const cardY = slotY + CARD_PADDING + ci * (cardH + 2);
+    const cardY = slotY + CARD_PADDING + vi * (cardH + 2);
+    vi++;
 
     const cardBg = new Graphics();
     cardBg.roundRect(slotX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 2);
@@ -285,8 +595,155 @@ function paintTrackTickets(
   }
 }
 
+// ── Deck pile painters ───────────────────────────────────────────────────────
+function paintPile(
+  container: Container,
+  pileX: number,
+  pileY: number,
+  bgColor: number,
+  accentColor: number,
+  deckLabel: string,
+  pileType: PileType,
+  count: number,
+  topCardName?: string,
+): void {
+  const layers = Math.min(5, Math.ceil(count / 10));
+
+  // Shadow stack layers — drawn deepest-first so the top card renders last.
+  for (let li = layers - 1; li >= 1; li--) {
+    const offset = li * 2;
+    const shadow = new Graphics();
+    shadow.roundRect(pileX + offset, pileY + offset, SLOT_W, SLOT_H, 4);
+    shadow.fill({ color: bgColor, alpha: 0.2 });
+    shadow.stroke({ color: accentColor, width: 1, alpha: 0.2 });
+    container.addChild(shadow);
+  }
+
+  const topRect = new Graphics();
+  topRect.roundRect(pileX, pileY, SLOT_W, SLOT_H, 4);
+
+  if (layers === 0) {
+    // Empty pile — ghost outline only.
+    topRect.fill({ color: accentColor, alpha: 0.05 });
+    topRect.stroke({ color: accentColor, width: 1, alpha: 0.25 });
+    container.addChild(topRect);
+    return;
+  }
+
+  if (pileType === 'discard' && topCardName !== undefined) {
+    // Discard face — chip style matching slot cards.
+    topRect.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
+    topRect.stroke({ color: accentColor, width: 1 });
+    container.addChild(topRect);
+    const nameText = new Text({ text: topCardName, style: CARD_CHIP_STYLE });
+    nameText.x = pileX + CARD_PADDING + 2;
+    nameText.y = pileY + CARD_PADDING + 2;
+    container.addChild(nameText);
+  } else {
+    // Draw pile back — colored fill, inner decorative border, deck name.
+    topRect.fill({ color: bgColor, alpha: 0.95 });
+    topRect.stroke({ color: accentColor, width: 1 });
+    container.addChild(topRect);
+    const inner = new Graphics();
+    inner.roundRect(pileX + 4, pileY + 4, SLOT_W - 8, SLOT_H - 8, 2);
+    inner.stroke({ color: accentColor, width: 1, alpha: 0.5 });
+    container.addChild(inner);
+    const nameText = new Text({ text: deckLabel, style: PILE_NAME_STYLE });
+    nameText.anchor.set(0.5, 0.5);
+    nameText.x = pileX + SLOT_W / 2;
+    nameText.y = pileY + SLOT_H / 2;
+    container.addChild(nameText);
+  }
+}
+
+function buildDeckPiles(
+  app: Application,
+  board: Container,
+  ctx: GameContext,
+): Map<string, DeckPileRefs> {
+  const piles: Map<string, DeckPileRefs> = new Map();
+  const availableW = app.screen.width - 40;
+  const groupW = SLOT_W * 2 + PILE_INTRA_GROUP_GAP;
+  const interGroupGap = Math.max(8, (availableW - groupW * 3) / 2);
+
+  const DECK_LABELS: Record<DeckType, string> = {
+    traffic: 'TRAFFIC',
+    event: 'EVENT',
+    action: 'ACTION',
+  };
+
+  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined }> = [
+    {
+      key: 'traffic',
+      drawCount: ctx.trafficDeck.length,
+      discardCount: ctx.trafficDiscard.length,
+      topDiscardName: ctx.trafficDiscard.at(-1)?.name,
+    },
+    {
+      key: 'event',
+      drawCount: ctx.eventDeck.length,
+      discardCount: ctx.eventDiscard.length,
+      topDiscardName: ctx.eventDiscard.at(-1)?.name,
+    },
+    {
+      key: 'action',
+      drawCount: ctx.actionDeck.length,
+      discardCount: ctx.actionDiscard.length,
+      topDiscardName: ctx.actionDiscard.at(-1)?.name,
+    },
+  ];
+
+  for (let di = 0; di < deckDefs.length; di++) {
+    const def = deckDefs[di]!;
+    const groupX = 20 + di * (groupW + interGroupGap);
+    const colors = PILE_COLORS[def.key];
+    const deckLabel = DECK_LABELS[def.key];
+
+    // Draw pile.
+    const drawContainer = new Container();
+    const drawX = groupX;
+    const drawY = PILES_ROW_Y;
+    paintPile(drawContainer, drawX, drawY, colors.bg, colors.accent, deckLabel, 'draw', def.drawCount);
+    board.addChild(drawContainer);
+    const drawLabel = new Text({ text: 'DRAW', style: PILE_LABEL_STYLE });
+    drawLabel.x = drawX;
+    drawLabel.y = PILES_ROW_Y + SLOT_H + 2;
+    board.addChild(drawLabel);
+    piles.set(`${def.key}-draw`, {
+      container: drawContainer,
+      pileX: drawX,
+      pileY: drawY,
+      deckType: def.key,
+      pileType: 'draw',
+    });
+
+    // Discard pile.
+    const discardContainer = new Container();
+    const discardX = groupX + SLOT_W + PILE_INTRA_GROUP_GAP;
+    const discardY = PILES_ROW_Y;
+    paintPile(discardContainer, discardX, discardY, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName);
+    board.addChild(discardContainer);
+    const discardLabel = new Text({ text: 'DISCARD', style: PILE_LABEL_STYLE });
+    discardLabel.x = discardX;
+    discardLabel.y = PILES_ROW_Y + SLOT_H + 2;
+    board.addChild(discardLabel);
+    piles.set(`${def.key}-discard`, {
+      container: discardContainer,
+      pileX: discardX,
+      pileY: discardY,
+      deckType: def.key,
+      pileType: 'discard',
+    });
+  }
+
+  return piles;
+}
+
 // ── Patch functions (called on context change) ────────────────────────────────
-function patchSlot(refs: SlotRefs, oldSlot: TimeSlot, newSlot: TimeSlot): void {
+function patchSlot(
+  refs: SlotRefs, oldSlot: TimeSlot, newSlot: TimeSlot,
+  suppressedCardIds?: ReadonlySet<string>,
+): void {
   // Repaint background when overloaded flag changes (e.g. BU/DCE converts the slot).
   if (oldSlot.overloaded !== newSlot.overloaded) {
     repaintSlotBackground(refs, newSlot);
@@ -303,7 +760,7 @@ function patchSlot(refs: SlotRefs, oldSlot: TimeSlot, newSlot: TimeSlot): void {
       child.destroy();
     }
     refs.cardContainer.removeChildren();
-    paintSlotCards(newSlot, refs.slotX, refs.slotY, refs.cardContainer);
+    paintSlotCards(newSlot, refs.slotX, refs.slotY, refs.cardContainer, suppressedCardIds);
   }
 
 }
@@ -323,9 +780,62 @@ function patchTrack(refs: TrackRefs, oldTrack: TrackSlot, newTrack: TrackSlot): 
   }
 }
 
-function patchBoard(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext): void {
-  // Short-circuit if neither board-relevant array reference has changed.
-  if (prevCtx.timeSlots === nextCtx.timeSlots && prevCtx.tracks === nextCtx.tracks) return;
+function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContext): void {
+  const getInfo = (ctx: GameContext) => {
+    if (pile.deckType === 'traffic') {
+      const arr = pile.pileType === 'draw' ? ctx.trafficDeck : ctx.trafficDiscard;
+      return { count: arr.length, topName: arr.at(-1)?.name };
+    } else if (pile.deckType === 'event') {
+      const arr = pile.pileType === 'draw' ? ctx.eventDeck : ctx.eventDiscard;
+      return { count: arr.length, topName: arr.at(-1)?.name };
+    } else {
+      const arr = pile.pileType === 'draw' ? ctx.actionDeck : ctx.actionDiscard;
+      return { count: arr.length, topName: arr.at(-1)?.name };
+    }
+  };
+  const prev = getInfo(prevCtx);
+  const next = getInfo(nextCtx);
+  if (prev.count === next.count && prev.topName === next.topName) return;
+  const colors = PILE_COLORS[pile.deckType];
+  const deckLabel = pile.deckType.toUpperCase();
+  for (const child of pile.container.children) {
+    child.destroy();
+  }
+  pile.container.removeChildren();
+  paintPile(
+    pile.container,
+    pile.pileX,
+    pile.pileY,
+    colors.bg,
+    colors.accent,
+    deckLabel,
+    pile.pileType,
+    next.count,
+    next.topName,
+  );
+}
+
+function patchPiles(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext): void {
+  for (const pile of refs.piles.values()) {
+    patchPile(pile, prevCtx, nextCtx);
+  }
+}
+
+function patchBoard(
+  refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext,
+  suppressedCardIds?: ReadonlySet<string>,
+): void {
+  const decksChanged =
+    prevCtx.trafficDeck !== nextCtx.trafficDeck ||
+    prevCtx.trafficDiscard !== nextCtx.trafficDiscard ||
+    prevCtx.eventDeck !== nextCtx.eventDeck ||
+    prevCtx.eventDiscard !== nextCtx.eventDiscard ||
+    prevCtx.actionDeck !== nextCtx.actionDeck ||
+    prevCtx.actionDiscard !== nextCtx.actionDiscard;
+
+  // Short-circuit if nothing board-relevant has changed.
+  if (prevCtx.timeSlots === nextCtx.timeSlots && prevCtx.tracks === nextCtx.tracks && !decksChanged) return;
+
   const periods = Object.values(Period) as Period[];
   for (const period of periods) {
     const oldPeriodSlots = prevCtx.timeSlots.filter((s) => s.period === period);
@@ -335,7 +845,7 @@ function patchBoard(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext)
       const newSlot = newPeriodSlots[si];
       if (!oldSlot || !newSlot || (oldSlot === newSlot && oldSlot.overloaded === newSlot.overloaded)) continue;
       const slotRefs = refs.slots.get(`${period}-${si}`);
-      if (slotRefs) patchSlot(slotRefs, oldSlot, newSlot);
+      if (slotRefs) patchSlot(slotRefs, oldSlot, newSlot, suppressedCardIds);
     }
   }
 
@@ -344,6 +854,10 @@ function patchBoard(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext)
     if (!oldTrack || oldTrack === newTrack) continue;
     const trackRefs = refs.tracks.get(newTrack.track);
     if (trackRefs) patchTrack(trackRefs, oldTrack, newTrack);
+  }
+
+  if (decksChanged) {
+    patchPiles(refs, prevCtx, nextCtx);
   }
 }
 
@@ -379,11 +893,39 @@ function buildBoardSummary(ctx: GameContext): string {
     parts.push(`${track.track} track: ${ticketDesc}`);
   }
 
+  // Deck pile counts and top discard card.
+  const deckPileDescs: [string, number, string | undefined][] = [
+    ['Traffic draw', ctx.trafficDeck.length, undefined],
+    ['Traffic discard', ctx.trafficDiscard.length, ctx.trafficDiscard.at(-1)?.name],
+    ['Event draw', ctx.eventDeck.length, undefined],
+    ['Event discard', ctx.eventDiscard.length, ctx.eventDiscard.at(-1)?.name],
+    ['Action draw', ctx.actionDeck.length, undefined],
+    ['Action discard', ctx.actionDiscard.length, ctx.actionDiscard.at(-1)?.name],
+  ];
+  for (const [label, count, topName] of deckPileDescs) {
+    if (count === 0) {
+      parts.push(`${label}: empty`);
+    } else if (topName !== undefined) {
+      parts.push(`${label}: ${count} cards, top: ${topName}`);
+    } else {
+      parts.push(`${label}: ${count} cards`);
+    }
+  }
+
   return parts.join('. ');
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function GameCanvas({ context, phase: _phase, containerRef: externalContainerRef }: GameCanvasProps) {
+export function GameCanvas({
+  context,
+  phase: _phase,
+  containerRef: externalContainerRef,
+  drawLog,
+  suppressedCardIds,
+  onCardArrived,
+  containerWidth: containerWidthProp,
+  speedMult,
+}: GameCanvasProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? internalRef;
   const appRef = useRef<Application | null>(null);
@@ -392,6 +934,21 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
   const prevContextRef = useRef<GameContext | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [boardSummary, setBoardSummary] = useState(() => buildBoardSummary(context));
+
+  // Animation refs — updated every render, safe to read from effects and ticker.
+  const animLayerRef = useRef<Container | null>(null);
+  const animJobsRef = useRef<CardAnimJob[]>([]);
+  const suppressedCardIdsRef = useRef<ReadonlySet<string>>(new Set());
+  const onCardArrivedRef = useRef<((id: string) => void) | undefined>(undefined);
+  const contextRef = useRef<GameContext>(context);
+  // Mirror props that the init .then() needs to read after async app startup.
+  const drawLogRef = useRef<DrawLog | null | undefined>(undefined);
+  const speedMultRef = useRef<number>(speedMult ?? 1);
+  suppressedCardIdsRef.current = suppressedCardIds ?? new Set();
+  onCardArrivedRef.current = onCardArrived;
+  contextRef.current = context;
+  drawLogRef.current = drawLog;
+  speedMultRef.current = speedMult ?? 1;
 
   // Initialise PixiJS once.
   // Strategy: let PixiJS create its own <canvas> and append it to our div.
@@ -428,6 +985,54 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
         const refs = buildStaticScene(app, board, context);
         sceneRefsRef.current = refs;
         prevContextRef.current = context;
+
+        // Animation layer sits above the board so flying cards render on top.
+        const animLayer = new Container();
+        app.stage.addChild(animLayer);
+        animLayerRef.current = animLayer;
+
+        // If a drawLog arrived before PixiJS was ready (e.g. round 1 on first mount),
+        // spawn its animations now that the app and animLayer are both initialised.
+        const pendingDl = drawLogRef.current;
+        if (pendingDl?.traffic.length || pendingDl?.events.length || pendingDl?.action.length) {
+          spawnDrawAnimations(
+            app, animLayer, animJobsRef.current,
+            pendingDl, contextRef.current,
+            app.screen.width, speedMultRef.current,
+          );
+        }
+
+        // Ticker drives card fly-in animations each frame.
+        // TODO-0008: skip all pending animations immediately when the user clicks the canvas.
+        const tickFn = (ticker: Ticker) => {
+          const jobs = animJobsRef.current;
+          const layer = animLayerRef.current;
+          if (!layer || jobs.length === 0) return;
+          const dt = ticker.deltaMS;
+          for (let i = jobs.length - 1; i >= 0; i--) {
+            const job = jobs[i]!;
+            job.elapsed += dt;
+            if (job.elapsed < 0) continue; // still in stagger delay
+            job.mesh.visible = true;
+            const t = Math.min(1, job.elapsed / job.totalMs);
+            const cx = job.srcCx + (job.dstCx - job.srcCx) * t;
+            const cy = job.srcCy + (job.dstCy - job.srcCy) * t;
+            const angle = t * Math.PI;
+            if (angle >= Math.PI / 2 && job.mesh.texture !== job.frontTex) {
+              job.mesh.texture = job.frontTex;
+            }
+            updateFlipVertices(job.geo, cx, cy, job.w, job.h, angle);
+            if (t >= 1) {
+              layer.removeChild(job.mesh);
+              job.mesh.destroy();
+              job.frontTex.destroy();
+              job.backTex.destroy();
+              jobs.splice(i, 1);
+              onCardArrivedRef.current?.(job.cardId);
+            }
+          }
+        };
+        app.ticker.add(tickFn);
       })
       .catch((err: unknown) => {
         app.destroy(true, { children: true });
@@ -445,6 +1050,8 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
         boardRef.current = null;
         sceneRefsRef.current = null;
         prevContextRef.current = null;
+        animLayerRef.current = null;
+        animJobsRef.current = [];
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -468,15 +1075,53 @@ export function GameCanvas({ context, phase: _phase, containerRef: externalConta
         oldBoard.destroy({ children: true });
       }
       const newBoard = new Container();
-      app.stage.addChild(newBoard);
+      app.stage.addChildAt(newBoard, 0); // keep animLayer on top
       boardRef.current = newBoard;
       sceneRefsRef.current = buildStaticScene(app, newBoard, context);
     } else {
       const refs = sceneRefsRef.current;
-      if (refs) patchBoard(refs, prev, context);
+      if (refs) patchBoard(refs, prev, context, suppressedCardIdsRef.current);
     }
     prevContextRef.current = context;
   }, [context]);
+
+  // Spawn card fly-in animations when a new draw log is received.
+  // Note: on the very first render PixiJS may not be ready yet; the init
+  // .then() callback handles that case by reading drawLogRef directly.
+  useEffect(() => {
+    const app = appRef.current;
+    const animLayer = animLayerRef.current;
+    if (!app || !animLayer || (!drawLog?.traffic.length && !drawLog?.events.length && !drawLog?.action.length)) return;
+    spawnDrawAnimations(
+      app, animLayer, animJobsRef.current,
+      drawLog, contextRef.current,
+      containerWidthProp ?? app.screen.width,
+      speedMult ?? 1,
+    );
+  }, [drawLog]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Repaint slot card chips whenever the suppressed-card set changes.
+  // This drives the progressive board reveal as cards arrive at their slots.
+  useEffect(() => {
+    const refs = sceneRefsRef.current;
+    if (!refs) return;
+    const ctx = contextRef.current;
+    const suppressed = suppressedCardIds ?? (new Set() as ReadonlySet<string>);
+    const periods = Object.values(Period) as Period[];
+    for (const period of periods) {
+      const periodSlots = ctx.timeSlots.filter((s) => s.period === period);
+      for (let si = 0; si < periodSlots.length; si++) {
+        const slot = periodSlots[si]!;
+        const slotRefs = refs.slots.get(`${period}-${si}`);
+        if (!slotRefs) continue;
+        for (const child of slotRefs.cardContainer.children) {
+          child.destroy();
+        }
+        slotRefs.cardContainer.removeChildren();
+        paintSlotCards(slot, slotRefs.slotX, slotRefs.slotY, slotRefs.cardContainer, suppressed);
+      }
+    }
+  }, [suppressedCardIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the accessible board summary in sync with context changes.
   // This is intentionally a separate effect so it fires on every context

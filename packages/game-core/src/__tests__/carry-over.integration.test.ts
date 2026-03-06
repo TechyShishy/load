@@ -24,16 +24,22 @@ function safeContext() {
   };
 }
 
+function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
+  actor.send({ type: 'DRAW_COMPLETE' });
+}
+
 function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
   actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
   actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable)
-  actor.send({ type: 'ADVANCE' }); // resolution → end → draw → scheduling
+  actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+  drawComplete(actor);             // draw → scheduling
 }
 
 describe('integration: traffic cards carry over across round boundary', () => {
   it('cards placed in round 1 are still on the board at the start of round 2', () => {
     const actor = createActor(gameMachine, { input: safeContext() });
     actor.start();
+    drawComplete(actor);
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     expect(actor.getSnapshot().context.round).toBe(1);
@@ -64,6 +70,7 @@ describe('integration: traffic cards carry over across round boundary', () => {
   it('trafficDiscard does not grow when round ends (cards stay on board)', () => {
     const actor = createActor(gameMachine, { input: safeContext() });
     actor.start();
+    drawComplete(actor);
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     const discardBefore = actor.getSnapshot().context.trafficDiscard.length;

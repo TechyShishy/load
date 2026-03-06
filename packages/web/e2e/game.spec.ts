@@ -75,10 +75,16 @@ async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise
 
   // ── Resolution phase ──────────────────────────────────────────────────────
   await expect(ADVANCE(page)).toBeEnabled({ timeout: 8_000 });
-  await clickAdvance(page); // resolution → end → draw → scheduling (next round)
+  await clickAdvance(page); // resolution → end → draw → (DRAW_COMPLETE) → scheduling
 
   // ── Check for end screen after resolution ────────────────────────────────
-  return isEndScreen(page);
+  if (await isEndScreen(page)) return true;
+
+  // Wait for the draw phase to complete — DRAW_COMPLETE is sent automatically
+  // by useDrawAnimationState once all card animations finish (or instantly when
+  // prefers-reduced-motion is set / no traffic cards were drawn).
+  await page.locator('[role="main"][data-phase="scheduling"]').waitFor({ timeout: 15_000 });
+  return false;
 }
 
 /** Returns true if either the win or lose screen is currently visible. */

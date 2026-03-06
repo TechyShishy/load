@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
+
+function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
+  actor.send({ type: 'DRAW_COMPLETE' });
+}
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { Period, PERIOD_SLOT_COUNTS, SLOT_BASE_CAPACITY, type TimeSlot, type TrafficCard } from '../types.js';
@@ -41,6 +45,7 @@ describe('integration: Data Center Expansion persists until Monday', () => {
       input: { ...base, round: 3, hand: [dcExpansion] },
     });
     actor.start();
+    drawComplete(actor);
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     const beforeCount = actor.getSnapshot().context.timeSlots.filter(
@@ -69,6 +74,7 @@ describe('integration: Data Center Expansion persists until Monday', () => {
       input: { ...base, round: 4, timeSlots: [...base.timeSlots, ...extraSlots] },
     });
     actor.start();
+    drawComplete(actor);
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     expect(actor.getSnapshot().context.round).toBe(4);
@@ -93,6 +99,7 @@ describe('integration: Data Center Expansion persists until Monday', () => {
       input: { ...base, round: 8, timeSlots: [...base.timeSlots, ...extraSlots] },
     });
     actor.start();
+    drawComplete(actor);
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     expect(actor.getSnapshot().context.round).toBe(8);

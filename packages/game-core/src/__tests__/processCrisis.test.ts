@@ -37,6 +37,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     loseReason: null,
     pendingRevenue: 0,
     seed: 'test-seed',
+    drawLog: null,
     ...overrides,
   };
 }
@@ -141,12 +142,11 @@ describe('playActionCard', () => {
     expect(bfTrack.tickets).toHaveLength(0);
   });
 
-  it('AddOvernightSlots runtime targetPeriod overrides card.targetPeriod', () => {
+  it('AddPeriodSlots adds temporary slots to the runtime targetPeriod', () => {
     const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
     const ctx = makeCtx({ hand: [dcExpansion] });
     const beforeEvening = ctx.timeSlots.filter((s) => s.period === Period.Evening).length;
     const beforeOvernight = ctx.timeSlots.filter((s) => s.period === Period.Overnight).length;
-    // dcExpansion targets Overnight; override to Evening
     const updated = playActionCard(ctx, dcExpansion, undefined, undefined, Period.Evening);
     const eveningSlots = updated.timeSlots.filter((s) => s.period === Period.Evening);
     const overnightSlots = updated.timeSlots.filter((s) => s.period === Period.Overnight);

@@ -151,5 +151,6 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     loseReason: raw.loseReason,
     pendingRevenue: raw.pendingRevenue,
     seed: raw.seed,
+    drawLog: null,
   };
 }

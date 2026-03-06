@@ -6,9 +6,12 @@ interface HandZoneProps {
   hand: ActionCard[];
   disabled?: boolean;
   isCardDisabled?: (card: ActionCard) => boolean;
+  /** Card IDs currently mid-animation — suppressed from rendering until arrival. */
+  suppressedCardIds?: ReadonlySet<string>;
 }
 
-export function HandZone({ hand, disabled = false, isCardDisabled }: HandZoneProps) {
+export function HandZone({ hand, disabled = false, isCardDisabled, suppressedCardIds }: HandZoneProps) {
+  const visibleHand = suppressedCardIds ? hand.filter((c) => !suppressedCardIds.has(c.id)) : hand;
   return (
     <div
       role="group"
@@ -16,10 +19,10 @@ export function HandZone({ hand, disabled = false, isCardDisabled }: HandZonePro
       aria-live="polite"
       className="flex items-center gap-2 overflow-x-auto py-2 px-4 min-h-[80px]"
     >
-      {hand.length === 0 && (
+      {visibleHand.length === 0 && (
         <span className="text-gray-600 text-sm italic">No cards in hand</span>
       )}
-      {hand.map((card, i) => (
+      {visibleHand.map((card, i) => (
         <ActionCardView
           key={`${card.id}-${i}`}
           dragId={`${card.id}-${i}`}

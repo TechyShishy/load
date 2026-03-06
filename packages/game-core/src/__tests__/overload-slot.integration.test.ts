@@ -24,10 +24,15 @@ function safeContext() {
   };
 }
 
+function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
+  actor.send({ type: 'DRAW_COMPLETE' });
+}
+
 function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
   actor.send({ type: 'ADVANCE' }); // scheduling → crisis
   actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable)
-  actor.send({ type: 'ADVANCE' }); // resolution → end → draw → scheduling
+  actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+  drawComplete(actor);             // draw → scheduling
 }
 
 const iotCard = TRAFFIC_CARDS.find((c) => c.id === 'traffic-iot-burst')!;
@@ -72,6 +77,7 @@ describe('integration: overload slot creation', () => {
       loseReason: null,
       pendingRevenue: 0,
       seed: 'overload-test',
+      drawLog: null,
     };
     const { context } = autoFillTrafficSlots(initialCtx, [iotCard]);
 
@@ -115,6 +121,7 @@ describe('integration: resolution sweeps overload slots', () => {
       loseReason: null,
       pendingRevenue: 0,
       seed: 'sweep-test',
+      drawLog: null,
     };
 
     const { context: resolved, summary } = resolveRound(ctx);
@@ -155,6 +162,7 @@ describe('integration: Traffic Prioritization clears overload slot', () => {
 
     const actor = createActor(gameMachine, { input: base });
     actor.start();
+    drawComplete(actor);
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     // Use Traffic Prioritization to remove cloudCard from the overload slot
@@ -168,8 +176,8 @@ describe('integration: Traffic Prioritization clears overload slot', () => {
     // Overload slot must be gone
     expect(snap.context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
     // Revenue for cloudCard collected
-    expect(snap.context.budget).toBe(base.budget - trafficPrioritization.cost + cloudCard.revenue);
-  });
+    expect(snap.context.budget).toBe(base.budget - trafficPrioritization.cost + cloudCard.revenue);    // Removed card goes to trafficDiscard
+    expect(snap.context.trafficDiscard.map((c) => c.id)).toContain(cloudCard.id);  });
 });
 
 // ─── Stream Compression on overload slot ─────────────────────────────────────
@@ -204,6 +212,7 @@ describe('integration: Stream Compression clears overload slot', () => {
 
     const actor = createActor(gameMachine, { input: base });
     actor.start();
+    drawComplete(actor);
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     actor.send({
@@ -215,6 +224,8 @@ describe('integration: Stream Compression clears overload slot', () => {
     const snap = actor.getSnapshot();
     // Overload slot must be gone — its iotCard was removed by SC
     expect(snap.context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
+    // Both removed cards end up in trafficDiscard
+    expect(snap.context.trafficDiscard).toHaveLength(2);
   });
 });
 
@@ -241,6 +252,7 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
 
     const actor = createActor(gameMachine, { input: base });
     actor.start();
+    drawComplete(actor);
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     actor.send({
@@ -275,6 +287,7 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
 
     const actor = createActor(gameMachine, { input: base });
     actor.start();
+    drawComplete(actor);
 
     actor.send({ type: 'PLAY_ACTION', card: bandwidthUpgrade, targetPeriod: Period.Morning });
 
@@ -320,6 +333,7 @@ describe('integration: Data Center Expansion converts overload slots', () => {
 
     const actor = createActor(gameMachine, { input: base });
     actor.start();
+    drawComplete(actor);
 
     actor.send({
       type: 'PLAY_ACTION',
@@ -360,6 +374,7 @@ describe('integration: Data Center Expansion converts overload slots', () => {
 
     const actor = createActor(gameMachine, { input: base });
     actor.start();
+    drawComplete(actor);
 
     actor.send({
       type: 'PLAY_ACTION',

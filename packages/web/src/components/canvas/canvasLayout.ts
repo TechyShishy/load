@@ -7,7 +7,15 @@ export const SLOT_GAP = 8;
 export const PERIOD_PADDING = 16;
 export const CARD_PADDING = 4;
 
-export const BOARD_START_Y = 40;
+/** Top Y of the deck piles row (distance from canvas top edge). */
+export const PILES_ROW_Y = 8;
+/** Height of the label text area below each pile card ("DRAW" / "DISCARD"). */
+export const PILE_LABEL_H = 14;
+/** Gap between the draw pile and discard pile within the same deck group. */
+export const PILE_INTRA_GROUP_GAP = 10;
+/** Total vertical area reserved for the deck piles row (piles + labels + gap to board). */
+export const PILES_AREA_H = PILES_ROW_Y + SLOT_H + PILE_LABEL_H + 16;
+export const BOARD_START_Y = PILES_AREA_H;
 
 /**
  * Y-offset of the first track row, derived from the tallest period column.
@@ -111,3 +119,21 @@ export function computeTrackRect(trackIndex: number, containerWidth: number, max
   };
 }
 
+/**
+ * Compute the pixel rect of a deck pile sprite, matching the geometry in buildDeckPileScene.
+ * @param deckIndex   0=traffic, 1=event, 2=action
+ * @param pileType    'draw' | 'discard'
+ * @param containerWidth  clientWidth of the canvas container div
+ */
+export function computeDeckPileRect(
+  deckIndex: number,
+  pileType: 'draw' | 'discard',
+  containerWidth: number,
+): SlotRect {
+  const availableW = containerWidth - 40;
+  const groupW = SLOT_W * 2 + PILE_INTRA_GROUP_GAP;
+  const interGroupGap = Math.max(8, (availableW - groupW * 3) / 2);
+  const groupX = 20 + deckIndex * (groupW + interGroupGap);
+  const x = pileType === 'draw' ? groupX : groupX + SLOT_W + PILE_INTRA_GROUP_GAP;
+  return { x, y: PILES_ROW_Y, w: SLOT_W, h: SLOT_H };
+}

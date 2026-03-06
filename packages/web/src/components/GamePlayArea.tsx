@@ -1,7 +1,8 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
+import { useDrawAnimationState } from '../hooks/useDrawAnimationState.js';
 import { Period, Track } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { GameCanvas } from './canvas/GameCanvas.js';
@@ -17,12 +18,34 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { SoftErrorFallback } from './overlays/ErrorFallbacks.js';
 
 export function GamePlayArea() {
-  const { context, phase, advance, playAction, reset, isWon, isLost } = useGame();
+  const { context, phase, advance, drawComplete, playAction, reset, isWon, isLost } = useGame();
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<ActionCard | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const prefersReducedMotion =
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
+
+  const { arrivedCardIds, markArrived, allTrafficIds, allEventIds, allActionIds, speedMult } = useDrawAnimationState({
+    drawLog: context.drawLog ?? null,
+    round: context.round,
+    prefersReducedMotion,
+    onComplete: drawComplete,
+  });
+
+  const suppressedCardIds = useMemo(
+    () => new Set([
+      ...allTrafficIds.filter((id) => !arrivedCardIds.has(id)),
+      ...allActionIds.filter((id) => !arrivedCardIds.has(id)),
+    ]),
+    [allTrafficIds, allActionIds, arrivedCardIds],
+  );
+
+  const crisisAnimsDone = allEventIds.length === 0 || allEventIds.every((id) => arrivedCardIds.has(id));
 
   const handlePlayAgain = useCallback(() => {
     reset();
@@ -121,7 +144,15 @@ export function GamePlayArea() {
         <PhaseIndicator currentPhase={phase} round={context.round} />
       </div>
       <div className="flex-1 relative overflow-hidden">
-        <GameCanvas context={context} phase={phase} containerRef={canvasRef} />
+        <GameCanvas
+          context={context}
+          phase={phase}
+          containerRef={canvasRef}
+          drawLog={context.drawLog}
+          suppressedCardIds={suppressedCardIds}
+          onCardArrived={markArrived}
+          speedMult={speedMult}
+        />
         <BoardDropZones context={context} containerRef={canvasRef} activeCard={activeCard} />
       </div>
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
@@ -135,6 +166,7 @@ export function GamePlayArea() {
             hand={context.hand}
             disabled={!canPlayCard}
             isCardDisabled={(card) => card.crisisOnly === true && phase === 'scheduling'}
+            suppressedCardIds={suppressedCardIds}
           />
         </div>
         <button
@@ -153,7 +185,7 @@ export function GamePlayArea() {
           ADVANCE →
         </button>
       </div>
-      {phase === 'crisis' && context.pendingEvents.length > 0 && (
+      {phase === 'crisis' && context.pendingEvents.length > 0 && crisisAnimsDone && (
         <EventModal
           event={context.pendingEvents[0]!}
           hand={context.hand}

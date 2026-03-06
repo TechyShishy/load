@@ -33,6 +33,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     loseReason: null,
     pendingRevenue: 0,
     seed: 'test-seed',
+    drawLog: null,
     ...overrides,
   };
 }
@@ -256,5 +257,27 @@ describe('StreamCompressionCard', () => {
       .flatMap((s) => s.cards);
     expect(eveningCards).toHaveLength(1);
     expect(eveningCards[0]!.id).toBe(eve.id);
+  });
+
+  it('adds removed cards to trafficDiscard', () => {
+    const a = new FourKStreamCard('4k-a');
+    const b = new FourKStreamCard('4k-b');
+    const timeSlots = createInitialTimeSlots().map((slot) => {
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
+      return slot;
+    });
+    const ctx = makeCtx({ timeSlots });
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+
+    expect(updated.trafficDiscard).toHaveLength(2);
+    expect(updated.trafficDiscard.map((c) => c.id)).toContain(a.id);
+    expect(updated.trafficDiscard.map((c) => c.id)).toContain(b.id);
+  });
+
+  it('does not add to trafficDiscard when period is empty', () => {
+    const ctx = makeCtx();
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+    expect(updated.trafficDiscard).toHaveLength(0);
   });
 });

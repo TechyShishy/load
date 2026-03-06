@@ -51,6 +51,7 @@ vi.mock('pixi.js', () => {
     x = 0;
     y = 0;
     visible = true;
+    anchor = { set: noop };
     constructor(_opts?: unknown) {}
     setResolution = noop;
     destroy = noop;
@@ -75,6 +76,8 @@ vi.mock('pixi.js', () => {
     canvas = document.createElement('canvas');
     screen = { width: 800, height: 600 };
     stage = new FakeContainer();
+    ticker = { add: noop, remove: noop };
+    renderer = { render: noop };
     init = () => Promise.resolve();
     destroy = noop;
   }
@@ -138,6 +141,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     loseReason: null,
     pendingRevenue: 0,
     seed: 'test-seed',
+    drawLog: null,
     ...overrides,
   };
 }

@@ -30,8 +30,8 @@ describe('gameMachine initial state', () => {
   it('starts in draw phase', () => {
     const actor = createActor(gameMachine);
     actor.start();
-    // After draw entry action fires, it transitions immediately to scheduling
-    expect(actor.getSnapshot().value).toBe('scheduling');
+    // Draw entry action fires; machine waits in draw for DRAW_COMPLETE
+    expect(actor.getSnapshot().value).toBe('draw');
   });
 
   it('initialises with budget 500000', () => {
@@ -57,6 +57,7 @@ describe('gameMachine phase transitions', () => {
   function getToScheduling() {
     const actor = createActor(gameMachine, { input: safeContext() });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
     return actor;
   }
@@ -73,7 +74,8 @@ describe('gameMachine phase transitions', () => {
     actor.send({ type: 'ADVANCE' }); // → crisis
     actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable — pauses here)
     expect(actor.getSnapshot().value).toBe('resolution');
-    actor.send({ type: 'ADVANCE' }); // resolution → end → draw → scheduling
+    actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling
     const snap = actor.getSnapshot();
     expect(snap.value).toBe('scheduling');
     expect(snap.context.round).toBe(2);
@@ -90,11 +92,11 @@ describe('gameMachine phase transitions', () => {
 
 describe('gameMachine win/lose conditions', () => {
   it('reaches gameLost state when SLA >= 3 at start of draw', () => {
-    // SLA already maxed — draw phase guard should immediately trigger gameLost
+    // SLA already maxed — draw phase guard should trigger gameLost on DRAW_COMPLETE
     const ctx = { ...safeContext(), slaCount: 3 };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    // performDraw fires on entry, then isGameLost guard fires → transitions to gameLost
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('gameLost');
   });
 
@@ -102,14 +104,15 @@ describe('gameMachine win/lose conditions', () => {
     const ctx = { ...safeContext(), budget: -200_000 };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('gameLost');
   });
 
   it('RESET from gameLost resets to scheduling', () => {
     const actor = createActor(gameMachine);
     actor.start();
-    // Force the machine to gameLost by overriding context
-    // We test this by verifying RESET on a fresh machine goes to scheduling
+    actor.send({ type: 'DRAW_COMPLETE' });
+    // We test this by verifying a fresh machine goes to scheduling after DRAW_COMPLETE
     // (Full lose-trigger path tested above)
     expect(actor.getSnapshot().value).toBe('scheduling');
   });
@@ -117,10 +120,11 @@ describe('gameMachine win/lose conditions', () => {
   it('reaches gameWon at round 28 with budget in (-100K, 0)', () => {
     // Regression: previously checkWinCondition required budget >= 0, so a net-negative
     // but non-bankrupt end-of-game had no matching guard and looped forever.
-    // Round 28 is a Sunday (weekend), so draw transitions directly to crisis.
+    // Round 28 is a Sunday (weekend), so DRAW_COMPLETE transitions directly to crisis.
     const ctx = { ...safeContext(), round: 28, budget: -50_000 };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → crisis (weekend)
     expect(actor.getSnapshot().value).toBe('crisis'); // weekend: draw → crisis
     actor.send({ type: 'ADVANCE' }); // crisis → resolution → always → gameWon
     expect(actor.getSnapshot().value).toBe('gameWon');
@@ -138,6 +142,7 @@ describe('gameMachine overload slots', () => {
   it('overload slots appear on the board when a period is full', () => {
     const actor = createActor(gameMachine, { input: zeroCapacityContext() });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
     // With baseCapacity 0, all drawn cards become overload slots
     const overloadSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.overloaded);
@@ -149,6 +154,7 @@ describe('gameMachine overload slots', () => {
   it('overload slots are swept at resolution, incrementing slaCount', () => {
     const actor = createActor(gameMachine, { input: zeroCapacityContext() });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     actor.send({ type: 'ADVANCE' }); // → crisis
     actor.send({ type: 'ADVANCE' }); // → resolution → gameLost (5 SLA ≥ MAX=3)
     const snap = actor.getSnapshot();
@@ -175,6 +181,7 @@ describe('gameMachine Traffic Prioritization revenue', () => {
     const initial = safeContext();
     const actor = createActor(gameMachine, { input: { ...initial, hand: [tpCard] } });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     actor.send({ type: 'ADVANCE' }); // scheduling → crisis
@@ -247,23 +254,26 @@ describe('calendar helpers', () => {
 // ─── Weekend Mechanics ───────────────────────────────────────────────────────
 
 describe('gameMachine weekend mechanics', () => {
-  /** Advance a workday: scheduling → crisis → resolution → end */
+  /** Advance a workday: scheduling → crisis → resolution → end → draw → next phase */
   function advanceWorkday(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
     actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
     actor.send({ type: 'ADVANCE' }); // crisis → resolution
-    actor.send({ type: 'ADVANCE' }); // resolution → end → draw → next state
+    actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → next phase (scheduling or crisis)
   }
 
-  /** Advance a weekend day: crisis → resolution → end */
+  /** Advance a weekend day: crisis → resolution → end → draw → next phase */
   function advanceWeekendDay(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
     actor.send({ type: 'ADVANCE' }); // crisis → resolution
-    actor.send({ type: 'ADVANCE' }); // resolution → end → draw → next state
+    actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → next phase
   }
 
   it('weekdays go to scheduling, weekends skip to crisis', () => {
     const ctx = { ...safeContext(), round: 5 }; // Friday (workday)
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     // Advance through Friday
@@ -277,6 +287,7 @@ describe('gameMachine weekend mechanics', () => {
     const ctx = { ...safeContext(), round: 6 }; // Saturday
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('crisis'); // Sat → crisis
 
     advanceWeekendDay(actor);
@@ -318,6 +329,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('crisis');
 
     // Should accept Security Patch
@@ -335,6 +347,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     actor.send({ type: 'PLAY_ACTION', card: securityPatch });
@@ -354,6 +367,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     actor.send({ type: 'ADVANCE' }); // scheduling → crisis
@@ -374,6 +388,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     actor.send({ type: 'ADVANCE' }); // scheduling → crisis
     expect(actor.getSnapshot().value).toBe('crisis');
 
@@ -393,6 +408,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     actor.send({ type: 'ADVANCE' }); // scheduling → crisis
     expect(actor.getSnapshot().value).toBe('crisis');
 
@@ -410,6 +426,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('crisis');
 
     // Should accept Emergency Maintenance (even if no tickets, the action is allowed)
@@ -426,6 +443,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('crisis');
 
     // Should reject Bandwidth Upgrade — not a weekend-allowed effect
@@ -446,6 +464,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
 
     const handBefore = actor.getSnapshot().context.hand;
@@ -476,6 +495,7 @@ describe('gameMachine weekend mechanics', () => {
     };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
+    actor.send({ type: 'DRAW_COMPLETE' });
 
     actor.send({ type: 'ADVANCE' }); // → crisis
     actor.send({ type: 'ADVANCE' }); // → resolution

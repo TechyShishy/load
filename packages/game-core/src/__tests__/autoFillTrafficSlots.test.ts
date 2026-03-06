@@ -34,6 +34,7 @@ function makeBaseContext(): GameContext {
     loseReason: null,
     pendingRevenue: 0,
     seed: 'test-seed',
+    drawLog: null,
   };
 }
 

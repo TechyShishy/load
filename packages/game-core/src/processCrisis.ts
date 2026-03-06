@@ -17,7 +17,7 @@ export function playActionCard(
   targetEventId?: string,
   /** Optional: ID of the Traffic card to remove (for RemoveTrafficCard; overrides card.targetTrafficCardId) */
   targetTrafficCardId?: string,
-  /** Optional: Period to target (for BoostSlotCapacity, AddOvernightSlots; overrides card.targetPeriod) */
+  /** Optional: Period to target (for BoostSlotCapacity, AddPeriodSlots; overrides card.targetPeriod) */
   targetPeriod?: Period,
   /** Optional: Track to target (for ClearTicket; overrides card.targetTrack) */
   targetTrack?: Track,

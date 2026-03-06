@@ -169,6 +169,24 @@ export interface VendorSlot {
   card: null; // Vendor cards excluded from MVP
 }
 
+// ─── Draw Log ─────────────────────────────────────────────────────────────────
+
+/** One traffic card entry in the draw log — records where the card was placed. */
+export interface DrawLogTrafficEntry {
+  card: TrafficCard;
+  period: Period;
+  slotIndex: number;
+}
+
+/**
+ * Runtime-only draw log. Populated by performDraw, performEnd, and performDrawCrisisEvent.
+ * Not persisted in SerializedGameContext.
+ */
+export interface DrawLog {
+  traffic: DrawLogTrafficEntry[];
+  action: ActionCard[];
+  events: EventCard[];
+}
 
 // ─── Game Context ─────────────────────────────────────────────────────────────
 
@@ -211,6 +229,8 @@ export interface GameContext {
   pendingRevenue: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
+  /** Animation draw log — runtime only, not persisted — describes cards drawn this phase. */
+  drawLog: DrawLog | null;
 }
 
 export interface RoundSummary {
