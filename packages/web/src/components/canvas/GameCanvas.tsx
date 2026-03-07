@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Application, Container, Graphics, Mesh, MeshGeometry, RenderTexture, Text, Ticker, TextStyle } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Mesh, MeshGeometry, RenderTexture, Sprite, type Texture, Text, Ticker, TextStyle } from 'pixi.js';
 import {
   Period,
   type DrawLog,
@@ -114,6 +114,41 @@ const PILE_LABEL_STYLE = new TextStyle({
   fontSize: 8,
   fontFamily: 'Courier New',
 });
+// ── Card art ──────────────────────────────────────────────────────────────────
+/** templateId → public URL for cards that have SVG art. Extend when adding new art. */
+const CARD_ART: Partial<Record<string, string>> = {
+  'traffic-4k-stream': '/cards/traffic-4k-stream.svg',
+  'traffic-cloud-backup': '/cards/traffic-cloud-backup.svg',
+  'traffic-ddos': '/cards/traffic-ddos.svg',
+  'traffic-iot-burst': '/cards/traffic-iot-burst.svg',
+  'action-traffic-prioritization': '/cards/action-traffic-prioritization.svg',
+  'action-security-patch': '/cards/action-security-patch.svg',
+  'event-ddos-attack': '/cards/event-ddos-attack.svg',
+  'event-aws-outage': '/cards/event-aws-outage.svg',
+  'event-5g-activation': '/cards/event-5g-activation.svg',
+  'action-stream-compression': '/cards/action-stream-compression.svg',
+  'action-bandwidth-upgrade': '/cards/action-bandwidth-upgrade.svg',
+  'action-datacenter-expansion': '/cards/action-datacenter-expansion.svg',
+  'action-emergency-maintenance': '/cards/action-emergency-maintenance.svg',
+};
+
+/**
+ * Returns a sized Sprite using a pre-loaded card art texture, or null if the
+ * card has no art (or the asset wasn't loaded yet).
+ */
+function cardArtSprite(templateId: string, x: number, y: number, w: number, h: number): Sprite | null {
+  const url = CARD_ART[templateId];
+  if (!url) return null;
+  const texture = Assets.get<Texture>(url);
+  if (!texture) return null;
+  const sprite = new Sprite(texture);
+  sprite.x = x;
+  sprite.y = y;
+  sprite.width = w;
+  sprite.height = h;
+  return sprite;
+}
+
 // ── Draw-phase card animation ─────────────────────────────────────────────────
 const FLY_MS = 180;
 const FLIP_MS = 280;
@@ -168,11 +203,22 @@ function createCardFrontTexture(app: Application, card: TrafficCard): RenderText
   const g = new Graphics();
   g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
   g.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
+  const artImgW = SLOT_W - CARD_PADDING * 2;
+  const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
+  const art = cardArtSprite(card.templateId, CARD_PADDING, CARD_PADDING, artImgW, artImgH);
+  const imgZone = art ?? (() => {
+    const z = new Graphics();
+    z.roundRect(CARD_PADDING, CARD_PADDING, artImgW, artImgH, 2);
+    z.fill({ color: 0x00f5ff, alpha: 0.1 });
+    z.stroke({ color: 0x00f5ff, width: 1, alpha: 0.35 });
+    return z;
+  })();
   const label = new Text({ text: card.name, style: CARD_CHIP_STYLE });
   label.x = CARD_PADDING + 2;
-  label.y = CARD_PADDING + 2;
+  label.y = SLOT_H / 2 + CARD_PADDING + 2;
   const c = new Container();
   c.addChild(g);
+  c.addChild(imgZone);
   c.addChild(label);
   app.renderer.render({ container: c, target: rt });
   c.destroy({ children: true });
@@ -195,11 +241,22 @@ function createEventCardFrontTexture(app: Application, card: EventCard): RenderT
   const g = new Graphics();
   g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
   g.fill({ color: EVENT_COLOR, alpha: 0.9 });
+  const artImgW = SLOT_W - CARD_PADDING * 2;
+  const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
+  const art = cardArtSprite(card.templateId, CARD_PADDING, CARD_PADDING, artImgW, artImgH);
+  const imgZone = art ?? (() => {
+    const z = new Graphics();
+    z.roundRect(CARD_PADDING, CARD_PADDING, artImgW, artImgH, 2);
+    z.fill({ color: 0xff375f, alpha: 0.1 });
+    z.stroke({ color: 0xff375f, width: 1, alpha: 0.35 });
+    return z;
+  })();
   const label = new Text({ text: card.name, style: new TextStyle({ fill: 0xff375f, fontSize: 8, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - 12 }) });
   label.x = CARD_PADDING + 2;
-  label.y = CARD_PADDING + 2;
+  label.y = SLOT_H / 2 + CARD_PADDING + 2;
   const c = new Container();
   c.addChild(g);
+  c.addChild(imgZone);
   c.addChild(label);
   app.renderer.render({ container: c, target: rt });
   c.destroy({ children: true });
@@ -211,11 +268,22 @@ function createActionCardFrontTexture(app: Application, card: ActionCard): Rende
   const g = new Graphics();
   g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
   g.fill({ color: PILE_COLORS.action.bg, alpha: 0.9 });
+  const artImgW = SLOT_W - CARD_PADDING * 2;
+  const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
+  const art = cardArtSprite(card.templateId, CARD_PADDING, CARD_PADDING, artImgW, artImgH);
+  const imgZone = art ?? (() => {
+    const z = new Graphics();
+    z.roundRect(CARD_PADDING, CARD_PADDING, artImgW, artImgH, 2);
+    z.fill({ color: PILE_COLORS.action.accent, alpha: 0.1 });
+    z.stroke({ color: PILE_COLORS.action.accent, width: 1, alpha: 0.35 });
+    return z;
+  })();
   const label = new Text({ text: card.name, style: new TextStyle({ fill: PILE_COLORS.action.accent, fontSize: 8, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - 12 }) });
   label.x = CARD_PADDING + 2;
-  label.y = CARD_PADDING + 2;
+  label.y = SLOT_H / 2 + CARD_PADDING + 2;
   const c = new Container();
   c.addChild(g);
+  c.addChild(imgZone);
   c.addChild(label);
   app.renderer.render({ container: c, target: rt });
   c.destroy({ children: true });
@@ -564,9 +632,22 @@ function paintSlotCards(
     cardBg.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
     container.addChild(cardBg);
 
+    const artImgW = SLOT_W - CARD_PADDING * 2;
+    const artImgH = SLOT_H / 2 - CARD_PADDING;
+    const art = cardArtSprite(card.templateId, slotX + CARD_PADDING, cardY, artImgW, artImgH);
+    if (art) {
+      container.addChild(art);
+    } else {
+      const imgZone = new Graphics();
+      imgZone.roundRect(slotX + CARD_PADDING, cardY, artImgW, artImgH, 2);
+      imgZone.fill({ color: 0x00f5ff, alpha: 0.1 });
+      imgZone.stroke({ color: 0x00f5ff, width: 1, alpha: 0.35 });
+      container.addChild(imgZone);
+    }
+
     const cardText = new Text({ text: card.name, style: CARD_CHIP_STYLE });
     cardText.x = slotX + CARD_PADDING + 2;
-    cardText.y = cardY + 2;
+    cardText.y = cardY + SLOT_H / 2;
     container.addChild(cardText);
   }
 }
@@ -606,6 +687,7 @@ function paintPile(
   pileType: PileType,
   count: number,
   topCardName?: string,
+  topCardTemplateId?: string,
 ): void {
   const layers = Math.min(5, Math.ceil(count / 10));
 
@@ -635,9 +717,21 @@ function paintPile(
     topRect.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
     topRect.stroke({ color: accentColor, width: 1 });
     container.addChild(topRect);
+    const artImgW = SLOT_W - CARD_PADDING * 2;
+    const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
+    const art = topCardTemplateId ? cardArtSprite(topCardTemplateId, pileX + CARD_PADDING, pileY + CARD_PADDING, artImgW, artImgH) : null;
+    if (art) {
+      container.addChild(art);
+    } else {
+      const imgZone = new Graphics();
+      imgZone.roundRect(pileX + CARD_PADDING, pileY + CARD_PADDING, artImgW, artImgH, 2);
+      imgZone.fill({ color: accentColor, alpha: 0.1 });
+      imgZone.stroke({ color: accentColor, width: 1, alpha: 0.35 });
+      container.addChild(imgZone);
+    }
     const nameText = new Text({ text: topCardName, style: CARD_CHIP_STYLE });
     nameText.x = pileX + CARD_PADDING + 2;
-    nameText.y = pileY + CARD_PADDING + 2;
+    nameText.y = pileY + SLOT_H / 2 + CARD_PADDING + 2;
     container.addChild(nameText);
   } else {
     // Draw pile back — colored fill, inner decorative border, deck name.
@@ -672,24 +766,27 @@ function buildDeckPiles(
     action: 'ACTION',
   };
 
-  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined }> = [
+  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined; topDiscardTemplateId: string | undefined }> = [
     {
       key: 'traffic',
       drawCount: ctx.trafficDeck.length,
       discardCount: ctx.trafficDiscard.length,
       topDiscardName: ctx.trafficDiscard.at(-1)?.name,
+      topDiscardTemplateId: ctx.trafficDiscard.at(-1)?.templateId,
     },
     {
       key: 'event',
       drawCount: ctx.eventDeck.length,
       discardCount: ctx.eventDiscard.length,
       topDiscardName: ctx.eventDiscard.at(-1)?.name,
+      topDiscardTemplateId: ctx.eventDiscard.at(-1)?.templateId,
     },
     {
       key: 'action',
       drawCount: ctx.actionDeck.length,
       discardCount: ctx.actionDiscard.length,
       topDiscardName: ctx.actionDiscard.at(-1)?.name,
+      topDiscardTemplateId: ctx.actionDiscard.at(-1)?.templateId,
     },
   ];
 
@@ -721,7 +818,7 @@ function buildDeckPiles(
     const discardContainer = new Container();
     const discardX = groupX + SLOT_W + PILE_INTRA_GROUP_GAP;
     const discardY = PILES_ROW_Y;
-    paintPile(discardContainer, discardX, discardY, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName);
+    paintPile(discardContainer, discardX, discardY, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId);
     board.addChild(discardContainer);
     const discardLabel = new Text({ text: 'DISCARD', style: PILE_LABEL_STYLE });
     discardLabel.x = discardX;
@@ -784,13 +881,16 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
   const getInfo = (ctx: GameContext) => {
     if (pile.deckType === 'traffic') {
       const arr = pile.pileType === 'draw' ? ctx.trafficDeck : ctx.trafficDiscard;
-      return { count: arr.length, topName: arr.at(-1)?.name };
+      const top = arr.at(-1);
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId };
     } else if (pile.deckType === 'event') {
       const arr = pile.pileType === 'draw' ? ctx.eventDeck : ctx.eventDiscard;
-      return { count: arr.length, topName: arr.at(-1)?.name };
+      const top = arr.at(-1);
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId };
     } else {
       const arr = pile.pileType === 'draw' ? ctx.actionDeck : ctx.actionDiscard;
-      return { count: arr.length, topName: arr.at(-1)?.name };
+      const top = arr.at(-1);
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId };
     }
   };
   const prev = getInfo(prevCtx);
@@ -812,6 +912,7 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
     pile.pileType,
     next.count,
     next.topName,
+    next.topTemplateId,
   );
 }
 
@@ -970,7 +1071,15 @@ export function GameCanvas({
         resolution: window.devicePixelRatio ?? 1,
         autoDensity: true,
       })
-      .then(() => {
+      .then(async () => {
+        if (cancelled) {
+          app.destroy(true, { children: true });
+          return;
+        }
+        // Preload card art assets so texture creation functions can access them
+        // synchronously via Assets.get(). Silently skip on failure (no art = placeholder).
+        await (Assets.load(Object.values(CARD_ART).filter((u): u is string => !!u)) as Promise<unknown>)
+          .catch(() => { /* no card art = graceful placeholder fallback */ });
         if (cancelled) {
           app.destroy(true, { children: true });
           return;

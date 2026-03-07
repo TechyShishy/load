@@ -82,10 +82,26 @@ vi.mock('pixi.js', () => {
     destroy = noop;
   }
 
+  class FakeSprite {
+    x = 0;
+    y = 0;
+    width = 0;
+    height = 0;
+    constructor(_texture?: unknown) {}
+    destroy = noop;
+  }
+
+  const Assets = {
+    get: () => undefined,
+    load: (): Promise<Record<string, unknown>> => Promise.resolve({}),
+  };
+
   return {
     Application: FakeApplication,
+    Assets,
     Container: FakeContainer,
     Graphics: FakeGraphics,
+    Sprite: FakeSprite,
     Text: FakeText,
     TextStyle: FakeTextStyle,
   };

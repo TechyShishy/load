@@ -17,7 +17,7 @@ export function HandZone({ hand, disabled = false, isCardDisabled, suppressedCar
       role="group"
       aria-label="Hand"
       aria-live="polite"
-      className="flex items-center gap-2 overflow-x-auto py-2 px-4 min-h-[80px]"
+      className="flex items-center gap-2 overflow-x-auto py-2 px-4 min-h-[130px]"
     >
       {visibleHand.length === 0 && (
         <span className="text-gray-600 text-sm italic">No cards in hand</span>
@@ -42,17 +42,26 @@ export function ActionCardPreview({ card, dragging = false }: { card: ActionCard
   return (
     <div
       className={`
-        flex flex-col items-start gap-1 p-2 min-w-[120px] max-w-[140px]
-        border rounded text-left select-none
+        flex flex-col w-[90px] h-[120px] flex-shrink-0
+        border rounded text-left select-none overflow-hidden
         ${dragging
           ? 'border-cyan-400 bg-purple-900 shadow-xl shadow-cyan-900/60 cursor-grabbing'
           : 'border-purple-600 bg-purple-950'
         }
       `}
     >
-      <span className="text-xs font-bold text-purple-300 leading-tight">{card.name}</span>
-      <span className="text-xs text-yellow-400 font-mono">${card.cost.toLocaleString()}</span>
-      <span className="text-xs text-gray-400 leading-tight line-clamp-2">{card.description}</span>
+      <img
+        src={`/cards/${card.templateId}.svg`}
+        alt=""
+        aria-hidden="true"
+        className="w-full h-[56px] object-cover bg-purple-900/40 border-b border-purple-700/30"
+        style={{ imageRendering: 'pixelated' }}
+      />
+      <div className="flex flex-col items-start gap-1 p-1">
+        <span className="text-xs font-bold text-purple-300 leading-tight">{card.name}</span>
+        <span className="text-xs text-yellow-400 font-mono">${card.cost.toLocaleString()}</span>
+        <span className="text-xs text-gray-400 leading-tight line-clamp-1">{card.description}</span>
+      </div>
     </div>
   );
 }
@@ -86,17 +95,26 @@ function ActionCardView({ card, dragId, disabled }: ActionCardViewProps) {
       aria-label={`${card.name} – Cost $${card.cost.toLocaleString()} – ${card.description}`}
       aria-disabled={disabled}
       className={`
-        flex flex-col items-start gap-1 p-2 min-w-[120px] max-w-[140px]
-        border rounded text-left select-none
+        flex flex-col w-[90px] h-[120px] flex-shrink-0
+        border rounded text-left select-none overflow-hidden
         ${disabled
           ? 'border-gray-700 bg-gray-900 opacity-40 cursor-not-allowed'
           : 'border-purple-600 bg-purple-950 hover:border-purple-400 hover:bg-purple-900 cursor-grab'
         }
       `}
     >
-      <span className="text-xs font-bold text-purple-300 leading-tight">{card.name}</span>
-      <span className="text-xs text-yellow-400 font-mono">${card.cost.toLocaleString()}</span>
-      <span className="text-xs text-gray-400 leading-tight line-clamp-2">{card.description}</span>
+      <img
+        src={`/cards/${card.templateId}.svg`}
+        alt=""
+        aria-hidden="true"
+        className="w-full h-[56px] object-cover bg-purple-900/40 border-b border-purple-700/30"
+        style={{ imageRendering: 'pixelated' }}
+      />
+      <div className="flex flex-col items-start gap-1 p-1">
+        <span className="text-xs font-bold text-purple-300 leading-tight">{card.name}</span>
+        <span className="text-xs text-yellow-400 font-mono">${card.cost.toLocaleString()}</span>
+        <span className="text-xs text-gray-400 leading-tight line-clamp-1">{card.description}</span>
+      </div>
     </div>
   );
 }

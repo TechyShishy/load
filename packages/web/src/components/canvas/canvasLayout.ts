@@ -2,7 +2,7 @@
 // These values mirror buildStaticScene in GameCanvas.tsx; both must be kept in sync.
 
 export const SLOT_W = 90;
-export const SLOT_H = 60;
+export const SLOT_H = 120;
 export const SLOT_GAP = 8;
 export const PERIOD_PADDING = 16;
 export const CARD_PADDING = 4;
