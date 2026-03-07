@@ -895,7 +895,7 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
   };
   const prev = getInfo(prevCtx);
   const next = getInfo(nextCtx);
-  if (prev.count === next.count && prev.topName === next.topName) return;
+  if (prev.count === next.count && prev.topName === next.topName && prev.topTemplateId === next.topTemplateId) return;
   const colors = PILE_COLORS[pile.deckType];
   const deckLabel = pile.deckType.toUpperCase();
   for (const child of pile.container.children) {
