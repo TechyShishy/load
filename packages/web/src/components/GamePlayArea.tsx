@@ -1,12 +1,13 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
 import { useDrawAnimationState } from '../hooks/useDrawAnimationState.js';
 import { Period, Track } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { GameCanvas } from './canvas/GameCanvas.js';
 import { BoardDropZones } from './canvas/BoardDropZones.js';
+import { BoardCardOverlay } from './canvas/BoardCardOverlay.js';
 import { BudgetBar } from './hud/BudgetBar.js';
 import { SLAMeter } from './hud/SLAMeter.js';
 import { PhaseIndicator } from './hud/PhaseIndicator.js';
@@ -16,6 +17,22 @@ import { EventModal } from './overlays/EventModal.js';
 import { ResolutionSummary } from './overlays/ResolutionSummary.js';
 import { ErrorBoundary } from 'react-error-boundary';
 import { SoftErrorFallback } from './overlays/ErrorFallbacks.js';
+
+/**
+ * When dragging from the expanded-card flyout the draggable node is 180×240 but the
+ * DragOverlay preview is 90×120.  This modifier shifts the overlay so its centre
+ * (45 px, 60 px) sits exactly under the cursor, but only for flyout drags.
+ */
+const snapFlyoutToCursor: Modifier = ({ transform, activatorEvent, draggingNodeRect, active }) => {
+  if (!active?.id.toString().endsWith('-flyout')) return transform;
+  if (!activatorEvent || !draggingNodeRect) return transform;
+  const { clientX, clientY } = activatorEvent as PointerEvent;
+  return {
+    ...transform,
+    x: transform.x + clientX - draggingNodeRect.left - 45,
+    y: transform.y + clientY - draggingNodeRect.top - 60,
+  };
+};
 
 export function GamePlayArea() {
   const { context, phase, advance, drawComplete, playAction, reset, isWon, isLost } = useGame();
@@ -89,7 +106,7 @@ export function GamePlayArea() {
         if (!slot) return;
 
         if (zones.includes('occupied-slot')) {
-          const firstCard = slot.cards[0];
+          const firstCard = slot.card;
           if (!firstCard) {
             showFeedback(`${card.name}: No traffic cards in this slot.`);
             return;
@@ -154,6 +171,7 @@ export function GamePlayArea() {
           speedMult={speedMult}
         />
         <BoardDropZones context={context} containerRef={canvasRef} activeCard={activeCard} />
+        <BoardCardOverlay context={context} containerRef={canvasRef} activeCard={activeCard} />
       </div>
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
         <div className="flex-1 overflow-x-auto min-w-0" aria-live="polite" aria-atomic="true">
@@ -200,7 +218,7 @@ export function GamePlayArea() {
       {isLost && <LoseScreen context={context} onPlayAgain={handlePlayAgain} />}
     </div>
     </ErrorBoundary>
-    <DragOverlay dropAnimation={null}>
+    <DragOverlay dropAnimation={null} modifiers={[snapFlyoutToCursor]}>
       {activeCard ? <ActionCardPreview card={activeCard} dragging /> : null}
     </DragOverlay>
     </DndContext>
