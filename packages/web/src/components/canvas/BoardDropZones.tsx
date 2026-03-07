@@ -188,7 +188,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           );
         })}
       {showSlotZones && context.timeSlots.map((slot) => {
-        if (zones.includes('occupied-slot') && slot.cards.length === 0) return null;
+        if (zones.includes('occupied-slot') && slot.card === null) return null;
         const periodIndex = PERIOD_ORDER.indexOf(slot.period);
         const periodSlotCount = context.timeSlots.filter((s) => s.period === slot.period).length;
         return (

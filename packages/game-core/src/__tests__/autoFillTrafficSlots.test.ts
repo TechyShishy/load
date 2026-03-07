@@ -46,7 +46,7 @@ function makeFullMorningContext(): GameContext {
   return {
     ...ctx,
     timeSlots: ctx.timeSlots.map((s) =>
-      s.period === Period.Morning ? { ...s, cards: [iotCard] } : s,
+      s.period === Period.Morning ? { ...s, card: iotCard } : s,
     ),
   };
 }
@@ -56,13 +56,13 @@ describe('autoFillTrafficSlots', () => {
     const ctx = makeBaseContext();
     const { context } = autoFillTrafficSlots(ctx, [iotCard]);
     const morningSlotsWithCards = context.timeSlots.filter(
-      (s) => s.period === Period.Morning && s.cards.length > 0,
+      (s) => s.period === Period.Morning && s.card !== null,
     );
     expect(morningSlotsWithCards.length).toBe(1);
     // No other period should have cards
     const otherCards = context.timeSlots
       .filter((s) => s.period !== Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(otherCards).toHaveLength(0);
   });
 
@@ -72,16 +72,16 @@ describe('autoFillTrafficSlots', () => {
     const cards: TrafficCard[] = Array.from({ length: 5 }, () => iotCard);
     const { context } = autoFillTrafficSlots(ctx, cards);
     expect(
-      context.timeSlots.filter((s) => s.period === Period.Morning && s.cards.length > 0),
+      context.timeSlots.filter((s) => s.period === Period.Morning && s.card !== null),
     ).toHaveLength(2);
     expect(
-      context.timeSlots.filter((s) => s.period === Period.Afternoon && s.cards.length > 0),
+      context.timeSlots.filter((s) => s.period === Period.Afternoon && s.card !== null),
     ).toHaveLength(1);
     expect(
-      context.timeSlots.filter((s) => s.period === Period.Evening && s.cards.length > 0),
+      context.timeSlots.filter((s) => s.period === Period.Evening && s.card !== null),
     ).toHaveLength(1);
     expect(
-      context.timeSlots.filter((s) => s.period === Period.Overnight && s.cards.length > 0),
+      context.timeSlots.filter((s) => s.period === Period.Overnight && s.card !== null),
     ).toHaveLength(1);
   });
 
@@ -91,7 +91,7 @@ describe('autoFillTrafficSlots', () => {
     const cards: TrafficCard[] = Array.from({ length: 16 }, () => iotCard);
     const { context } = autoFillTrafficSlots(ctx, cards);
     expect(context.budget).toBe(500_000);
-    expect(context.timeSlots.flatMap((s) => s.cards)).toHaveLength(16);
+    expect(context.timeSlots.flatMap((s) => s.card ? [s.card] : [])).toHaveLength(16);
     // No overload slots created
     expect(context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
   });
@@ -105,7 +105,7 @@ describe('autoFillTrafficSlots', () => {
     const overloadSlots = context.timeSlots.filter((s) => s.overloaded === true);
     expect(overloadSlots).toHaveLength(1);
     expect(overloadSlots[0]!.period).toBe(Period.Morning);
-    expect(overloadSlots[0]!.cards).toHaveLength(1);
+    expect(overloadSlots[0]!.card).toBe(iotCard);
   });
 
   it('overload slot holds the card — does not drop it', () => {
@@ -114,23 +114,23 @@ describe('autoFillTrafficSlots', () => {
     const { context } = autoFillTrafficSlots(ctx, [iotCard]);
     const morningNormalCards = context.timeSlots
       .filter((s) => s.period === Period.Morning && !s.overloaded)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(morningNormalCards).toHaveLength(4);
     const overloadCards = context.timeSlots
       .filter((s) => s.period === Period.Morning && s.overloaded)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(overloadCards).toHaveLength(1);
     // Other periods untouched
     const otherCards = context.timeSlots
       .filter((s) => s.period !== Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(otherCards).toHaveLength(0);
   });
 
   it('returns empty drawn array without changes', () => {
     const ctx = makeBaseContext();
     const { context } = autoFillTrafficSlots(ctx, []);
-    expect(context.timeSlots.flatMap((s) => s.cards)).toHaveLength(0);
+    expect(context.timeSlots.flatMap((s) => s.card ? [s.card] : [])).toHaveLength(0);
     expect(context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
   });
 });

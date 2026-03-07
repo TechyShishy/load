@@ -7,21 +7,16 @@ import {
   resetSlotsForRound,
   stripWeeklyTemporarySlots,
 } from '../boardState.js';
-import { Period, SLOT_BASE_CAPACITY, Track } from '../types.js';
+import { Period, Track } from '../types.js';
 
 describe('createInitialTimeSlots', () => {
   it('creates 16 total slots (4+4+4+4)', () => {
     expect(createInitialTimeSlots()).toHaveLength(16);
   });
 
-  it('all slots start with empty cards array', () => {
+  it('all slots start with null card', () => {
     const slots = createInitialTimeSlots();
-    expect(slots.every((s) => s.cards.length === 0)).toBe(true);
-  });
-
-  it('all slots start with base capacity 1', () => {
-    const slots = createInitialTimeSlots();
-    expect(slots.every((s) => s.baseCapacity === SLOT_BASE_CAPACITY)).toBe(true);
+    expect(slots.every((s) => s.card === null)).toBe(true);
   });
 
   it('overnight period has 4 slots', () => {
@@ -62,17 +57,16 @@ describe('getAvailableSlots', () => {
 });
 
 describe('resetSlotsForRound', () => {
-  it('preserves cards on permanent slots during round reset', () => {
+  it('preserves card on permanent slots during round reset', () => {
     const slots = createInitialTimeSlots();
     // Manually add a fake card object reference
-    const withCards = slots.map((s, i) =>
-      i === 0 ? { ...s, cards: [{ id: 'fake' } as never] } : s,
+    const withCard = slots.map((s, i) =>
+      i === 0 ? { ...s, card: { id: 'fake' } as never } : s,
     );
-    const reset = resetSlotsForRound(withCards);
-    expect(reset[0]!.cards).toHaveLength(1);
-    expect(reset[0]!.cards[0]).toEqual({ id: 'fake' });
+    const reset = resetSlotsForRound(withCard);
+    expect(reset[0]!.card).toEqual({ id: 'fake' });
     // Other slots remain empty
-    expect(reset.slice(1).every((s) => s.cards.length === 0)).toBe(true);
+    expect(reset.slice(1).every((s) => s.card === null)).toBe(true);
   });
 
   it('strips temporary slots on reset', () => {

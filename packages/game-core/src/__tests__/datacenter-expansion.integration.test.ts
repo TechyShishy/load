@@ -7,7 +7,7 @@ function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>)
 }
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { Period, PERIOD_SLOT_COUNTS, SLOT_BASE_CAPACITY, type TimeSlot, type TrafficCard } from '../types.js';
+import { Period, PERIOD_SLOT_COUNTS, type TimeSlot, type TrafficCard } from '../types.js';
 
 const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
 
@@ -30,8 +30,7 @@ function makeWeeklySlot(period: Period, index: number): TimeSlot {
   return {
     period,
     index,
-    baseCapacity: SLOT_BASE_CAPACITY,
-    cards: [],
+    card: null,
     weeklyTemporary: true,
   };
 }

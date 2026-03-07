@@ -82,17 +82,17 @@ describe('playActionCard', () => {
   it('RemoveTrafficCard removes the targeted traffic card from its slot', () => {
     const trafficCard = TRAFFIC_CARDS[0]!;
     const slotsWithCard = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [trafficCard] } : s,
+      i === 0 ? { ...s, card: trafficCard } : s,
     );
     const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
     const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
-    expect(updated.timeSlots.flatMap((s) => s.cards)).not.toContainEqual(trafficCard);
+    expect(updated.timeSlots.flatMap((s) => s.card ? [s.card] : [])).not.toContainEqual(trafficCard);
   });
 
   it('RemoveTrafficCard credits the traffic card revenue to budget', () => {
     const trafficCard = TRAFFIC_CARDS[0]!;
     const slotsWithCard = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [trafficCard] } : s,
+      i === 0 ? { ...s, card: trafficCard } : s,
     );
     const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
     const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);

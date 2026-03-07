@@ -126,7 +126,7 @@ export const gameMachine = setup({
 
       // Build draw log: record which period/slot each drawn card landed in
       const trafficEntries: DrawLog['traffic'] = drawn.map(card => {
-        const slot = filled.timeSlots.find(s => s.cards.some(c => c.id === card.id));
+        const slot = filled.timeSlots.find(s => s.card?.id === card.id);
         return { card, period: slot?.period ?? Period.Morning, slotIndex: slot?.index ?? 0 };
       });
 

@@ -16,14 +16,14 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
   const overloadedSlots = ctx.timeSlots.filter((s) => s.overloaded);
   const failedCount = overloadedSlots.length;
   const newSlaCount = ctx.slaCount + failedCount;
-  const cardsFromOverload = overloadedSlots.flatMap((s) => s.cards);
+  const cardsFromOverload = overloadedSlots.flatMap((s) => s.card ? [s.card] : []);
   const timeSlots = ctx.timeSlots.filter((s) => !s.overloaded);
   const trafficDiscard = [...ctx.trafficDiscard, ...cardsFromOverload];
 
   // Count cards remaining in normal slots (carry-over mechanic).
   let resolvedCount = 0;
   for (const slot of timeSlots) {
-    resolvedCount += slot.cards.length;
+    resolvedCount += slot.card !== null ? 1 : 0;
   }
 
   // Revenue was collected during the round when traffic cards were removed from the board

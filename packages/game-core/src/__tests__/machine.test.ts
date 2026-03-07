@@ -132,19 +132,20 @@ describe('gameMachine win/lose conditions', () => {
 });
 
 describe('gameMachine overload slots', () => {
-  /** Build a context whose time slots all have baseCapacity 0 so every drawn
-   * traffic card triggers an overload slot creation. */
-  function zeroCapacityContext() {
-    const zeroSlots = createInitialTimeSlots().map((s) => ({ ...s, baseCapacity: 0 }));
-    return { ...safeContext(), timeSlots: zeroSlots };
+  /** Build a context where all time slots are pre-filled with a traffic card,
+   * so every drawn card during the round triggers an overload slot creation. */
+  function allFilledContext() {
+    const iotCard = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-iot-burst')!;
+    const filledSlots = createInitialTimeSlots().map((s) => ({ ...s, card: iotCard }));
+    return { ...safeContext(), timeSlots: filledSlots };
   }
 
   it('overload slots appear on the board when a period is full', () => {
-    const actor = createActor(gameMachine, { input: zeroCapacityContext() });
+    const actor = createActor(gameMachine, { input: allFilledContext() });
     actor.start();
     actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
-    // With baseCapacity 0, all drawn cards become overload slots
+    // All slots pre-filled, so all drawn cards become overload slots
     const overloadSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.overloaded);
     expect(overloadSlots.length).toBe(WEEKDAY_TRAFFIC_DRAW);
     // No budget penalty
@@ -152,7 +153,7 @@ describe('gameMachine overload slots', () => {
   });
 
   it('overload slots are swept at resolution, incrementing slaCount', () => {
-    const actor = createActor(gameMachine, { input: zeroCapacityContext() });
+    const actor = createActor(gameMachine, { input: allFilledContext() });
     actor.start();
     actor.send({ type: 'DRAW_COMPLETE' });
     actor.send({ type: 'ADVANCE' }); // → crisis
@@ -187,7 +188,7 @@ describe('gameMachine Traffic Prioritization revenue', () => {
     actor.send({ type: 'ADVANCE' }); // scheduling → crisis
     expect(actor.getSnapshot().value).toBe('crisis');
 
-    const boardCards = actor.getSnapshot().context.timeSlots.flatMap((s) => s.cards);
+    const boardCards = actor.getSnapshot().context.timeSlots.flatMap((s) => s.card ? [s.card] : []);
     expect(boardCards.length).toBeGreaterThan(0);
     const targetCard = boardCards[0]!;
 
@@ -305,14 +306,14 @@ describe('gameMachine weekend mechanics', () => {
     const weekdayActor = createActor(gameMachine, { input: weekdayCtx });
     weekdayActor.start();
     const weekdayTrafficOnBoard = weekdayActor.getSnapshot().context.timeSlots
-      .flatMap(s => s.cards).length;
+      .flatMap(s => s.card ? [s.card] : []).length;
 
     // Weekend (round 6) should draw WEEKEND_TRAFFIC_DRAW traffic cards
     const weekendCtx = { ...safeContext(), round: 6 };
     const weekendActor = createActor(gameMachine, { input: weekendCtx });
     weekendActor.start();
     const weekendTrafficOnBoard = weekendActor.getSnapshot().context.timeSlots
-      .flatMap(s => s.cards).length;
+      .flatMap(s => s.card ? [s.card] : []).length;
 
     expect(weekdayTrafficOnBoard).toBe(WEEKDAY_TRAFFIC_DRAW);
     expect(weekendTrafficOnBoard).toBe(WEEKEND_TRAFFIC_DRAW);

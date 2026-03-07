@@ -3,7 +3,7 @@ import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { Period, SLOT_BASE_CAPACITY, type ActionCard, type TrafficCard } from '../types.js';
+import { Period, type ActionCard, type TrafficCard } from '../types.js';
 import { autoFillTrafficSlots } from '../autoFillTrafficSlots.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
 import { PhaseId } from '../types.js';
@@ -59,7 +59,7 @@ describe('integration: overload slot creation', () => {
       playedThisRound: [],
       // Pre-fill all Morning slots so card[0] (round-robin → Morning) triggers an overload
       timeSlots: createInitialTimeSlots().map((s) =>
-        s.period === Period.Morning ? { ...s, cards: [iotCard] } : s,
+        s.period === Period.Morning ? { ...s, card: iotCard } : s,
       ),
       tracks: createInitialTracks(),
       vendorSlots: createVendorSlots(),
@@ -85,7 +85,7 @@ describe('integration: overload slot creation', () => {
       (s) => s.period === Period.Morning && s.overloaded,
     );
     expect(morningOverloadSlots).toHaveLength(1);
-    expect(morningOverloadSlots[0]!.cards).toHaveLength(1);
+    expect(morningOverloadSlots[0]!.card).toBe(iotCard);
     // No budget penalty
     expect(context.budget).toBe(500_000);
   });
@@ -96,8 +96,8 @@ describe('integration: overload slot creation', () => {
 describe('integration: resolution sweeps overload slots', () => {
   it('overload slots removed at resolution; cards go to trafficDiscard; SLA incremented', () => {
     const initialSlots = createInitialTimeSlots();
-    const ol1 = { ...initialSlots[0]!, index: 50, overloaded: true as const, cards: [iotCard] };
-    const ol2 = { ...initialSlots[1]!, index: 51, overloaded: true as const, cards: [cloudCard] };
+    const ol1 = { ...initialSlots[0]!, index: 50, overloaded: true as const, card: iotCard };
+    const ol2 = { ...initialSlots[1]!, index: 51, overloaded: true as const, card: cloudCard };
     const ctx = {
       budget: 500_000,
       round: 1,
@@ -148,13 +148,12 @@ describe('integration: Traffic Prioritization clears overload slot', () => {
       // Pre-fill Morning to max, then inject an overload slot
       timeSlots: [
         ...createInitialTimeSlots().map((s) =>
-          s.period === Period.Morning ? { ...s, cards: [iotCard] } : s,
+          s.period === Period.Morning ? { ...s, card: iotCard } : s,
         ),
         {
           period: Period.Morning,
           index: 10,
-          baseCapacity: SLOT_BASE_CAPACITY,
-          cards: [cloudCard],
+          card: cloudCard,
           overloaded: true as const,
         },
       ],
@@ -198,13 +197,12 @@ describe('integration: Stream Compression clears overload slot', () => {
         // Keep all non-Afternoon slots as empty baselines
         ...createInitialTimeSlots().filter((s) => s.period !== Period.Afternoon),
         // Only 1 regular Afternoon slot with a card
-        { ...afternoonBase, cards: [iotCard] },
+        { ...afternoonBase, card: iotCard },
         // 1 overload slot also with a card
         {
           period: Period.Afternoon,
           index: 20,
-          baseCapacity: SLOT_BASE_CAPACITY,
-          cards: [iotCard],
+          card: iotCard,
           overloaded: true as const,
         },
       ],
@@ -237,8 +235,7 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
     const overloadSlot = {
       period: Period.Morning,
       index: morningCount,
-      baseCapacity: SLOT_BASE_CAPACITY,
-      cards: [iotCard],
+      card: iotCard,
       overloaded: true as const,
     };
     const base = {
@@ -271,7 +268,7 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
     // Converted slot has weeklyTemporary: true and still holds its card
     const converted = morningSlots.find((s) => s.weeklyTemporary);
     expect(converted).toBeDefined();
-    expect(converted!.cards).toContainEqual(iotCard);
+    expect(converted!.card).toBe(iotCard);
   });
 
   it('adds a new empty slot when no overload slots exist in the period', () => {
@@ -297,7 +294,7 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
     expect(morningSlots).toHaveLength(morningCount + 1);
     const newSlot = morningSlots.find((s) => s.weeklyTemporary);
     expect(newSlot).toBeDefined();
-    expect(newSlot!.cards).toHaveLength(0);
+    expect(newSlot!.card).toBeNull();
   });
 });
 
@@ -311,15 +308,13 @@ describe('integration: Data Center Expansion converts overload slots', () => {
     const ol1 = {
       period: Period.Evening,
       index: eveningCount,
-      baseCapacity: SLOT_BASE_CAPACITY,
-      cards: [iotCard],
+      card: iotCard,
       overloaded: true as const,
     };
     const ol2 = {
       period: Period.Evening,
       index: eveningCount + 1,
-      baseCapacity: SLOT_BASE_CAPACITY,
-      cards: [cloudCard],
+      card: cloudCard,
       overloaded: true as const,
     };
     const base = {
@@ -359,8 +354,7 @@ describe('integration: Data Center Expansion converts overload slots', () => {
     const ol1 = {
       period: Period.Evening,
       index: eveningCount,
-      baseCapacity: SLOT_BASE_CAPACITY,
-      cards: [iotCard],
+      card: iotCard,
       overloaded: true as const,
     };
     const base = {

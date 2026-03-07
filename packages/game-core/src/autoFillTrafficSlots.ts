@@ -1,4 +1,4 @@
-import { Period, SLOT_BASE_CAPACITY, type GameContext, type TrafficCard } from './types.js';
+import { Period, type GameContext, type TrafficCard } from './types.js';
 import { getAvailableSlots } from './boardState.js';
 
 export interface FillResult {
@@ -28,14 +28,14 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: TrafficCard[]): Fi
     const targetPeriod = periodOrder[periodIndex]!;
 
     const availableSlots = getAvailableSlots(context.timeSlots, targetPeriod);
-    const targetSlot = availableSlots.find((s) => s.cards.length < s.baseCapacity);
+    const targetSlot = availableSlots.find((s) => s.card === null);
 
     if (targetSlot) {
       context = {
         ...context,
         timeSlots: context.timeSlots.map((s) =>
           s.period === targetSlot.period && s.index === targetSlot.index
-            ? { ...s, cards: [...s.cards, trafficCard] }
+            ? { ...s, card: trafficCard }
             : s
         ),
       };
@@ -46,8 +46,7 @@ export function autoFillTrafficSlots(ctx: GameContext, drawn: TrafficCard[]): Fi
       const overloadSlot = {
         period: targetPeriod,
         index: overloadIndex,
-        baseCapacity: SLOT_BASE_CAPACITY,
-        cards: [trafficCard],
+        card: trafficCard,
         overloaded: true as const,
       };
       context = {

@@ -47,7 +47,7 @@ describe('integration: traffic cards carry over across round boundary', () => {
     // Capture how many cards are on the board after the draw phase
     const round1Cards = actor
       .getSnapshot()
-      .context.timeSlots.flatMap((s) => s.cards);
+      .context.timeSlots.flatMap((s) => s.card ? [s.card] : []);
     expect(round1Cards.length).toBeGreaterThan(0);
 
     advanceRound(actor);
@@ -58,7 +58,7 @@ describe('integration: traffic cards carry over across round boundary', () => {
 
     // Round-1 cards must still be present somewhere on the board.
     // (New cards from round 2's draw may have been added on top.)
-    const round2Cards = snap.context.timeSlots.flatMap((s) => s.cards);
+    const round2Cards = snap.context.timeSlots.flatMap((s) => s.card ? [s.card] : []);
     expect(round2Cards.length).toBeGreaterThanOrEqual(round1Cards.length);
 
     // Verify that every card present after round 1's draw still exists in round 2.

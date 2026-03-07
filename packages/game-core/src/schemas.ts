@@ -25,8 +25,7 @@ export const SerializedCardSchema = z.object({
 export const SerializedTimeSlotSchema = z.object({
   period: PeriodSchema,
   index: z.number(),
-  baseCapacity: z.number(),
-  cards: z.array(SerializedCardSchema),
+  card: SerializedCardSchema.nullable(),
   temporary: z.boolean().optional(),
   weeklyTemporary: z.boolean().optional(),
   overloaded: z.boolean().optional(),

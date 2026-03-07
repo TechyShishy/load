@@ -53,7 +53,7 @@ describe('resolveRound', () => {
 
   it('resolvedCount captures all slot cards; failedCount and slaCount reflect slot-card resolution', () => {
     const slots = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [iotCard] } : s,
+      i === 0 ? { ...s, card: iotCard } : s,
     );
     const ctx = makeCtx({ timeSlots: slots });
     const { context, summary } = resolveRound(ctx);
@@ -71,8 +71,8 @@ describe('resolveRound', () => {
 
   it('overload slots are swept: each adds 1 SLA failure and cards go to trafficDiscard', () => {
     const initialSlots = createInitialTimeSlots();
-    const ol1 = { ...initialSlots[0]!, index: 100, overloaded: true as const, cards: [iotCard] };
-    const ol2 = { ...initialSlots[1]!, index: 101, overloaded: true as const, cards: [cloudCard] };
+    const ol1 = { ...initialSlots[0]!, index: 100, overloaded: true as const, card: iotCard };
+    const ol2 = { ...initialSlots[1]!, index: 101, overloaded: true as const, card: cloudCard };
     const ctx = makeCtx({ timeSlots: [...initialSlots, ol1, ol2], trafficDiscard: [] });
     const { summary, context: resolved } = resolveRound(ctx);
     // 2 overload slots → 2 SLA failures, no budget deduction
@@ -88,7 +88,7 @@ describe('resolveRound', () => {
 
   it('populates lastRoundSummary', () => {
     const slots = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, cards: [cloudCard] } : s,
+      i === 0 ? { ...s, card: cloudCard } : s,
     );
     // pendingRevenue simulates revenue collected when cloudCard was removed this round
     const ctx = makeCtx({ timeSlots: slots, pendingRevenue: cloudCard.revenue });

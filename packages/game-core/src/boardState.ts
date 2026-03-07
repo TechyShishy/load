@@ -1,6 +1,5 @@
 import {
   PERIOD_SLOT_COUNTS,
-  SLOT_BASE_CAPACITY,
   Period,
   Track,
   type TimeSlot,
@@ -17,8 +16,7 @@ export function createInitialTimeSlots(): TimeSlot[] {
       slots.push({
         period,
         index: i,
-        baseCapacity: SLOT_BASE_CAPACITY,
-        cards: [],
+        card: null,
       });
     }
   }

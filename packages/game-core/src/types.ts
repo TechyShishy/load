@@ -121,7 +121,7 @@ export interface SerializedGameContext {
   slaCount: number;
   hand: SerializedCard[];
   playedThisRound: SerializedCard[];
-  timeSlots: Array<Omit<TimeSlot, 'cards'> & { cards: SerializedCard[] }>;
+  timeSlots: Array<Omit<TimeSlot, 'card'> & { card: SerializedCard | null }>;
   tracks: Array<{ track: Track; tickets: SerializedCard[] }>;
   vendorSlots: VendorSlot[];
   pendingEvents: SerializedCard[];
@@ -145,8 +145,7 @@ export interface SerializedGameContext {
 export interface TimeSlot {
   readonly period: Period;
   readonly index: number;
-  readonly baseCapacity: number;
-  cards: TrafficCard[];
+  card: TrafficCard | null;
   /** True if this slot was added temporarily by a BoostSlotCapacity action card; stripped at every round reset */
   readonly temporary?: boolean;
   /** True if this slot was added by an AddPeriodSlots (Data Center Expansion) card; stripped on Monday */
@@ -248,7 +247,6 @@ export const MAX_ROUNDS = 28;
 export const BANKRUPT_THRESHOLD = -100_000;
 export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
-export const SLOT_BASE_CAPACITY = 1;
 export const WEEKDAY_TRAFFIC_DRAW = 5;
 export const WEEKDAY_EVENT_DRAW = 1;
 export const WEEKEND_TRAFFIC_DRAW = 1;

@@ -27,7 +27,7 @@ export class StreamCompressionCard extends ActionCard {
 
     const allCardsInPeriod = context.timeSlots
       .filter((s) => s.period === targetPeriod)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
 
     if (allCardsInPeriod.length === 0) return context;
 
@@ -63,21 +63,23 @@ export class StreamCompressionCard extends ActionCard {
       ...context,
       timeSlots: context.timeSlots.map((slot) => {
         if (slot.period !== targetPeriod || removedCount >= removeCount) return slot;
-        const newCards = slot.cards.filter((c) => {
-          if (removedCount < removeCount && c.templateId === typeToRemove) {
-            collectedRevenue += c.revenue;
-            removedCards.push(c);
-            removedCount++;
-            return false;
-          }
-          return true;
-        });
-        return newCards.length !== slot.cards.length ? { ...slot, cards: newCards } : slot;
+        if (slot.card && slot.card.templateId === typeToRemove && removedCount < removeCount) {
+          collectedRevenue += slot.card.revenue;
+          removedCards.push(slot.card);
+          removedCount++;
+          return { ...slot, card: null };
+        }
+        return slot;
       }),
     };
 
     if (removedCards.length > 0) {
       context = { ...context, trafficDiscard: [...context.trafficDiscard, ...removedCards] };
+      for (const removed of removedCards) {
+        if (removed.onPickUp) {
+          context = removed.onPickUp(context, targetPeriod);
+        }
+      }
     }
 
     if (collectedRevenue > 0) {
@@ -92,7 +94,7 @@ export class StreamCompressionCard extends ActionCard {
     context = {
       ...context,
       timeSlots: context.timeSlots.filter(
-        (s) => !(s.period === targetPeriod && s.overloaded === true && s.cards.length === 0),
+        (s) => !(s.period === targetPeriod && s.overloaded === true && s.card === null),
       ),
     };
 

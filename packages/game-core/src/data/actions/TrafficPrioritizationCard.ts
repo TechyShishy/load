@@ -1,4 +1,4 @@
-import { ActionCard, type GameContext } from '../../types.js';
+import { ActionCard, Period, type GameContext } from '../../types.js';
 
 export class TrafficPrioritizationCard extends ActionCard {
   readonly templateId = 'action-traffic-prioritization';
@@ -23,23 +23,27 @@ export class TrafficPrioritizationCard extends ActionCard {
     if (targetTrafficCardId) {
       let collectedRevenue = 0;
       let removedCard: (typeof context.trafficDiscard)[number] | undefined;
+      let sourcePeriod: Period = Period.Morning;
       context = {
         ...context,
         timeSlots: context.timeSlots
           .map((slot) => {
-            const cardToRemove = slot.cards.find((c) => c.id === targetTrafficCardId);
-            if (cardToRemove) {
-              collectedRevenue += cardToRemove.revenue;
-              removedCard = cardToRemove;
-              return { ...slot, cards: slot.cards.filter((c) => c.id !== targetTrafficCardId) };
+            if (slot.card?.id === targetTrafficCardId) {
+              collectedRevenue += slot.card.revenue;
+              removedCard = slot.card;
+              sourcePeriod = slot.period;
+              return { ...slot, card: null };
             }
             return slot;
           })
-          // If the traffic card was the last card in an overload slot, remove that slot entirely.
-          .filter((slot) => !(slot.overloaded === true && slot.cards.length === 0)),
+          // If the overload slot is now empty, remove it entirely.
+          .filter((slot) => !(slot.overloaded === true && slot.card === null)),
       };
       if (removedCard !== undefined) {
         context = { ...context, trafficDiscard: [...context.trafficDiscard, removedCard] };
+        if (removedCard.onPickUp) {
+          context = removedCard.onPickUp(context, sourcePeriod);
+        }
       }
       if (collectedRevenue > 0) {
         context = {

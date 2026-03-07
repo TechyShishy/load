@@ -38,12 +38,12 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
   };
 }
 
-/** Build a slots array with the given cards placed sequentially into Morning slots. */
+/** Build a slots array with the given cards placed sequentially into Morning slots (one card per slot). */
 function slotsWithMorningCards(cards: InstanceType<typeof FourKStreamCard | typeof IoTBurstCard | typeof CloudBackupCard>[]): ReturnType<typeof createInitialTimeSlots> {
   return createInitialTimeSlots().map((slot) => {
     if (slot.period !== Period.Morning) return slot;
-    const slotCards = cards.filter((_, i) => i === slot.index);
-    return slotCards.length > 0 ? { ...slot, cards: slotCards } : slot;
+    const card = cards[slot.index] ?? null;
+    return { ...slot, card };
   });
 }
 
@@ -76,8 +76,8 @@ describe('StreamCompressionCard', () => {
     const b = new FourKStreamCard('4k-b');
     // Place them in slot 0 and slot 1 of Morning
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -85,7 +85,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(0);
   });
 
@@ -93,8 +93,8 @@ describe('StreamCompressionCard', () => {
     const a = new FourKStreamCard('4k-a');
     const b = new FourKStreamCard('4k-b');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -111,9 +111,9 @@ describe('StreamCompressionCard', () => {
     const iot = new IoTBurstCard('iot-1');
     // IoT appears first (slot 0), 4K appears in slots 1 and 2
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [iot] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: iot };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -121,7 +121,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     // IoT is unique (first in order) so iteration skips it; 4K has a duplicate → both 4K removed
     expect(morningCards).toHaveLength(1);
     expect(morningCards[0]!.id).toBe(iot.id);
@@ -132,9 +132,9 @@ describe('StreamCompressionCard', () => {
     const b = new FourKStreamCard('4k-b');
     const c = new FourKStreamCard('4k-c');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
-      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, cards: [c] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
+      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, card: c };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -142,7 +142,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(1);
     expect(morningCards[0]!.templateId).toBe('traffic-4k-stream');
   });
@@ -153,9 +153,9 @@ describe('StreamCompressionCard', () => {
     const b = new FourKStreamCard('4k-b');
     // IoT is first, appears only once; 4K appears twice after it
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [iot] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: iot };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -163,7 +163,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(1);
     expect(morningCards[0]!.id).toBe(iot.id);
   });
@@ -173,9 +173,9 @@ describe('StreamCompressionCard', () => {
     const fk = new FourKStreamCard('4k-1');
     const cb = new CloudBackupCard('cb-1');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [iot] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [fk] };
-      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, cards: [cb] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: iot };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: fk };
+      if (slot.period === Period.Morning && slot.index === 2) return { ...slot, card: cb };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -183,7 +183,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     // First card (IoT) removed; the other two remain
     expect(morningCards).toHaveLength(2);
     expect(morningCards.find((c) => c.id === iot.id)).toBeUndefined();
@@ -195,7 +195,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(0);
     // Budget only decremented by cost; no revenue change
     expect(updated.budget).toBe(500_000 - streamComp.cost);
@@ -206,8 +206,8 @@ describe('StreamCompressionCard', () => {
     const a = new FourKStreamCard('4k-a');
     const b = new FourKStreamCard('4k-b');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -215,7 +215,7 @@ describe('StreamCompressionCard', () => {
 
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     // Cards untouched; cost still deducted (commit() always runs)
     expect(morningCards).toHaveLength(2);
     expect(updated.budget).toBe(500_000 - streamComp.cost);
@@ -225,8 +225,8 @@ describe('StreamCompressionCard', () => {
     const a = new FourKStreamCard('4k-a');
     const b = new FourKStreamCard('4k-b');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ hand: [], timeSlots }); // card not in hand
@@ -235,7 +235,7 @@ describe('StreamCompressionCard', () => {
     expect(updated.budget).toBe(500_000); // no cost deducted
     const morningCards = updated.timeSlots
       .filter((s) => s.period === Period.Morning)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(2);
   });
 
@@ -244,9 +244,9 @@ describe('StreamCompressionCard', () => {
     const b = new FourKStreamCard('4k-b');
     const eve = new FourKStreamCard('4k-eve');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
-      if (slot.period === Period.Evening && slot.index === 0) return { ...slot, cards: [eve] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
+      if (slot.period === Period.Evening && slot.index === 0) return { ...slot, card: eve };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });
@@ -254,7 +254,7 @@ describe('StreamCompressionCard', () => {
 
     const eveningCards = updated.timeSlots
       .filter((s) => s.period === Period.Evening)
-      .flatMap((s) => s.cards);
+      .flatMap((s) => s.card ? [s.card] : []);
     expect(eveningCards).toHaveLength(1);
     expect(eveningCards[0]!.id).toBe(eve.id);
   });
@@ -263,8 +263,8 @@ describe('StreamCompressionCard', () => {
     const a = new FourKStreamCard('4k-a');
     const b = new FourKStreamCard('4k-b');
     const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, cards: [a] };
-      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, cards: [b] };
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
       return slot;
     });
     const ctx = makeCtx({ timeSlots });

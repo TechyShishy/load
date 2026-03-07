@@ -1,4 +1,4 @@
-import { ActionCard, Period, SLOT_BASE_CAPACITY, type GameContext, type TimeSlot } from '../../types.js';
+import { ActionCard, Period, type GameContext, type TimeSlot } from '../../types.js';
 
 export class BandwidthUpgradeCard extends ActionCard {
   readonly templateId = 'action-bandwidth-upgrade';
@@ -39,8 +39,7 @@ export class BandwidthUpgradeCard extends ActionCard {
         return {
           period: s.period,
           index: s.index,
-          baseCapacity: s.baseCapacity,
-          cards: s.cards,
+          card: s.card,
           weeklyTemporary: true,
         };
       }
@@ -51,8 +50,7 @@ export class BandwidthUpgradeCard extends ActionCard {
     const newSlots: TimeSlot[] = Array.from({ length: slotsToAdd }, (_, i) => ({
       period: resolvedPeriod,
       index: newSlotBase + i,
-      baseCapacity: SLOT_BASE_CAPACITY,
-      cards: [],
+      card: null,
       weeklyTemporary: true as const,
     }));
 

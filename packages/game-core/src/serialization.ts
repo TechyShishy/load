@@ -53,11 +53,10 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
     timeSlots: ctx.timeSlots.map((slot) => ({
       period: slot.period,
       index: slot.index,
-      baseCapacity: slot.baseCapacity,
       ...(slot.temporary !== undefined && { temporary: slot.temporary }),
       ...(slot.weeklyTemporary !== undefined && { weeklyTemporary: slot.weeklyTemporary }),
       ...(slot.overloaded !== undefined && { overloaded: slot.overloaded }),
-      cards: slot.cards.map(dehydrateCard),
+      card: slot.card ? dehydrateCard(slot.card) : null,
     })),
     tracks: ctx.tracks.map((t) => ({
       track: t.track,
@@ -107,16 +106,15 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
 
   const timeSlots: TimeSlot[] = [];
   for (const slot of raw.timeSlots) {
-    const cards = hydrateAll(slot.cards, hydrateTraffic);
-    if (!cards) return null;
+    const card = slot.card ? hydrateTraffic(slot.card) : null;
+    if (slot.card && !card) return null;
     timeSlots.push({
       period: slot.period,
       index: slot.index,
-      baseCapacity: slot.baseCapacity,
       ...(slot.temporary !== undefined && { temporary: slot.temporary }),
       ...(slot.weeklyTemporary !== undefined && { weeklyTemporary: slot.weeklyTemporary }),
       ...(slot.overloaded !== undefined && { overloaded: slot.overloaded }),
-      cards,
+      card,
     });
   }
 
