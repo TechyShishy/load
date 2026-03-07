@@ -116,8 +116,7 @@ function makeTimeSlots(overrides: Partial<TimeSlot>[] = []): TimeSlot[] {
       slots.push({
         period,
         index: i,
-        baseCapacity: 1,
-        cards: [],
+        card: null,
         ...override,
       });
     }
@@ -197,17 +196,14 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     // Inject a card into Evening slot 0
     slots[8] = {
       ...slots[8]!,
-      cards: [
-        {
-          id: 'c1',
-          templateId: 'WebSurge',
-          name: 'WebSurge',
-          type: 'Traffic' as never,
-          hoursRequired: 2,
-          revenue: 5000,
-          description: '',
-        },
-      ],
+      card: {
+        id: 'c1',
+        templateId: 'WebSurge',
+        name: 'WebSurge',
+        type: 'Traffic' as never,
+        revenue: 5000,
+        description: '',
+      },
     };
     const { container } = render(
       <GameCanvas context={makeCtx({ timeSlots: slots })} phase="scheduling" />,
@@ -252,17 +248,14 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     const baseSlotsWithCard = makeTimeSlots();
     baseSlotsWithCard[0] = {
       ...baseSlotsWithCard[0]!,
-      cards: [
-        {
-          id: 'c1',
-          templateId: 'APIBlast',
-          name: 'APIBlast',
-          type: 'Traffic' as never,
-          hoursRequired: 2,
-          revenue: 4000,
-          description: '',
-        },
-      ],
+      card: {
+        id: 'c1',
+        templateId: 'APIBlast',
+        name: 'APIBlast',
+        type: 'Traffic' as never,
+        revenue: 4000,
+        description: '',
+      },
     };
 
     const ctx1 = makeCtx(); // no cards

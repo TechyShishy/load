@@ -14,15 +14,18 @@ import {
   SLOT_W,
   SLOT_H,
   SLOT_GAP,
+  STACK_STRIDE,
   PERIOD_PADDING,
   CARD_PADDING,
   BOARD_START_Y,
   PILES_ROW_Y,
-  PILE_INTRA_GROUP_GAP,
+  BOARD_COLUMN_COUNT,
   computeDeckPileRect,
   computeSlotRect,
-  computeTracksYOffset,
+  computeTrackRect,
   rowsForPeriod,
+  subColsForPeriod,
+  MAX_SUB_COLS,
 } from './canvasLayout.js';
 interface GameCanvasProps {
   context: GameContext;
@@ -57,6 +60,9 @@ const PERIOD_ACCENT: Record<Period, number> = {
   [Period.Overnight]: 0x005577,
 };
 
+const GEAR_BLOCK_COLOR = 0x1a1a1a;
+const GEAR_BLOCK_ACCENT = 0x888888;
+
 /** Fill colour for overload slots (period-full traffic card was placed here). */
 const OVERLOAD_SLOT_COLOR = 0x3a0000;
 /** Stroke accent for overload slots. */
@@ -87,6 +93,7 @@ const HEADER_STYLES: Record<Period, TextStyle> = {
   [Period.Evening]: new TextStyle({ fill: 0xbf5af2, fontSize: 11, fontFamily: 'Courier New' }),
   [Period.Overnight]: new TextStyle({ fill: 0x005577, fontSize: 11, fontFamily: 'Courier New' }),
 };
+const GEAR_HEADER_STYLE = new TextStyle({ fill: 0x888888, fontSize: 11, fontFamily: 'Courier New' });
 
 const SLOT_LABEL_STYLE = new TextStyle({ fill: 0x4b5563, fontSize: 9, fontFamily: 'Courier New' });
 const CARD_CHIP_STYLE = new TextStyle({
@@ -123,6 +130,12 @@ const CARD_TITLE_MAX_FONT = 10;
 /** Available width for the title text (card inner width – small horizontal inset). */
 const CARD_TITLE_MAX_W = SLOT_W - CARD_PADDING * 2 - 4;
 
+const CARD_COST_STYLE = new TextStyle({
+  fill: 0xfbbf24,
+  fontSize: 6,
+  fontFamily: 'Courier New',
+});
+
 /**
  * Returns a single-line Text object that fits within CARD_TITLE_MAX_W px.
  * Starts at CARD_TITLE_MAX_FONT and steps down by 0.5 px until it fits or
@@ -155,6 +168,8 @@ const CARD_ART: Partial<Record<string, string>> = {
   'action-bandwidth-upgrade': '/cards/action-bandwidth-upgrade.svg',
   'action-datacenter-expansion': '/cards/action-datacenter-expansion.svg',
   'action-emergency-maintenance': '/cards/action-emergency-maintenance.svg',
+  'traffic-ai-inference': '/cards/traffic-ai-inference.svg',
+  'traffic-viral-spike': '/cards/traffic-viral-spike.svg',
 };
 
 /**
@@ -529,24 +544,31 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
   const piles = buildDeckPiles(app, board, ctx);
   const refs: SceneRefs = { slots: new Map(), tracks: new Map(), piles };
 
-  const periods = Object.values(Period) as Period[];
+  const periodCols = Object.values(Period) as Period[];
   const availableW = app.screen.width - 40;
-  const periodW = availableW / periods.length;
+  const colW = availableW / BOARD_COLUMN_COUNT;
 
-  for (let pi = 0; pi < periods.length; pi++) {
-    const period = periods[pi] as Period;
-    const periodX = 20 + pi * periodW;
+  for (let pi = 0; pi < periodCols.length; pi++) {
+    const period = periodCols[pi] as Period;
+    const periodX = 20 + pi * colW;
 
     // Slots for this period — collected first so column height responds to temporary extra slots.
     const periodSlots = ctx.timeSlots.filter((s) => s.period === period);
 
     // Period column background — sized to actual slot count, including any temporary slots.
+    // Width is capped at the equal-share max but shrinks to fit the actual sub-column count (min 3).
+    const rows = rowsForPeriod(periodSlots.length);
+    const numSubCols = Math.max(MAX_SUB_COLS, subColsForPeriod(periodSlots.length));
+    const interleaved = subColsForPeriod(periodSlots.length) >= 3;
+    // Cols overlap horizontally in interleaved mode; effective width = numSubCols-1 sub-cols.
+    // +STACK_STRIDE/2 bottom buffer accommodates the half-row vertical shift of odd sub-cols.
+    const tightW = PERIOD_PADDING + (numSubCols - 1) * (SLOT_W + SLOT_GAP) - SLOT_GAP + PERIOD_PADDING;
     const colBg = new Graphics();
     colBg.roundRect(
       periodX,
       BOARD_START_Y - 8,
-      periodW - 8,
-      32 + rowsForPeriod(periodSlots.length) * (SLOT_H + SLOT_GAP),
+      Math.min(colW - 8, tightW),
+      32 + (rows - 1) * STACK_STRIDE + SLOT_H + STACK_STRIDE / 2,
       8,
     );
     colBg.fill({ color: PERIOD_COLORS[period], alpha: 0.15 });
@@ -558,53 +580,87 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
     header.x = periodX + PERIOD_PADDING;
     header.y = BOARD_START_Y;
     board.addChild(header);
-    for (let si = 0; si < periodSlots.length; si++) {
-      const slot = periodSlots[si]!;
-      const slotKey = `${period}-${si}`;
-      const rows = rowsForPeriod(periodSlots.length);
-      const subCol = Math.floor(si / rows);
-      const row = si % rows;
-      const slotX = periodX + PERIOD_PADDING + subCol * (SLOT_W + SLOT_GAP);
-      const slotY = BOARD_START_Y + 24 + row * (SLOT_H + SLOT_GAP);
-
-      // Slot background.
-      const bg = new Graphics();
-      bg.roundRect(slotX, slotY, SLOT_W, SLOT_H, 4);
-      if (slot.overloaded) {
-        bg.fill({ color: OVERLOAD_SLOT_COLOR, alpha: 0.9 });
-        bg.stroke({ color: OVERLOAD_SLOT_ACCENT, width: 1, alpha: 0.8 });
+    {
+      // rows and interleaved are hoisted above the colBg draw.
+      // In interleaved mode draw col 0 and col 2 before col 1 each row so that
+      // the vertically-shifted col-1 cards layer on top of their neighbours.
+      const drawOrder: number[] = [];
+      if (interleaved) {
+        for (let r = 0; r < rows; r++) {
+          for (const sc of [0, 2, 1]) {
+            const idx = sc * rows + r;
+            if (idx < periodSlots.length) drawOrder.push(idx);
+          }
+        }
       } else {
-        bg.fill({ color: PERIOD_COLORS[period], alpha: 0.9 });
-        bg.stroke({ color: PERIOD_ACCENT[period], width: 1, alpha: 0.4 });
+        for (let si = 0; si < periodSlots.length; si++) drawOrder.push(si);
       }
-      board.addChild(bg);
+      for (const si of drawOrder) {
+        const slot = periodSlots[si]!;
+        const slotKey = `${period}-${si}`;
+        const subCol = Math.floor(si / rows);
+        const row = si % rows;
+        const xDelta = interleaved ? -subCol * ((SLOT_W + SLOT_GAP) / 2) : 0;
+        const yDelta = interleaved && subCol % 2 === 1 ? STACK_STRIDE / 2 : 0;
+        const slotX = periodX + PERIOD_PADDING + subCol * (SLOT_W + SLOT_GAP) + xDelta;
+        const slotY = BOARD_START_Y + 24 + row * STACK_STRIDE + yDelta;
 
-      // Slot index label — fully static (e.g., "M1").
-      const slotLabel = new Text({ text: `${period[0]}${si + 1}`, style: SLOT_LABEL_STYLE });
-      slotLabel.x = slotX + 4;
-      slotLabel.y = slotY + 4;
-      board.addChild(slotLabel);
+        // Slot background.
+        const bg = new Graphics();
+        bg.roundRect(slotX, slotY, SLOT_W, SLOT_H, 4);
+        if (slot.overloaded) {
+          bg.fill({ color: OVERLOAD_SLOT_COLOR, alpha: 0.9 });
+          bg.stroke({ color: OVERLOAD_SLOT_ACCENT, width: 1, alpha: 0.8 });
+        } else {
+          bg.fill({ color: PERIOD_COLORS[period], alpha: 0.9 });
+          bg.stroke({ color: PERIOD_ACCENT[period], width: 1, alpha: 0.4 });
+        }
+        board.addChild(bg);
 
-      // Container for card chips — rebuilt by patchSlot on change.
-      const cardContainer = new Container();
-      board.addChild(cardContainer);
+        // Slot index label — fully static (e.g., "M1").
+        const slotLabel = new Text({ text: `${period[0]}${si + 1}`, style: SLOT_LABEL_STYLE });
+        slotLabel.x = slotX + 4;
+        slotLabel.y = slotY + 4;
+        board.addChild(slotLabel);
 
-      refs.slots.set(slotKey, { bg, cardContainer, slotX, slotY, period });
-      // Initial card paint.
-      paintSlotCards(slot, slotX, slotY, cardContainer);
-    }
+        // Container for card chips — rebuilt by patchSlot on change.
+        const cardContainer = new Container();
+        board.addChild(cardContainer);
+
+        refs.slots.set(slotKey, { bg, cardContainer, slotX, slotY, period });
+        // Initial card paint.
+        paintSlotCards(slot, slotX, slotY, cardContainer);
+      }
+    } // end interleave block
+  }
+
+  // ── Gear block — stubbed 5th column ──────────────────────────────────────
+  // TODO-0010: implement Gear block mechanics
+  {
+    const gearX = 20 + periodCols.length * colW;
+    const gearBg = new Graphics();
+    gearBg.roundRect(
+      gearX,
+      BOARD_START_Y - 8,
+      colW - 8,
+      32 + 3 * STACK_STRIDE + SLOT_H + STACK_STRIDE / 2,
+      8,
+    );
+    gearBg.fill({ color: GEAR_BLOCK_COLOR, alpha: 0.15 });
+    gearBg.stroke({ color: GEAR_BLOCK_ACCENT, width: 1, alpha: 0.2 });
+    board.addChild(gearBg);
+
+    const gearHeader = new Text({ text: 'GEAR', style: GEAR_HEADER_STYLE });
+    gearHeader.x = gearX + PERIOD_PADDING;
+    gearHeader.y = BOARD_START_Y;
+    board.addChild(gearHeader);
   }
 
   // Tracks — static row backgrounds with dynamic ticket containers.
-  const maxRows = Math.max(
-    ...Object.values(Period).map((p) => rowsForPeriod(ctx.timeSlots.filter((s) => s.period === p).length)),
-  );
-  const tracksYOffset = computeTracksYOffset(maxRows);
+  // Rendered to the right of the deck cluster in the same top band as the piles.
   for (let ti = 0; ti < ctx.tracks.length; ti++) {
     const track = ctx.tracks[ti]!;
-    const trackX = 20;
-    const trackY = tracksYOffset + ti * 36;
-    const trackW = app.screen.width - 40;
+    const { x: trackX, y: trackY, w: trackW } = computeTrackRect(ti, app.screen.width);
     const tColor = TRACK_COLORS[track.track] ?? 0x555555;
 
     // Static background.
@@ -647,37 +703,60 @@ function paintSlotCards(
   slot: TimeSlot, slotX: number, slotY: number, container: Container,
   suppressedCardIds?: ReadonlySet<string>,
 ): void {
-  let vi = 0;
-  for (let ci = 0; ci < slot.cards.length; ci++) {
-    const card = slot.cards[ci]!;
-    if (suppressedCardIds?.has(card.id)) continue;
-    const cardH = SLOT_H - CARD_PADDING * 2;
-    const cardY = slotY + CARD_PADDING + vi * (cardH + 2);
-    vi++;
+  if (slot.card === null) return;
+  const card = slot.card;
+  if (suppressedCardIds?.has(card.id)) return;
+  const cardH = SLOT_H - CARD_PADDING * 2;
+  const cardY = slotY + CARD_PADDING;
 
-    const cardBg = new Graphics();
-    cardBg.roundRect(slotX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 2);
-    cardBg.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
-    container.addChild(cardBg);
+  const cardBg = new Graphics();
+  cardBg.roundRect(slotX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 2);
+  cardBg.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
+  container.addChild(cardBg);
 
-    const artImgW = SLOT_W - CARD_PADDING * 2;
-    const artImgH = SLOT_H / 2 - CARD_PADDING;
-    const artY = cardY + CARD_TITLE_ZONE_H;
-    const art = cardArtSprite(card.templateId, slotX + CARD_PADDING, artY, artImgW, artImgH);
-    if (art) {
-      container.addChild(art);
-    } else {
-      const imgZone = new Graphics();
-      imgZone.roundRect(slotX + CARD_PADDING, artY, artImgW, artImgH, 2);
-      imgZone.fill({ color: 0x00f5ff, alpha: 0.1 });
-      imgZone.stroke({ color: 0x00f5ff, width: 1, alpha: 0.35 });
-      container.addChild(imgZone);
-    }
+  const artImgW = SLOT_W - CARD_PADDING * 2;
+  const artImgH = SLOT_H / 2 - CARD_PADDING;
+  const artY = cardY + CARD_TITLE_ZONE_H;
+  const art = cardArtSprite(card.templateId, slotX + CARD_PADDING, artY, artImgW, artImgH);
+  if (art) {
+    container.addChild(art);
+  } else {
+    const imgZone = new Graphics();
+    imgZone.roundRect(slotX + CARD_PADDING, artY, artImgW, artImgH, 2);
+    imgZone.fill({ color: 0x00f5ff, alpha: 0.1 });
+    imgZone.stroke({ color: 0x00f5ff, width: 1, alpha: 0.35 });
+    container.addChild(imgZone);
+  }
 
-    const cardText = fitCardTitle(card.name, 0x00f5ff);
-    cardText.x = slotX + CARD_PADDING + 2;
-    cardText.y = cardY + 2;
-    container.addChild(cardText);
+  const cardText = fitCardTitle(card.name, 0x00f5ff);
+  cardText.x = slotX + CARD_PADDING + 2;
+  cardText.y = cardY + 2;
+  container.addChild(cardText);
+
+  // Pricing row pinned to bottom of card: revenue (yellow).
+  const revenueText = new Text({ text: `$${card.revenue.toLocaleString()}`, style: CARD_COST_STYLE });
+  const pricingRowH = revenueText.height;
+  const pricingY = cardY + cardH - CARD_PADDING - pricingRowH;
+  revenueText.x = slotX + CARD_PADDING + 1;
+  revenueText.y = pricingY;
+  container.addChild(revenueText);
+
+  // Description text below the art image, leaving room for the pricing row.
+  const descY = artY + artImgH + CARD_PADDING;
+  const descMaxH = pricingY - descY - CARD_PADDING;
+  let descFontSize = 6;
+  let descText = new Text({ text: card.description, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
+  while (descText.height > descMaxH && descFontSize > 4) {
+    descFontSize -= 0.5;
+    descText.destroy();
+    descText = new Text({ text: card.description, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
+  }
+  if (descMaxH > 0) {
+    descText.x = slotX + CARD_PADDING + 1;
+    descText.y = descY;
+    container.addChild(descText);
+  } else {
+    descText.destroy();
   }
 }
 
@@ -717,6 +796,9 @@ function paintPile(
   count: number,
   topCardName?: string,
   topCardTemplateId?: string,
+  topDiscardDescription?: string,
+  topDiscardCost?: number,
+  topCardTitleColor?: number,
 ): void {
   const layers = Math.min(5, Math.ceil(count / 10));
 
@@ -759,10 +841,38 @@ function paintPile(
       imgZone.stroke({ color: accentColor, width: 1, alpha: 0.35 });
       container.addChild(imgZone);
     }
-    const nameText = fitCardTitle(topCardName, accentColor);
+    const nameText = fitCardTitle(topCardName, topCardTitleColor ?? accentColor);
     nameText.x = pileX + CARD_PADDING + 2;
     nameText.y = pileY + CARD_PADDING + 2;
     container.addChild(nameText);
+    // Cost text is created first so its height informs how much vertical space
+    // remains for the description text below the art zone.
+    const costText = topDiscardCost !== undefined
+      ? new Text({ text: '$' + topDiscardCost.toLocaleString(), style: CARD_COST_STYLE })
+      : null;
+    if (costText !== null) {
+      costText.x = pileX + CARD_PADDING + 1;
+      costText.y = pileY + SLOT_H - CARD_PADDING - costText.height;
+      container.addChild(costText);
+    }
+    if (topDiscardDescription !== undefined) {
+      const descY = artY + artImgH + CARD_PADDING;
+      const descMaxH = (pileY + SLOT_H - CARD_PADDING - (costText !== null ? costText.height + CARD_PADDING : 0)) - descY;
+      let descFontSize = 6;
+      let descText = new Text({ text: topDiscardDescription, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
+      while (descText.height > descMaxH && descFontSize > 4) {
+        descFontSize -= 0.5;
+        descText.destroy();
+        descText = new Text({ text: topDiscardDescription, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
+      }
+      if (descMaxH > 0) {
+        descText.x = pileX + CARD_PADDING + 1;
+        descText.y = descY;
+        container.addChild(descText);
+      } else {
+        descText.destroy();
+      }
+    }
   } else {
     // Draw pile back — colored fill, inner decorative border, deck name.
     topRect.fill({ color: bgColor, alpha: 0.95 });
@@ -786,9 +896,6 @@ function buildDeckPiles(
   ctx: GameContext,
 ): Map<string, DeckPileRefs> {
   const piles: Map<string, DeckPileRefs> = new Map();
-  const availableW = app.screen.width - 40;
-  const groupW = SLOT_W * 2 + PILE_INTRA_GROUP_GAP;
-  const interGroupGap = Math.max(8, (availableW - groupW * 3) / 2);
 
   const DECK_LABELS: Record<DeckType, string> = {
     traffic: 'TRAFFIC',
@@ -796,13 +903,15 @@ function buildDeckPiles(
     action: 'ACTION',
   };
 
-  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined; topDiscardTemplateId: string | undefined }> = [
+  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined; topDiscardTemplateId: string | undefined; topDiscardDescription?: string | undefined; topDiscardCost?: number | undefined }> = [
     {
       key: 'traffic',
       drawCount: ctx.trafficDeck.length,
       discardCount: ctx.trafficDiscard.length,
       topDiscardName: ctx.trafficDiscard.at(-1)?.name,
       topDiscardTemplateId: ctx.trafficDiscard.at(-1)?.templateId,
+      topDiscardDescription: ctx.trafficDiscard.at(-1)?.description,
+      topDiscardCost: ctx.trafficDiscard.at(-1)?.revenue,
     },
     {
       key: 'event',
@@ -810,6 +919,7 @@ function buildDeckPiles(
       discardCount: ctx.eventDiscard.length,
       topDiscardName: ctx.eventDiscard.at(-1)?.name,
       topDiscardTemplateId: ctx.eventDiscard.at(-1)?.templateId,
+      topDiscardDescription: ctx.eventDiscard.at(-1)?.description,
     },
     {
       key: 'action',
@@ -817,47 +927,46 @@ function buildDeckPiles(
       discardCount: ctx.actionDiscard.length,
       topDiscardName: ctx.actionDiscard.at(-1)?.name,
       topDiscardTemplateId: ctx.actionDiscard.at(-1)?.templateId,
+      topDiscardDescription: ctx.actionDiscard.at(-1)?.description,
+      topDiscardCost: ctx.actionDiscard.at(-1)?.cost,
     },
   ];
 
   for (let di = 0; di < deckDefs.length; di++) {
     const def = deckDefs[di]!;
-    const groupX = 20 + di * (groupW + interGroupGap);
     const colors = PILE_COLORS[def.key];
     const deckLabel = DECK_LABELS[def.key];
 
     // Draw pile.
     const drawContainer = new Container();
-    const drawX = groupX;
-    const drawY = PILES_ROW_Y;
-    paintPile(drawContainer, drawX, drawY, colors.bg, colors.accent, deckLabel, 'draw', def.drawCount);
+    const drawRect = computeDeckPileRect(di, 'draw', app.screen.width);
+    paintPile(drawContainer, drawRect.x, drawRect.y, colors.bg, colors.accent, deckLabel, 'draw', def.drawCount);
     board.addChild(drawContainer);
     const drawLabel = new Text({ text: 'DRAW', style: PILE_LABEL_STYLE });
-    drawLabel.x = drawX;
-    drawLabel.y = PILES_ROW_Y + SLOT_H + 2;
+    drawLabel.x = drawRect.x;
+    drawLabel.y = drawRect.y + SLOT_H + 2;
     board.addChild(drawLabel);
     piles.set(`${def.key}-draw`, {
       container: drawContainer,
-      pileX: drawX,
-      pileY: drawY,
+      pileX: drawRect.x,
+      pileY: drawRect.y,
       deckType: def.key,
       pileType: 'draw',
     });
 
     // Discard pile.
     const discardContainer = new Container();
-    const discardX = groupX + SLOT_W + PILE_INTRA_GROUP_GAP;
-    const discardY = PILES_ROW_Y;
-    paintPile(discardContainer, discardX, discardY, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId);
+    const discardRect = computeDeckPileRect(di, 'discard', app.screen.width);
+    paintPile(discardContainer, discardRect.x, discardRect.y, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId, def.topDiscardDescription, def.topDiscardCost, def.key === 'traffic' ? 0x00f5ff : undefined);
     board.addChild(discardContainer);
     const discardLabel = new Text({ text: 'DISCARD', style: PILE_LABEL_STYLE });
-    discardLabel.x = discardX;
-    discardLabel.y = PILES_ROW_Y + SLOT_H + 2;
+    discardLabel.x = discardRect.x;
+    discardLabel.y = discardRect.y + SLOT_H + 2;
     board.addChild(discardLabel);
     piles.set(`${def.key}-discard`, {
       container: discardContainer,
-      pileX: discardX,
-      pileY: discardY,
+      pileX: discardRect.x,
+      pileY: discardRect.y,
       deckType: def.key,
       pileType: 'discard',
     });
@@ -876,10 +985,8 @@ function patchSlot(
     repaintSlotBackground(refs, newSlot);
   }
 
-  // Rebuild card chips only when the cards array has changed.
-  const cardsChanged =
-    oldSlot.cards.length !== newSlot.cards.length ||
-    oldSlot.cards.some((c, i) => c.id !== newSlot.cards[i]?.id);
+  // Rebuild card chips only when the card has changed.
+  const cardsChanged = oldSlot.card?.id !== newSlot.card?.id;
 
   if (cardsChanged) {
     // Explicitly destroy children to release GPU textures before removal.
@@ -912,20 +1019,21 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
     if (pile.deckType === 'traffic') {
       const arr = pile.pileType === 'draw' ? ctx.trafficDeck : ctx.trafficDiscard;
       const top = arr.at(-1);
-      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId };
+      const topDesc = top?.description;
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc, topCost: top?.revenue };
     } else if (pile.deckType === 'event') {
       const arr = pile.pileType === 'draw' ? ctx.eventDeck : ctx.eventDiscard;
       const top = arr.at(-1);
-      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId };
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: undefined as number | undefined };
     } else {
       const arr = pile.pileType === 'draw' ? ctx.actionDeck : ctx.actionDiscard;
       const top = arr.at(-1);
-      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId };
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: top?.cost };
     }
   };
   const prev = getInfo(prevCtx);
   const next = getInfo(nextCtx);
-  if (prev.count === next.count && prev.topName === next.topName && prev.topTemplateId === next.topTemplateId) return;
+  if (prev.count === next.count && prev.topName === next.topName && prev.topTemplateId === next.topTemplateId && prev.topDesc === next.topDesc && prev.topCost === next.topCost) return;
   const colors = PILE_COLORS[pile.deckType];
   const deckLabel = pile.deckType.toUpperCase();
   for (const child of pile.container.children) {
@@ -943,6 +1051,9 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
     next.count,
     next.topName,
     next.topTemplateId,
+    next.topDesc,
+    next.topCost,
+    pile.deckType === 'traffic' ? 0x00f5ff : undefined,
   );
 }
 
@@ -1007,12 +1118,12 @@ function buildBoardSummary(ctx: GameContext): string {
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i]!;
       const label = `${period} slot ${i + 1}`;
-      if (slot.cards.length === 0) {
-        parts.push(`${label}: empty, capacity ${slot.baseCapacity}`);
+      if (slot.card === null) {
+        parts.push(`${label}: empty, capacity 1`);
       } else {
-        const names = slot.cards.map((c) => c.name).join(', ');
+        const card = slot.card;
         const slotType = slot.overloaded ? 'overload slot' : 'slot';
-        parts.push(`${label} (${slotType}): ${slot.cards.length} of ${slot.baseCapacity} cards — ${names}`);
+        parts.push(`${label} (${slotType}): 1 of 1 cards — ${card.name}`);
       }
     }
   }
