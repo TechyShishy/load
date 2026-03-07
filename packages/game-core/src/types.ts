@@ -65,7 +65,6 @@ export abstract class TrafficCard {
   abstract readonly templateId: string;
   abstract readonly id: string;
   abstract readonly name: string;
-  abstract readonly hoursRequired: number;
   abstract readonly revenue: number;
   abstract readonly description: string;
   readonly type = CardType.Traffic as const;

@@ -18,7 +18,6 @@ export class AWSOutageCard extends EventCard {
     const context: GameContext = {
       ...ctx,
       spawnedTrafficQueue: [...ctx.spawnedTrafficQueue, ...spawned],
-      budget: ctx.budget - 75_000,
     };
     return context;
   }

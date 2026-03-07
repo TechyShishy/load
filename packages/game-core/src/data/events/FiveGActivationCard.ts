@@ -14,8 +14,6 @@ export class FiveGActivationCard extends EventCard {
 
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
-    let context = issueTicket(ctx, Track.Projects, this);
-    context = { ...context, budget: context.budget - 25_000 };
-    return context;
+    return issueTicket(ctx, Track.Projects, this);
   }
 }
