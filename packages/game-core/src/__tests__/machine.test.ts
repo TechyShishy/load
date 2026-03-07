@@ -4,7 +4,7 @@ import { createInitialContext, gameMachine } from '../machine.js';
 import { createInitialTimeSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
-import { WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
+import { MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW, MAX_SLA_FAILURES, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
 import { EmergencyMaintenanceCard } from '../data/actions/index.js';
 import { AWSOutageCard, DDoSAttackCard, FiveGActivationCard } from '../data/events/index.js';
@@ -147,24 +147,31 @@ describe('gameMachine overload slots', () => {
     expect(actor.getSnapshot().value).toBe('scheduling');
     // All slots pre-filled, so all drawn cards become overload slots
     const overloadSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.overloaded);
-    expect(overloadSlots.length).toBe(WEEKDAY_TRAFFIC_DRAW);
+    expect(overloadSlots.length).toBeGreaterThanOrEqual(MIN_WEEKDAY_TRAFFIC_DRAW);
+    expect(overloadSlots.length).toBeLessThanOrEqual(MAX_WEEKDAY_TRAFFIC_DRAW);
     // No budget penalty
     expect(actor.getSnapshot().context.budget).toBe(500_000);
   });
 
   it('overload slots are swept at resolution, incrementing slaCount', () => {
-    const actor = createActor(gameMachine, { input: allFilledContext() });
+    // Start with slaCount one below the limit so even 1 overload triggers gameLost
+    const ctx = { ...allFilledContext(), slaCount: MAX_SLA_FAILURES - 1 };
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
     actor.send({ type: 'DRAW_COMPLETE' });
+    const schedulingSnap = actor.getSnapshot();
+    expect(schedulingSnap.value).toBe('scheduling');
+    const overloadCount = schedulingSnap.context.timeSlots.filter((s) => s.overloaded).length;
+    expect(overloadCount).toBeGreaterThanOrEqual(1);
     actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution → gameLost (5 SLA ≥ MAX=3)
+    actor.send({ type: 'ADVANCE' }); // → resolution → gameLost
     const snap = actor.getSnapshot();
     // Resolution sweeps overload slots, slaCount exceeds limit → gameLost
     expect(snap.value).toBe('gameLost');
     const summary = snap.context.lastRoundSummary!;
     expect(summary).not.toBeNull();
     // Each overload slot = 1 SLA failure
-    expect(summary.failedCount).toBe(WEEKDAY_TRAFFIC_DRAW);
+    expect(summary.failedCount).toBe(overloadCount);
     // No budget penalty
     expect(snap.context.budget).toBe(500_000);
   });
@@ -300,23 +307,25 @@ describe('gameMachine weekend mechanics', () => {
     expect(actor.getSnapshot().context.round).toBe(8);
   });
 
-  it('weekend draws fewer traffic cards than weekdays', () => {
-    // Weekday (round 1) should draw WEEKDAY_TRAFFIC_DRAW traffic cards
+  it('weekday draws 1-6 traffic cards; weekend draws 1-2', () => {
+    // Weekday (round 1) should draw 1–6 traffic cards (random)
     const weekdayCtx = safeContext();
     const weekdayActor = createActor(gameMachine, { input: weekdayCtx });
     weekdayActor.start();
     const weekdayTrafficOnBoard = weekdayActor.getSnapshot().context.timeSlots
       .flatMap(s => s.card ? [s.card] : []).length;
 
-    // Weekend (round 6) should draw WEEKEND_TRAFFIC_DRAW traffic cards
+    // Weekend (round 6) should draw 1–2 traffic cards
     const weekendCtx = { ...safeContext(), round: 6 };
     const weekendActor = createActor(gameMachine, { input: weekendCtx });
     weekendActor.start();
     const weekendTrafficOnBoard = weekendActor.getSnapshot().context.timeSlots
       .flatMap(s => s.card ? [s.card] : []).length;
 
-    expect(weekdayTrafficOnBoard).toBe(WEEKDAY_TRAFFIC_DRAW);
-    expect(weekendTrafficOnBoard).toBe(WEEKEND_TRAFFIC_DRAW);
+    expect(weekdayTrafficOnBoard).toBeGreaterThanOrEqual(MIN_WEEKDAY_TRAFFIC_DRAW);
+    expect(weekdayTrafficOnBoard).toBeLessThanOrEqual(MAX_WEEKDAY_TRAFFIC_DRAW);
+    expect(weekendTrafficOnBoard).toBeGreaterThanOrEqual(MIN_WEEKEND_TRAFFIC_DRAW);
+    expect(weekendTrafficOnBoard).toBeLessThanOrEqual(MAX_WEEKEND_TRAFFIC_DRAW);
   });
 
   it('allows Security Patch (MitigateDDoS) during weekend crisis', () => {
@@ -507,5 +516,29 @@ describe('gameMachine weekend mechanics', () => {
     // Old cards should still be present
     expect(handAfter.find(c => c.id === 'carry-1')).toBeDefined();
     expect(handAfter.find(c => c.id === 'carry-2')).toBeDefined();
+  });
+});
+
+describe('gameMachine seeded draw determinism', () => {
+  it('same seed and round always produce the same traffic draw count', () => {
+    const seed = 'detangle-test-seed-42';
+
+    function drawCount(seed: string, round: number): number {
+      const ctx = { ...safeContext(), seed, round };
+      const actor = createActor(gameMachine, { input: ctx });
+      actor.start();
+      // Machine enters scheduling immediately after start (DRAW_COMPLETE fires in draw entry)
+      return actor.getSnapshot().context.timeSlots.filter(s => s.card !== null).length;
+    }
+
+    // Round 1 (weekday)
+    expect(drawCount(seed, 1)).toBe(drawCount(seed, 1));
+    // Round 6 (weekend)
+    expect(drawCount(seed, 6)).toBe(drawCount(seed, 6));
+    // Different round numbers produce independent but still deterministic results
+    const r1 = drawCount(seed, 1);
+    const r2 = drawCount(seed, 2);
+    expect(drawCount(seed, 1)).toBe(r1);
+    expect(drawCount(seed, 2)).toBe(r2);
   });
 });

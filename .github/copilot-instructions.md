@@ -66,7 +66,7 @@ yarn workspace @load/web test:e2e
 
 ### Seeded RNG
 
-- `seed` is stored in `GameContext`. Per-round RNGs derive from it: `seed + '-te-' + round`. Use the existing `Rng` from `packages/game-core/src/deck.ts` for any new randomness.
+- `seed` is stored in `GameContext`. Per-round RNGs derive from it: `seed + '-tra-' + round`. Use the existing `Rng` from `packages/game-core/src/deck.ts` for any new randomness.
 
 ### Vendor cards
 

@@ -1,6 +1,6 @@
 import { and, assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, WEEKDAY_TRAFFIC_DRAW, WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, Period, PhaseId, STARTING_BUDGET, type ActionCard, type DrawLog, type GameContext, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
-import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard, type Rng } from './deck.js';
+import { BANKRUPT_THRESHOLD, MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, Period, PhaseId, STARTING_BUDGET, type ActionCard, type DrawLog, type GameContext, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
+import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard } from './deck.js';
 import {
   createInitialTimeSlots,
   createInitialTracks,
@@ -14,7 +14,9 @@ import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRo
 
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
-export function createInitialContext(rng: Rng = Math.random): GameContext {
+export function createInitialContext(seed?: string): GameContext {
+  const resolvedSeed = seed ?? crypto.randomUUID();
+  const rng = makeRng(resolvedSeed + '-init');
   const trafficDeck = buildTrafficDeck(rng);
   const eventDeck = buildEventDeck(rng);
   const actionDeck = buildActionDeck(rng);
@@ -42,7 +44,7 @@ export function createInitialContext(rng: Rng = Math.random): GameContext {
     lastRoundSummary: null,
     loseReason: null,
     pendingRevenue: 0,
-    seed: crypto.randomUUID(),
+    seed: resolvedSeed,
     drawLog: { traffic: [], action: initialHand, events: [] },
   };
 }
@@ -100,13 +102,17 @@ export const gameMachine = setup({
         : afterReset;
 
       // Reshuffle if exhausted, then draw traffic cards
-      const drawRng = makeRng(context.seed + '-te-' + context.round);
+      // trafficDrawCount is computed first so it always consumes RNG position 0,
+      // making the count deterministic for the same (seed, round) regardless of deck exhaustion state.
+      const drawRng = makeRng(context.seed + '-tra-' + context.round);
+      const trafficDrawCount = isWeekend(context.round)
+        ? Math.floor(drawRng() * (MAX_WEEKEND_TRAFFIC_DRAW - MIN_WEEKEND_TRAFFIC_DRAW + 1)) + MIN_WEEKEND_TRAFFIC_DRAW
+        : Math.floor(drawRng() * (MAX_WEEKDAY_TRAFFIC_DRAW - MIN_WEEKDAY_TRAFFIC_DRAW + 1)) + MIN_WEEKDAY_TRAFFIC_DRAW;
       const [trafficDeckInit, trafficDiscard] = reshuffleDiscard(
         context.trafficDeck,
         context.trafficDiscard,
         drawRng,
       );
-      const trafficDrawCount = isWeekend(context.round) ? WEEKEND_TRAFFIC_DRAW : WEEKDAY_TRAFFIC_DRAW;
       const [drawn, remainingTrafficDeck] = drawN(trafficDeckInit, trafficDrawCount);
 
       const baseCtx: GameContext = {
@@ -254,7 +260,7 @@ export const gameMachine = setup({
   id: 'load',
   initial: 'draw',
   context: ({ input }) =>
-    input ? { ...createInitialContext(), ...input } : createInitialContext(),
+    input ? { ...createInitialContext(input.seed), ...input } : createInitialContext(),
   states: {
     draw: {
       entry: 'performDraw',
