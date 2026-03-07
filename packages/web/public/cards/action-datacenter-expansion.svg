@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background -->
+  <rect width="160" height="100" fill="#001505"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Plus / expand icon (compressed, y=1–5) ────── -->
+    <rect x="15" y="1" width="2" height="5" fill="#30d158"/>
+    <rect x="11" y="3" width="10" height="1" fill="#30d158"/>
+    <rect x="14" y="2" width="4" height="1" fill="#30d158" opacity="0.40"/>
+    <rect x="14" y="4" width="4" height="1" fill="#30d158" opacity="0.40"/>
+
+    <!-- ══════════════════════════════════════════════
+         RACK 1 (left)   x=1..11 front  +  x=11..13 iso
+         7 × 3px units, y=10–30  (top highlight y=9)
+    ══════════════════════════════════════════════════ -->
+
+    <!-- Isometric top face -->
+    <polygon points="1,9 11,9 13,7 3,7" fill="#1a6b30"/>
+    <!-- Isometric right side face -->
+    <polygon points="11,9 13,7 13,31 11,31" fill="#0c4a1f"/>
+    <!-- Side-face unit-boundary ticks (at each of the 6 divider rows) -->
+    <rect x="11" y="12" width="2" height="1" fill="#0a3810"/>
+    <rect x="11" y="15" width="2" height="1" fill="#0a3810"/>
+    <rect x="11" y="18" width="2" height="1" fill="#0a3810"/>
+    <rect x="11" y="21" width="2" height="1" fill="#0a3810"/>
+    <rect x="11" y="24" width="2" height="1" fill="#0a3810"/>
+    <rect x="11" y="27" width="2" height="1" fill="#0a3810"/>
+    <!-- Front face -->
+    <rect x="1" y="9" width="10" height="22" fill="#145520"/>
+    <!-- Mounting ears -->
+    <rect x="1"  y="9" width="1" height="22" fill="#0c4a1f"/>
+    <rect x="10" y="9" width="1" height="22" fill="#0c4a1f"/>
+    <!-- Top-edge highlight -->
+    <rect x="1" y="9" width="10" height="1" fill="#30d158" opacity="0.35"/>
+
+    <!-- U1 (y=10–11): Patch panel — 8 keystone port holes -->
+    <rect x="2" y="10" width="8" height="2" fill="#112a18"/>
+    <rect x="2" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="3" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="4" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="5" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="6" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="7" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="8" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="9" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="2" y="12" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U2 (y=13–14): Network switch — port LED row + uplink -->
+    <rect x="2" y="13" width="8" height="2" fill="#0f2518"/>
+    <rect x="9" y="13" width="1" height="1" fill="#ffd60a"/>
+    <rect x="2" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="3" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="4" y="14" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="5" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="6" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="7" y="14" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="8" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="9" y="14" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="2" y="15" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U3 (y=16–17): 1U Server A — power + amber alert + disk LEDs -->
+    <rect x="2" y="16" width="8" height="2" fill="#145520"/>
+    <rect x="2" y="16" width="2" height="2" fill="#30d158"/>
+    <rect x="5" y="16" width="1" height="2" fill="#ffd60a"/>
+    <rect x="7" y="17" width="1" height="1" fill="#0a2f14"/>
+    <rect x="8" y="16" width="1" height="1" fill="#30d158" opacity="0.80"/>
+    <rect x="9" y="16" width="1" height="1" fill="#30d158" opacity="0.40"/>
+    <rect x="2" y="18" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U4 (y=19–20): 1U Server B — standby + fault indicator -->
+    <rect x="2" y="19" width="8" height="2" fill="#112a18"/>
+    <rect x="2" y="19" width="2" height="2" fill="#30d158" opacity="0.35"/>
+    <rect x="5" y="19" width="1" height="2" fill="#ff3b30" opacity="0.70"/>
+    <rect x="8" y="20" width="1" height="1" fill="#ffd60a" opacity="0.60"/>
+    <rect x="2" y="21" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U5 (y=22–23): UPS — battery charge bar + status LED -->
+    <rect x="2" y="22" width="8" height="2" fill="#0d2016"/>
+    <rect x="2" y="22" width="5" height="2" fill="#30d158" opacity="0.55"/>
+    <rect x="7" y="22" width="1" height="2" fill="#ffd60a" opacity="0.70"/>
+    <rect x="8" y="22" width="1" height="2" fill="#ff3b30" opacity="0.60"/>
+    <rect x="9" y="22" width="1" height="2" fill="#30d158"/>
+    <rect x="2" y="24" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U6 (y=25–26): Drive shelf — 3 sleds + 1 empty bay -->
+    <rect x="2" y="25" width="8" height="2" fill="#0f2518"/>
+    <rect x="2" y="25" width="2" height="2" fill="#0c2e14"/>
+    <rect x="3" y="25" width="1" height="1" fill="#30d158" opacity="0.80"/>
+    <rect x="4" y="25" width="2" height="2" fill="#0c2e14"/>
+    <rect x="4" y="26" width="1" height="1" fill="#30d158" opacity="0.55"/>
+    <rect x="6" y="25" width="2" height="2" fill="#0c2e14"/>
+    <rect x="7" y="25" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="8" y="25" width="2" height="2" fill="#080f0b"/>
+    <rect x="2" y="27" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U7 (y=28–29): Cable management — slot pattern -->
+    <rect x="2" y="28" width="8" height="2" fill="#0a1c10"/>
+    <rect x="2" y="28" width="1" height="2" fill="#061008"/>
+    <rect x="4" y="28" width="1" height="2" fill="#061008"/>
+    <rect x="6" y="28" width="1" height="2" fill="#061008"/>
+    <rect x="8" y="28" width="1" height="2" fill="#061008"/>
+    <!-- Bottom tray lip -->
+    <rect x="1" y="30" width="10" height="1" fill="#1a6b30" opacity="0.25"/>
+
+    <!-- ── Inter-rack patch cable (at cable-management level) ── -->
+    <rect x="14" y="28" width="3" height="1" fill="#30d158" opacity="0.55"/>
+
+    <!-- ══════════════════════════════════════════════
+         RACK 2 (right)  x=18..28 front  +  x=28..30 iso
+    ══════════════════════════════════════════════════ -->
+
+    <!-- Isometric top face -->
+    <polygon points="18,9 28,9 30,7 20,7" fill="#1a6b30"/>
+    <!-- Isometric right side face -->
+    <polygon points="28,9 30,7 30,31 28,31" fill="#0c4a1f"/>
+    <!-- Side-face unit-boundary ticks -->
+    <rect x="28" y="12" width="2" height="1" fill="#0a3810"/>
+    <rect x="28" y="15" width="2" height="1" fill="#0a3810"/>
+    <rect x="28" y="18" width="2" height="1" fill="#0a3810"/>
+    <rect x="28" y="21" width="2" height="1" fill="#0a3810"/>
+    <rect x="28" y="24" width="2" height="1" fill="#0a3810"/>
+    <rect x="28" y="27" width="2" height="1" fill="#0a3810"/>
+    <!-- Front face -->
+    <rect x="18" y="9" width="10" height="22" fill="#145520"/>
+    <!-- Mounting ears -->
+    <rect x="18" y="9" width="1" height="22" fill="#0c4a1f"/>
+    <rect x="27" y="9" width="1" height="22" fill="#0c4a1f"/>
+    <!-- Top-edge highlight -->
+    <rect x="18" y="9" width="10" height="1" fill="#30d158" opacity="0.35"/>
+
+    <!-- U1 (y=10–11): Patch panel -->
+    <rect x="19" y="10" width="8" height="2" fill="#112a18"/>
+    <rect x="19" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="20" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="21" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="22" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="23" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="24" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="25" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="26" y="11" width="1" height="1" fill="#061410"/>
+    <rect x="19" y="12" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U2 (y=13–14): Network switch — slightly different port pattern -->
+    <rect x="19" y="13" width="8" height="2" fill="#0f2518"/>
+    <rect x="26" y="13" width="1" height="1" fill="#ffd60a"/>
+    <rect x="19" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="20" y="14" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="21" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="22" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="23" y="14" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="24" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="25" y="14" width="1" height="1" fill="#30d158"/>
+    <rect x="26" y="14" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="19" y="15" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U3 (y=16–17): 1U Server A -->
+    <rect x="19" y="16" width="8" height="2" fill="#145520"/>
+    <rect x="19" y="16" width="2" height="2" fill="#30d158"/>
+    <rect x="22" y="16" width="1" height="2" fill="#ffd60a"/>
+    <rect x="24" y="17" width="1" height="1" fill="#0a2f14"/>
+    <rect x="25" y="16" width="1" height="1" fill="#30d158" opacity="0.80"/>
+    <rect x="26" y="16" width="1" height="1" fill="#30d158" opacity="0.40"/>
+    <rect x="19" y="18" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U4 (y=19–20): 1U Server B — being provisioned (new rack) -->
+    <rect x="19" y="19" width="8" height="2" fill="#0d1f13"/>
+    <rect x="19" y="19" width="2" height="2" fill="#30d158" opacity="0.20"/>
+    <rect x="22" y="19" width="3" height="2" fill="#ffd60a" opacity="0.45"/>
+    <rect x="19" y="21" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U5 (y=22–23): UPS — fully charged -->
+    <rect x="19" y="22" width="8" height="2" fill="#0d2016"/>
+    <rect x="19" y="22" width="7" height="2" fill="#30d158" opacity="0.55"/>
+    <rect x="26" y="22" width="1" height="2" fill="#30d158"/>
+    <rect x="19" y="24" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U6 (y=25–26): Drive shelf — 3 sleds + 1 empty bay -->
+    <rect x="19" y="25" width="8" height="2" fill="#0f2518"/>
+    <rect x="19" y="25" width="2" height="2" fill="#0c2e14"/>
+    <rect x="20" y="25" width="1" height="1" fill="#30d158" opacity="0.70"/>
+    <rect x="21" y="25" width="2" height="2" fill="#0c2e14"/>
+    <rect x="22" y="26" width="1" height="1" fill="#30d158" opacity="0.50"/>
+    <rect x="23" y="25" width="2" height="2" fill="#0c2e14"/>
+    <rect x="24" y="25" width="1" height="1" fill="#30d158" opacity="0.30"/>
+    <rect x="25" y="25" width="2" height="2" fill="#080f0b"/>
+    <rect x="19" y="27" width="8" height="1" fill="#0a3010"/>
+
+    <!-- U7 (y=28–29): Cable management -->
+    <rect x="19" y="28" width="8" height="2" fill="#0a1c10"/>
+    <rect x="19" y="28" width="1" height="2" fill="#061008"/>
+    <rect x="21" y="28" width="1" height="2" fill="#061008"/>
+    <rect x="23" y="28" width="1" height="2" fill="#061008"/>
+    <rect x="25" y="28" width="1" height="2" fill="#061008"/>
+    <!-- Bottom tray lip -->
+    <rect x="18" y="30" width="10" height="1" fill="#1a6b30" opacity="0.25"/>
+
+  </g>
+</svg>

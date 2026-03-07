@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background: action dark green-black -->
+  <rect width="160" height="100" fill="#001505"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Amber warning arrows (2 urgent alert arrows, left side) ──── -->
+    <!-- Left arrow (center x=6) -->
+    <rect x="5" y="1" width="2" height="5" fill="#ffd60a"/>
+    <rect x="3" y="6" width="6" height="1" fill="#ffd60a"/>
+    <rect x="4" y="7" width="4" height="1" fill="#ffd60a"/>
+    <rect x="5" y="8" width="2" height="1" fill="#ffd60a"/>
+
+    <!-- Right arrow (center x=12, staggered height) -->
+    <rect x="11" y="2" width="2" height="4" fill="#ffd60a"/>
+    <rect x="9"  y="6" width="6" height="1" fill="#ffd60a"/>
+    <rect x="10" y="7" width="4" height="1" fill="#ffd60a"/>
+    <rect x="11" y="8" width="2" height="1" fill="#ffd60a"/>
+
+    <!-- ── Server rack ──────────────────────────────────────────────── -->
+    <!-- Isometric top face -->
+    <polygon points="2,12 26,12 28,10 4,10" fill="#1a6b30"/>
+    <!-- Right side face -->
+    <polygon points="26,12 28,10 28,23 26,23" fill="#0c4a1f"/>
+    <!-- Front face -->
+    <rect x="2" y="12" width="24" height="11" fill="#145520"/>
+    <!-- Mounting ears -->
+    <rect x="2"  y="12" width="2" height="11" fill="#0c4a1f"/>
+    <rect x="24" y="12" width="2" height="11" fill="#0c4a1f"/>
+    <!-- Top-edge highlight -->
+    <rect x="2"  y="12" width="24" height="1" fill="#30d158" opacity="0.35"/>
+
+    <!-- Status LEDs: green = normal, amber + red = active ticket -->
+    <rect x="5"  y="15" width="2" height="2" fill="#30d158"/>
+    <rect x="8"  y="15" width="2" height="2" fill="#30d158"/>
+    <rect x="11" y="15" width="2" height="2" fill="#ffd60a"/>
+    <rect x="14" y="15" width="2" height="2" fill="#ff453a"/>
+    <rect x="17" y="15" width="2" height="2" fill="#30d158" opacity="0.40"/>
+    <rect x="20" y="15" width="2" height="2" fill="#30d158" opacity="0.40"/>
+
+    <!-- Port slots -->
+    <rect x="5"  y="18" width="3" height="3" fill="#0a3810"/>
+    <rect x="9"  y="18" width="3" height="3" fill="#0a3810"/>
+    <rect x="13" y="18" width="3" height="3" fill="#0a3810"/>
+    <rect x="17" y="18" width="3" height="3" fill="#0a3810"/>
+    <rect x="21" y="18" width="3" height="3" fill="#0a3810"/>
+
+    <!-- ── Wrench badge (overlaps upper-right of rack) ──────────────── -->
+    <!-- Badge border (action green) -->
+    <rect x="17" y="4"  width="12" height="1"  fill="#30d158"/>
+    <rect x="17" y="15" width="12" height="1"  fill="#30d158"/>
+    <rect x="17" y="4"  width="1"  height="12" fill="#30d158"/>
+    <rect x="28" y="4"  width="1"  height="12" fill="#30d158"/>
+    <!-- Badge interior -->
+    <rect x="18" y="5"  width="10" height="10" fill="#0a1a00"/>
+
+    <!-- Wrench icon: diagonal pixel-art open-end wrench (NE-going, amber) -->
+    <!-- Handle: 3px-wide staircase lower-left → upper-right -->
+    <rect x="18" y="13" width="3" height="1" fill="#ffd60a"/>
+    <rect x="19" y="12" width="3" height="1" fill="#ffd60a"/>
+    <rect x="20" y="11" width="3" height="1" fill="#ffd60a"/>
+    <rect x="21" y="10" width="3" height="1" fill="#ffd60a"/>
+    <rect x="22" y="9"  width="3" height="1" fill="#ffd60a"/>
+    <!-- Jaw opening faces 1:30 (upper-right) -->
+    <!-- Left prong (staircase going NE, upper side of jaw) -->
+    <rect x="22" y="7"  width="2" height="1" fill="#ffd60a"/>
+    <rect x="23" y="6"  width="2" height="1" fill="#ffd60a"/>
+    <rect x="24" y="5"  width="2" height="1" fill="#ffd60a"/>
+    <!-- Jaw cheek (solid body connecting prongs) -->
+    <rect x="22" y="8"  width="2" height="1" fill="#ffd60a"/>
+    <!-- Right prong (staircase going NE, lower side of jaw) -->
+    <rect x="24" y="10" width="2" height="1" fill="#ffd60a"/>
+    <rect x="25" y="9"  width="2" height="1" fill="#ffd60a"/>
+    <rect x="26" y="8"  width="2" height="1" fill="#ffd60a"/>
+    <rect x="27" y="7"  width="1" height="1" fill="#ffd60a"/>
+
+    <!-- ── Atmospheric scanlines ─────────────────────────────────────── -->
+    <rect x="2" y="25" width="24" height="1" fill="#ffd60a" opacity="0.15"/>
+    <rect x="2" y="27" width="24" height="1" fill="#ffd60a" opacity="0.10"/>
+    <rect x="2" y="29" width="24" height="1" fill="#30d158" opacity="0.06"/>
+
+  </g>
+</svg>

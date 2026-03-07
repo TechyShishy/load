@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background -->
+  <rect width="160" height="100" fill="#001505"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Left lane — downward arrow ────────────────── -->
+    <!-- Shaft -->
+    <rect x="7" y="1" width="2" height="5" fill="#30d158"/>
+    <!-- Arrowhead (wide at top, narrows to tip at bottom) -->
+    <rect x="4" y="6" width="8" height="1" fill="#30d158"/>
+    <rect x="5" y="7" width="6" height="1" fill="#30d158"/>
+    <rect x="6" y="8" width="4" height="1" fill="#30d158"/>
+    <rect x="7" y="9" width="2" height="1" fill="#30d158"/>
+
+    <!-- ── Right lane — downward arrow ───────────────── -->
+    <!-- Shaft -->
+    <rect x="21" y="1" width="2" height="5" fill="#30d158"/>
+    <!-- Arrowhead -->
+    <rect x="18" y="6" width="8" height="1" fill="#30d158"/>
+    <rect x="19" y="7" width="6" height="1" fill="#30d158"/>
+    <rect x="20" y="8" width="4" height="1" fill="#30d158"/>
+    <rect x="21" y="9" width="2" height="1" fill="#30d158"/>
+
+    <!-- ── Server Rack ──────────────────────────────── -->
+    <!-- Isometric top face -->
+    <polygon points="2,12 26,12 28,10 4,10" fill="#1a6b30"/>
+    <!-- Right side face -->
+    <polygon points="26,12 28,10 28,24 26,24" fill="#0c4a1f"/>
+    <!-- Front face -->
+    <rect x="2" y="12" width="24" height="12" fill="#145520"/>
+    <!-- Mounting ears -->
+    <rect x="2"  y="12" width="2" height="12" fill="#0c4a1f"/>
+    <rect x="24" y="12" width="2" height="12" fill="#0c4a1f"/>
+    <!-- Top-edge highlight -->
+    <rect x="2"  y="12" width="24" height="1" fill="#30d158" opacity="0.35"/>
+
+    <!-- Status LEDs -->
+    <rect x="5"  y="15" width="2" height="2" fill="#30d158"/>
+    <rect x="8"  y="15" width="2" height="2" fill="#30d158"/>
+    <rect x="11" y="15" width="2" height="2" fill="#30d158"/>
+    <rect x="14" y="15" width="2" height="2" fill="#30d158"/>
+    <rect x="17" y="15" width="2" height="2" fill="#30d158" opacity="0.50"/>
+    <rect x="20" y="15" width="2" height="2" fill="#30d158" opacity="0.30"/>
+
+    <!-- Port slots -->
+    <rect x="5"  y="19" width="3" height="3" fill="#0a3810"/>
+    <rect x="9"  y="19" width="3" height="3" fill="#0a3810"/>
+    <rect x="13" y="19" width="3" height="3" fill="#0a3810"/>
+    <rect x="17" y="19" width="3" height="3" fill="#0a3810"/>
+    <rect x="21" y="19" width="3" height="3" fill="#0a3810"/>
+
+    <!-- ── Atmospheric scanlines ──────────────────────── -->
+    <rect x="2" y="26" width="24" height="1" fill="#30d158" opacity="0.15"/>
+    <rect x="2" y="28" width="24" height="1" fill="#30d158" opacity="0.10"/>
+    <rect x="2" y="30" width="24" height="1" fill="#30d158" opacity="0.06"/>
+
+  </g>
+</svg>

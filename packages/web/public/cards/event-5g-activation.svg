@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background: very dark forest-black -->
+  <rect width="160" height="100" fill="#001a0a"/>
+
+  <!-- Drawing area: 32×32 inner grid, centered (30px margin each side) -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Broadcast arcs: three concentric staircase-rect bracket pairs ── -->
+
+    <!-- Arc 3 — outer (opacity 0.30) -->
+    <!-- Left bracket -->
+    <rect x="12" y="0"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="10" y="1"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="8"  y="2"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="6"  y="3"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="5"  y="4"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="4"  y="5"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="4"  y="6"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="4"  y="7"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="5"  y="8"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="6"  y="9"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="8"  y="10" width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="10" y="11" width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="12" y="12" width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <!-- Right bracket -->
+    <rect x="18" y="0"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="20" y="1"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="22" y="2"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="24" y="3"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="26" y="4"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="27" y="5"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="27" y="6"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="27" y="7"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="26" y="8"  width="1" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="24" y="9"  width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="22" y="10" width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="20" y="11" width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+    <rect x="18" y="12" width="2" height="1" fill="#00ffcc" opacity="0.30"/>
+
+    <!-- Arc 2 — middle (opacity 0.60) -->
+    <!-- Left bracket -->
+    <rect x="12" y="2"  width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="10" y="3"  width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="8"  y="4"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="8"  y="5"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="8"  y="6"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="8"  y="7"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="8"  y="8"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="10" y="9"  width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="12" y="10" width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <!-- Right bracket -->
+    <rect x="18" y="2"  width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="20" y="3"  width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="23" y="4"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="23" y="5"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="23" y="6"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="23" y="7"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="23" y="8"  width="1" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="20" y="9"  width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+    <rect x="18" y="10" width="2" height="1" fill="#00ffcc" opacity="0.60"/>
+
+    <!-- Arc 1 — inner (opacity 0.90) -->
+    <!-- Left bracket -->
+    <rect x="13" y="4"  width="2" height="1" fill="#00ffcc" opacity="0.90"/>
+    <rect x="12" y="5"  width="1" height="1" fill="#00ffcc" opacity="0.90"/>
+    <rect x="11" y="6"  width="1" height="2" fill="#00ffcc" opacity="0.90"/>
+    <rect x="12" y="8"  width="1" height="1" fill="#00ffcc" opacity="0.90"/>
+    <rect x="13" y="9"  width="2" height="1" fill="#00ffcc" opacity="0.90"/>
+    <!-- Right bracket -->
+    <rect x="17" y="4"  width="2" height="1" fill="#00ffcc" opacity="0.90"/>
+    <rect x="19" y="5"  width="1" height="1" fill="#00ffcc" opacity="0.90"/>
+    <rect x="20" y="6"  width="1" height="2" fill="#00ffcc" opacity="0.90"/>
+    <rect x="19" y="8"  width="1" height="1" fill="#00ffcc" opacity="0.90"/>
+    <rect x="17" y="9"  width="2" height="1" fill="#00ffcc" opacity="0.90"/>
+
+    <!-- ── LED beacon glow at antenna tip (y=1) ───────────────────────── -->
+    <!-- Halo ring -->
+    <rect x="14" y="1"  width="4" height="1" fill="#00ffcc" opacity="0.40"/>
+    <!-- Bright core -->
+    <rect x="15" y="1"  width="2" height="1" fill="#00ffcc"/>
+
+    <!-- ── Antenna spike (y=2–6) ─────────────────────────────────────── -->
+    <rect x="15" y="2"  width="2" height="5" fill="#00aa55"/>
+
+    <!-- ── Tower mast (y=7–21) ────────────────────────────────────────── -->
+    <!-- Main mast (2px wide) -->
+    <rect x="15" y="7"  width="2" height="14" fill="#00aa55"/>
+    <!-- Shadow strip right side -->
+    <rect x="17" y="7"  width="1" height="14" fill="#004422"/>
+
+    <!-- Crossbar 1 (y=10) -->
+    <rect x="10" y="10" width="12" height="1" fill="#00aa55"/>
+    <!-- Crossbar 1 shadow -->
+    <rect x="10" y="11" width="12" height="1" fill="#004422"/>
+
+    <!-- Crossbar 2 (y=15) -->
+    <rect x="12" y="15" width="8"  height="1" fill="#00aa55"/>
+    <!-- Crossbar 2 shadow -->
+    <rect x="12" y="16" width="8"  height="1" fill="#004422"/>
+
+    <!-- ── Isometric base platform (y=20–27) ─────────────────────────── -->
+    <!-- Top face -->
+    <polygon points="8,22 24,22 26,20 10,20" fill="#004422"/>
+    <!-- Right side face -->
+    <polygon points="24,22 26,20 26,27 24,27" fill="#002211"/>
+    <!-- Front face -->
+    <rect x="8"  y="22" width="16" height="5" fill="#003319"/>
+    <!-- Mounting ears -->
+    <rect x="8"  y="22" width="2"  height="5" fill="#002211"/>
+    <rect x="22" y="22" width="2"  height="5" fill="#002211"/>
+    <!-- Top-edge highlight -->
+    <rect x="8"  y="22" width="16" height="1" fill="#00ffcc" opacity="0.35"/>
+    <!-- Status LEDs (healthy/active) -->
+    <rect x="10" y="24" width="2"  height="2" fill="#00ffcc"/>
+    <rect x="13" y="24" width="2"  height="2" fill="#00ffcc" opacity="0.60"/>
+    <rect x="16" y="24" width="2"  height="2" fill="#00ffcc"/>
+    <rect x="19" y="24" width="2"  height="2" fill="#00ffcc" opacity="0.40"/>
+
+    <!-- ── Atmospheric scan lines ─────────────────────────────────────── -->
+    <rect x="3"  y="29" width="26" height="1" fill="#00ffcc" opacity="0.12"/>
+    <rect x="3"  y="31" width="26" height="1" fill="#00ffcc" opacity="0.07"/>
+  </g>
+</svg>
