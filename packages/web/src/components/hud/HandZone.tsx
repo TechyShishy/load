@@ -1,6 +1,33 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { ActionCard } from '@load/game-core';
+
+/**
+ * Single-line text that auto-shrinks its font size to fit the container width.
+ * Maximum is 10pt (≈ 13.33px); minimum is 6px.
+ */
+function FitText({ children, className }: { children: string; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Reset to max before measuring
+    el.style.fontSize = '13.33px';
+    // Step down by 0.5px until it fits or we hit the floor
+    while (el.scrollWidth > el.offsetWidth && parseFloat(el.style.fontSize) > 6) {
+      el.style.fontSize = `${(parseFloat(el.style.fontSize) - 0.5).toFixed(2)}px`;
+    }
+  }, [children]);
+  return (
+    <span
+      ref={ref}
+      className={className}
+      style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden' }}
+    >
+      {children}
+    </span>
+  );
+}
 
 interface HandZoneProps {
   hand: ActionCard[];
@@ -50,17 +77,17 @@ export function ActionCardPreview({ card, dragging = false }: { card: ActionCard
         }
       `}
     >
+      <FitText className="font-bold text-purple-300 px-1 pt-0.5 border-b border-purple-700/30">{card.name}</FitText>
       <img
         src={`/cards/${card.templateId}.svg`}
         alt=""
         aria-hidden="true"
-        className="w-full h-[56px] object-cover bg-purple-900/40 border-b border-purple-700/30"
+        className="w-full h-[56px] object-cover bg-purple-900/40"
         style={{ imageRendering: 'pixelated' }}
       />
-      <div className="flex flex-col items-start gap-1 p-1">
-        <span className="text-xs font-bold text-purple-300 leading-tight">{card.name}</span>
-        <span className="text-xs text-yellow-400 font-mono">${card.cost.toLocaleString()}</span>
-        <span className="text-xs text-gray-400 leading-tight line-clamp-1">{card.description}</span>
+      <div className="flex flex-col flex-1 items-start p-1 min-h-0">
+        <span className="text-gray-400 leading-tight line-clamp-3" style={{ fontSize: '5px' }}>{card.description}</span>
+        <span className="text-yellow-400 font-mono mt-auto" style={{ fontSize: '5px' }}>${card.cost.toLocaleString()}</span>
       </div>
     </div>
   );
@@ -103,17 +130,17 @@ function ActionCardView({ card, dragId, disabled }: ActionCardViewProps) {
         }
       `}
     >
+      <FitText className="font-bold text-purple-300 px-1 pt-0.5 border-b border-purple-700/30">{card.name}</FitText>
       <img
         src={`/cards/${card.templateId}.svg`}
         alt=""
         aria-hidden="true"
-        className="w-full h-[56px] object-cover bg-purple-900/40 border-b border-purple-700/30"
+        className="w-full h-[56px] object-cover bg-purple-900/40"
         style={{ imageRendering: 'pixelated' }}
       />
-      <div className="flex flex-col items-start gap-1 p-1">
-        <span className="text-xs font-bold text-purple-300 leading-tight">{card.name}</span>
-        <span className="text-xs text-yellow-400 font-mono">${card.cost.toLocaleString()}</span>
-        <span className="text-xs text-gray-400 leading-tight line-clamp-1">{card.description}</span>
+      <div className="flex flex-col flex-1 items-start p-1 min-h-0">
+        <span className="text-gray-400 leading-tight line-clamp-3" style={{ fontSize: '5px' }}>{card.description}</span>
+        <span className="text-yellow-400 font-mono mt-auto" style={{ fontSize: '5px' }}>${card.cost.toLocaleString()}</span>
       </div>
     </div>
   );
