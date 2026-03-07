@@ -27,9 +27,9 @@ describe('shuffle', () => {
 });
 
 describe('buildTrafficDeck', () => {
-  it('contains 16 Traffic cards', () => {
+  it('contains 21 Traffic cards', () => {
     const deck = buildTrafficDeck();
-    expect(deck).toHaveLength(16);
+    expect(deck).toHaveLength(21);
     expect(deck.every((c) => c.type === CardType.Traffic)).toBe(true);
   });
 

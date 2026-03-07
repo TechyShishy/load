@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background -->
+  <rect width="160" height="100" fill="#001828"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Broadcast arcs (viral spread, top) ── -->
+    <!-- Outer arc - low opacity -->
+    <rect x="13" y="2"  width="6" height="1" fill="#00f5ff" opacity="0.25"/>
+    <rect x="12" y="3"  width="1" height="3" fill="#00f5ff" opacity="0.25"/>
+    <rect x="19" y="3"  width="1" height="3" fill="#00f5ff" opacity="0.25"/>
+    <!-- Mid arc -->
+    <rect x="13" y="4"  width="6" height="1" fill="#00f5ff" opacity="0.50"/>
+    <rect x="12" y="5"  width="1" height="2" fill="#00f5ff" opacity="0.50"/>
+    <rect x="19" y="5"  width="1" height="2" fill="#00f5ff" opacity="0.50"/>
+    <!-- Inner arc - high opacity -->
+    <rect x="14" y="6"  width="4" height="1" fill="#00f5ff" opacity="0.85"/>
+    <rect x="13" y="7"  width="1" height="1" fill="#00f5ff" opacity="0.85"/>
+    <rect x="18" y="7"  width="1" height="1" fill="#00f5ff" opacity="0.85"/>
+
+    <!-- ── Replication arrows (two copies diverging outward) ── -->
+    <!-- Left copy arrow -->
+    <rect x="8"  y="7"  width="2" height="4" fill="#00f5ff" opacity="0.70"/>
+    <rect x="5"  y="11" width="8" height="1" fill="#00f5ff" opacity="0.70"/>
+    <rect x="6"  y="12" width="6" height="1" fill="#00f5ff" opacity="0.70"/>
+    <rect x="7"  y="13" width="4" height="1" fill="#00f5ff" opacity="0.70"/>
+    <!-- Right copy arrow -->
+    <rect x="22" y="7"  width="2" height="4" fill="#00f5ff" opacity="0.70"/>
+    <rect x="19" y="11" width="8" height="1" fill="#00f5ff" opacity="0.70"/>
+    <rect x="20" y="12" width="6" height="1" fill="#00f5ff" opacity="0.70"/>
+    <rect x="21" y="13" width="4" height="1" fill="#00f5ff" opacity="0.70"/>
+
+    <!-- ── Server rack (main subject) ── -->
+    <!-- Isometric top face -->
+    <polygon points="6,13 26,13 28,11 8,11" fill="#005577"/>
+    <!-- Right side face -->
+    <polygon points="26,13 28,11 28,23 26,23" fill="#003044"/>
+    <!-- Front face -->
+    <rect x="6" y="13" width="20" height="10" fill="#003355"/>
+    <!-- Mounting ears -->
+    <rect x="6"  y="13" width="2" height="10" fill="#003044"/>
+    <rect x="24" y="13" width="2" height="10" fill="#003044"/>
+    <!-- Panel highlight -->
+    <rect x="6"  y="13" width="20" height="1" fill="#00f5ff" opacity="0.25"/>
+    <!-- Drive bay slots -->
+    <rect x="9"  y="15" width="5" height="2" fill="#001828"/>
+    <rect x="15" y="15" width="5" height="2" fill="#001828"/>
+    <rect x="9"  y="18" width="5" height="2" fill="#001828"/>
+    <rect x="15" y="18" width="5" height="2" fill="#001828"/>
+    <!-- Status LEDs (hot-green = replicating, not warning red) -->
+    <rect x="21" y="15" width="2" height="2" fill="#00ff88"/>
+    <rect x="21" y="18" width="2" height="2" fill="#00f5ff"/>
+    <!-- Replicate indicator — amber "!" -->
+    <rect x="11" y="14" width="1" height="1" fill="#ffd60a" opacity="0.80"/>
+
+    <!-- ── Down-arrows: traffic flowing into the rack ── -->
+    <!-- Left -->
+    <rect x="9"  y="24" width="2" height="3" fill="#00b8d4" opacity="0.75"/>
+    <rect x="6"  y="27" width="8" height="1" fill="#00b8d4" opacity="0.75"/>
+    <rect x="7"  y="28" width="6" height="1" fill="#00b8d4" opacity="0.75"/>
+    <rect x="8"  y="29" width="4" height="1" fill="#00b8d4" opacity="0.75"/>
+    <!-- Right -->
+    <rect x="21" y="24" width="2" height="3" fill="#00b8d4" opacity="0.75"/>
+    <rect x="18" y="27" width="8" height="1" fill="#00b8d4" opacity="0.75"/>
+    <rect x="19" y="28" width="6" height="1" fill="#00b8d4" opacity="0.75"/>
+    <rect x="20" y="29" width="4" height="1" fill="#00b8d4" opacity="0.75"/>
+
+    <!-- ── Scanlines ── -->
+    <rect x="4" y="30" width="24" height="1" fill="#00f5ff" opacity="0.10"/>
+    <rect x="4" y="32" width="24" height="1" fill="#00f5ff" opacity="0.06"/>
+
+  </g>
+</svg>

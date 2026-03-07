@@ -25,7 +25,7 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
 
 /**
  * Canonical traffic-deck composition.
- * Total: 16 cards (FourKStream×6, IoTBurst×5, CloudBackup×5).
+ * Total: 21 cards (FourKStream×6, IoTBurst×5, CloudBackup×5, AiInference×3, ViralTrafficSpike×2).
  */
 export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<{
   readonly templateId: string;
@@ -34,6 +34,8 @@ export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<{
   { templateId: 'traffic-4k-stream',    count: 6 },
   { templateId: 'traffic-iot-burst',    count: 5 },
   { templateId: 'traffic-cloud-backup', count: 5 },
+  { templateId: 'traffic-ai-inference', count: 3 },
+  { templateId: 'traffic-viral-spike',  count: 2 },
 ];
 
 /**

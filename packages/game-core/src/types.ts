@@ -59,7 +59,9 @@ export abstract class EventCard {
 /**
  * Base class for all traffic cards.
  * Serialized form: { templateId, instanceId }.
- * Concrete subclasses may implement onPlace() for placement effects.
+ * Concrete subclasses may implement onPlace() for placement effects,
+ * or onPickUp() for effects that fire when the card is removed from the board
+ * by an action card (e.g. Traffic Prioritization, Stream Compression).
  */
 export abstract class TrafficCard {
   abstract readonly templateId: string;
@@ -71,6 +73,9 @@ export abstract class TrafficCard {
 
   /** Optional hook called when the card is placed into a slot. */
   onPlace?(ctx: GameContext, slotIndex: number): GameContext;
+
+  /** Optional hook called when the card is picked up off the board by an action card. */
+  onPickUp?(ctx: GameContext, sourcePeriod: Period): GameContext;
 }
 
 /**
