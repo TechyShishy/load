@@ -1,4 +1,4 @@
-package com.load.game;
+package com.techyshishy.load;
 
 import com.getcapacitor.BridgeActivity;
 
