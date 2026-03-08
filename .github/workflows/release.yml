@@ -134,15 +134,34 @@ jobs:
           path: packages/mobile/android/app/build/outputs/bundle/release/*.aab
 
   create-release:
-    needs: [build-web, build-electron, build-android]
+    needs: [build-web, build-electron]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download all artifacts
+      - name: Download web artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: web-zip
+          path: artifacts/web-zip
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-linux
+          path: artifacts/electron-linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-windows
+          path: artifacts/electron-windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-macos
+          path: artifacts/electron-macos
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
