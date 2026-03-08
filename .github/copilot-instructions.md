@@ -11,6 +11,8 @@ Yarn 4 workspaces monorepo. Four packages:
 | `@load/electron`  | Thin Electron v30 shell loading `../web/dist`.                                                  |
 | `@load/mobile`    | Thin Capacitor v6 shell pointing `webDir` at `../web/dist`.                                     |
 
+All packages share the same version string. When bumping the version, update `package.json` in every workspace **and** `versionName` in `packages/mobile/android/app/build.gradle`.
+
 State machine: XState v5 `setup()` API in `packages/game-core/src/machine.ts`. Phases (XState states): `draw` → `scheduling` → `execution` → `crisis` → `resolution` → `end` → (repeat). Terminal states: `gameWon`, `gameLost`. The UI only ever sees `scheduling`, `crisis`, `gameWon`, `gameLost` — the others are transient entry-action states that transition immediately.
 
 ## Build and Test
