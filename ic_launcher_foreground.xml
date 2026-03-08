@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Foreground layer for Android adaptive icon.
+    64x64 artwork scaled to 72x72 (Android safe zone) and
+    centred in the 108x108 adaptive icon canvas.
+    Scale: 72/64 = 1.125   Offset: (108-72)/2 = 18
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.125"
+        android:scaleY="1.125"
+        android:translateX="18"
+        android:translateY="18">
+
+        <!-- Corner bracket frame: #00b8d4, 50% -->
+        <path
+            android:fillColor="#00b8d4"
+            android:fillAlpha="0.50"
+            android:pathData="M2,2 h8 v1 h-8 Z M2,2 h1 v8 h-1 Z
+                M54,2 h8 v1 h-8 Z M61,2 h1 v8 h-1 Z
+                M2,61 h8 v1 h-8 Z M2,54 h1 v8 h-1 Z
+                M54,61 h8 v1 h-8 Z M61,54 h1 v8 h-1 Z"/>
+
+        <!-- Down arrow shafts: #00f5ff, 70% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.70"
+            android:pathData="M13,6 h2 v14 h-2 Z
+                M31,6 h2 v14 h-2 Z
+                M49,6 h2 v14 h-2 Z"/>
+
+        <!-- Arrow heads + LOAD pixel text + full-brightness rack LEDs: #00f5ff, 100% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:pathData="M11,20 h6 v2 h-6 Z M12,22 h4 v2 h-4 Z M13,24 h2 v2 h-2 Z
+                M29,20 h6 v2 h-6 Z M30,22 h4 v2 h-4 Z M31,24 h2 v2 h-2 Z
+                M47,20 h6 v2 h-6 Z M48,22 h4 v2 h-4 Z M49,24 h2 v2 h-2 Z
+                M9,26 h2 v12 h-2 Z M9,36 h10 v2 h-10 Z
+                M21,26 h10 v2 h-10 Z M21,36 h10 v2 h-10 Z M21,26 h2 v12 h-2 Z M29,26 h2 v12 h-2 Z
+                M35,26 h6 v2 h-6 Z M33,28 h2 v10 h-2 Z M41,28 h2 v10 h-2 Z M33,32 h10 v2 h-10 Z
+                M45,26 h2 v12 h-2 Z M45,26 h8 v2 h-8 Z M45,36 h8 v2 h-8 Z M53,28 h2 v8 h-2 Z
+                M12,49 h2 v2 h-2 Z M16,49 h2 v2 h-2 Z M24,49 h2 v2 h-2 Z M28,49 h2 v2 h-2 Z M36,49 h2 v2 h-2 Z M44,49 h2 v2 h-2 Z
+                M12,53 h2 v2 h-2 Z M30,53 h2 v2 h-2 Z M36,53 h2 v2 h-2 Z M46,53 h2 v2 h-2 Z"/>
+
+        <!-- Rack: isometric top face -->
+        <path
+            android:fillColor="#005577"
+            android:pathData="M8,48 L52,48 L58,42 L14,42 Z"/>
+
+        <!-- Rack: front face -->
+        <path
+            android:fillColor="#003355"
+            android:pathData="M8,48 h44 v12 h-44 Z"/>
+
+        <!-- Rack: right side face + mounting ears (after front face so ears render on top) -->
+        <path
+            android:fillColor="#002244"
+            android:pathData="M52,48 L58,42 L58,60 L52,60 Z
+                M8,48 h2 v12 h-2 Z
+                M50,48 h2 v12 h-2 Z"/>
+
+        <!-- Rack: top-edge highlight: #00f5ff, 35% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.35"
+            android:pathData="M8,48 h44 v1 h-44 Z"/>
+
+        <!-- Rack: unit-row dividers + port slots -->
+        <path
+            android:fillColor="#001828"
+            android:pathData="M10,52 h40 v1 h-40 Z M10,56 h40 v1 h-40 Z
+                M12,57 h4 v2 h-4 Z M18,57 h4 v2 h-4 Z M24,57 h4 v2 h-4 Z M30,57 h4 v2 h-4 Z"/>
+
+        <!-- Rack LED: dim cyan 40% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.40"
+            android:pathData="M20,49 h2 v2 h-2 Z"/>
+
+        <!-- Rack LED: medium cyan 60% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.60"
+            android:pathData="M40,49 h2 v2 h-2 Z M38,57 h2 v2 h-2 Z M42,57 h2 v2 h-2 Z"/>
+
+        <!-- Rack LED: amber high-load indicator -->
+        <path
+            android:fillColor="#ffd60a"
+            android:pathData="M32,49 h2 v2 h-2 Z"/>
+
+        <!-- Rack LED: amber 80% -->
+        <path
+            android:fillColor="#ffd60a"
+            android:fillAlpha="0.80"
+            android:pathData="M18,53 h2 v2 h-2 Z"/>
+
+        <!-- Rack LED: dim cyan 50% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.50"
+            android:pathData="M24,53 h2 v2 h-2 Z"/>
+
+        <!-- Rack LED: very dim cyan 30% -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.30"
+            android:pathData="M42,53 h2 v2 h-2 Z"/>
+
+        <!-- Atmospheric scanline -->
+        <path
+            android:fillColor="#00f5ff"
+            android:fillAlpha="0.10"
+            android:pathData="M0,62 h64 v1 h-64 Z"/>
+
+    </group>
+</vector>

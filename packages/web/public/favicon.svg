@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <!-- Background: deep navy (traffic-card palette) -->
+  <rect width="64" height="64" fill="#001828"/>
+
+  <!-- Corner bracket frame (targeting-crosshair aesthetic) -->
+  <!-- Top-left -->
+  <rect x="2"  y="2"  width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+  <rect x="2"  y="2"  width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+  <!-- Top-right -->
+  <rect x="54" y="2"  width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+  <rect x="61" y="2"  width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+  <!-- Bottom-left -->
+  <rect x="2"  y="61" width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+  <rect x="2"  y="54" width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+  <!-- Bottom-right -->
+  <rect x="54" y="61" width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+  <rect x="61" y="54" width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+
+  <!-- Down arrows: traffic flowing into LOAD -->
+  <!-- Arrow 1 — cx=14, centred over L -->
+  <rect x="13" y="6"  width="2" height="14" fill="#00f5ff" opacity="0.70"/>
+  <rect x="11" y="20" width="6" height="2"  fill="#00f5ff"/>
+  <rect x="12" y="22" width="4" height="2"  fill="#00f5ff"/>
+  <rect x="13" y="24" width="2" height="2"  fill="#00f5ff"/>
+  <!-- Arrow 2 — cx=32, canvas centre (O/A gap) -->
+  <rect x="31" y="6"  width="2" height="14" fill="#00f5ff" opacity="0.70"/>
+  <rect x="29" y="20" width="6" height="2"  fill="#00f5ff"/>
+  <rect x="30" y="22" width="4" height="2"  fill="#00f5ff"/>
+  <rect x="31" y="24" width="2" height="2"  fill="#00f5ff"/>
+  <!-- Arrow 3 — cx=50, centred over D -->
+  <rect x="49" y="6"  width="2" height="14" fill="#00f5ff" opacity="0.70"/>
+  <rect x="47" y="20" width="6" height="2"  fill="#00f5ff"/>
+  <rect x="48" y="22" width="4" height="2"  fill="#00f5ff"/>
+  <rect x="49" y="24" width="2" height="2"  fill="#00f5ff"/>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- "LOAD" pixel-art text                                  -->
+  <!-- Each virtual pixel = 2×2 px → letters are 10×12 px    -->
+  <!-- Positions: L(x=9) O(x=21) A(x=33) D(x=45), y=26..38  -->
+  <!-- Total text width = 4×10 + 3×2 = 46 px, centred in 64  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+
+  <!-- L — vertical bar + bottom horizontal -->
+  <rect x="9"  y="26" width="2"  height="12" fill="#00f5ff"/>
+  <rect x="9"  y="36" width="10" height="2"  fill="#00f5ff"/>
+
+  <!-- O — open box (top, bottom, left, right walls) -->
+  <rect x="21" y="26" width="10" height="2"  fill="#00f5ff"/>
+  <rect x="21" y="36" width="10" height="2"  fill="#00f5ff"/>
+  <rect x="21" y="26" width="2"  height="12" fill="#00f5ff"/>
+  <rect x="29" y="26" width="2"  height="12" fill="#00f5ff"/>
+
+  <!-- A — peaked cap + two legs + crossbar -->
+  <rect x="35" y="26" width="6"  height="2"  fill="#00f5ff"/><!-- peak cap, cols 1-3 -->
+  <rect x="33" y="28" width="2"  height="10" fill="#00f5ff"/><!-- left leg, rows 1-5 -->
+  <rect x="41" y="28" width="2"  height="10" fill="#00f5ff"/><!-- right leg, rows 1-5 -->
+  <rect x="33" y="32" width="10" height="2"  fill="#00f5ff"/><!-- crossbar, row 3 -->
+
+  <!-- D — left bar + short top/bottom caps + right curve -->
+  <rect x="45" y="26" width="2"  height="12" fill="#00f5ff"/><!-- left bar -->
+  <rect x="45" y="26" width="8"  height="2"  fill="#00f5ff"/><!-- top cap, cols 0-3 -->
+  <rect x="45" y="36" width="8"  height="2"  fill="#00f5ff"/><!-- bottom cap, cols 0-3 -->
+  <rect x="53" y="28" width="2"  height="8"  fill="#00f5ff"/><!-- right curve, rows 1-4 -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Isometric server rack                                  -->
+  <!-- Front face: x=8, y=48, 44×12. Iso offset: 6 right/up  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+
+  <!-- Top face (parallelogram) -->
+  <polygon points="8,48 52,48 58,42 14,42" fill="#005577"/>
+  <!-- Right side face -->
+  <polygon points="52,48 58,42 58,60 52,60" fill="#002244"/>
+  <!-- Front face -->
+  <rect x="8"  y="48" width="44" height="12" fill="#003355"/>
+  <!-- Mounting ears -->
+  <rect x="8"  y="48" width="2"  height="12" fill="#002244"/>
+  <rect x="50" y="48" width="2"  height="12" fill="#002244"/>
+  <!-- Top-edge highlight (full load) -->
+  <rect x="8"  y="48" width="44" height="1"  fill="#00f5ff" opacity="0.35"/>
+
+  <!-- Unit row dividers -->
+  <rect x="10" y="52" width="40" height="1" fill="#001828"/>
+  <rect x="10" y="56" width="40" height="1" fill="#001828"/>
+
+  <!-- Row 1 status LEDs (y=49) — heavy traffic load -->
+  <rect x="12" y="49" width="2" height="2" fill="#00f5ff"/>
+  <rect x="16" y="49" width="2" height="2" fill="#00f5ff"/>
+  <rect x="20" y="49" width="2" height="2" fill="#00f5ff" opacity="0.40"/>
+  <rect x="24" y="49" width="2" height="2" fill="#00f5ff"/>
+  <rect x="28" y="49" width="2" height="2" fill="#00f5ff"/>
+  <rect x="32" y="49" width="2" height="2" fill="#ffd60a"/><!-- amber: high load -->
+  <rect x="36" y="49" width="2" height="2" fill="#00f5ff"/>
+  <rect x="40" y="49" width="2" height="2" fill="#00f5ff" opacity="0.60"/>
+  <rect x="44" y="49" width="2" height="2" fill="#00f5ff"/>
+
+  <!-- Row 2 status LEDs (y=53) -->
+  <rect x="12" y="53" width="2" height="2" fill="#00f5ff"/>
+  <rect x="18" y="53" width="2" height="2" fill="#ffd60a" opacity="0.80"/>
+  <rect x="24" y="53" width="2" height="2" fill="#00f5ff" opacity="0.50"/>
+  <rect x="30" y="53" width="2" height="2" fill="#00f5ff"/>
+  <rect x="36" y="53" width="2" height="2" fill="#00f5ff"/>
+  <rect x="42" y="53" width="2" height="2" fill="#00f5ff" opacity="0.30"/>
+  <rect x="46" y="53" width="2" height="2" fill="#00f5ff"/>
+
+  <!-- Row 3 port slots (y=57) -->
+  <rect x="12" y="57" width="4" height="2" fill="#001828"/>
+  <rect x="18" y="57" width="4" height="2" fill="#001828"/>
+  <rect x="24" y="57" width="4" height="2" fill="#001828"/>
+  <rect x="30" y="57" width="4" height="2" fill="#001828"/>
+  <rect x="38" y="57" width="2" height="2" fill="#00f5ff" opacity="0.60"/>
+  <rect x="42" y="57" width="2" height="2" fill="#00f5ff" opacity="0.60"/>
+
+  <!-- Atmospheric scanline -->
+  <rect x="0" y="62" width="64" height="1" fill="#00f5ff" opacity="0.10"/>
+</svg>
