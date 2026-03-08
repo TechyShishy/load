@@ -28,7 +28,7 @@ jobs:
 
       - name: Type check
         run: |
-          yarn tsc --noEmit -p packages/game-core/tsconfig.json
+          yarn tsc -p packages/game-core/tsconfig.json
           yarn tsc --noEmit -p packages/web/tsconfig.json
 
       - name: Lint
