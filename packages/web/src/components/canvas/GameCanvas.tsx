@@ -540,7 +540,7 @@ interface SceneRefs {
 }
 
 // ── Static scene construction ─────────────────────────────────────────────────
-function buildStaticScene(app: Application, board: Container, ctx: GameContext): SceneRefs {
+function buildStaticScene(app: Application, board: Container, ctx: GameContext, suppressedCardIds?: ReadonlySet<string>): SceneRefs {
   const piles = buildDeckPiles(app, board, ctx);
   const refs: SceneRefs = { slots: new Map(), tracks: new Map(), piles };
 
@@ -629,7 +629,7 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext):
 
         refs.slots.set(slotKey, { bg, cardContainer, slotX, slotY, period });
         // Initial card paint.
-        paintSlotCards(slot, slotX, slotY, cardContainer);
+        paintSlotCards(slot, slotX, slotY, cardContainer, suppressedCardIds);
       }
     } // end interleave block
   }
@@ -1232,7 +1232,7 @@ export function GameCanvas({
         app.stage.addChild(board);
         boardRef.current = board;
 
-        const refs = buildStaticScene(app, board, context);
+        const refs = buildStaticScene(app, board, context, suppressedCardIdsRef.current);
         sceneRefsRef.current = refs;
         prevContextRef.current = context;
 
@@ -1327,7 +1327,7 @@ export function GameCanvas({
       const newBoard = new Container();
       app.stage.addChildAt(newBoard, 0); // keep animLayer on top
       boardRef.current = newBoard;
-      sceneRefsRef.current = buildStaticScene(app, newBoard, context);
+      sceneRefsRef.current = buildStaticScene(app, newBoard, context, suppressedCardIdsRef.current);
     } else {
       const refs = sceneRefsRef.current;
       if (refs) patchBoard(refs, prev, context, suppressedCardIdsRef.current);
