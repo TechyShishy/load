@@ -115,7 +115,7 @@ function BoardCardFlyout({
           {isTraffic ? (
             <div className="flex gap-2 flex-shrink-0" style={{ fontSize: '10px' }}>
               <span className="text-yellow-400 font-mono">
-                ${(card as TrafficCard).revenue.toLocaleString()}
+                ${card.revenue.toLocaleString()}
               </span>
             </div>
           ) : isAction ? (
@@ -123,14 +123,14 @@ function BoardCardFlyout({
               className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
               style={{ fontSize: '9px' }}
             >
-              Cost: ${(card as ActionCard).cost.toLocaleString()}
+              Cost: ${card.cost.toLocaleString()}
             </span>
           ) : (
             <span
               className="text-orange-400 font-mono flex-shrink-0 border border-orange-400/40 rounded px-1 self-start"
               style={{ fontSize: '9px' }}
             >
-              {(card as EventCard).label}
+              {card.label}
             </span>
           )}
         </div>

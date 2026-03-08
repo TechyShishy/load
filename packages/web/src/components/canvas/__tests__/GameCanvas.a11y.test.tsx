@@ -245,7 +245,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     expect(text).not.toContain('1 open tickets');
   });
 
-  it('updates the summary when context changes', async () => {
+  it('updates the summary when context changes', () => {
     const baseSlotsWithCard = makeTimeSlots();
     baseSlotsWithCard[0] = {
       ...baseSlotsWithCard[0]!,
@@ -268,7 +268,7 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     expect(liveRegion.textContent).toContain('Morning slot 1: empty');
     expect(liveRegion.textContent).not.toContain('APIBlast');
 
-    await act(async () => {
+    act(() => {
       rerender(<GameCanvas context={ctx2} phase="scheduling" />);
     });
 

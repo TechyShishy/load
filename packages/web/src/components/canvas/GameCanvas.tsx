@@ -18,7 +18,6 @@ import {
   PERIOD_PADDING,
   CARD_PADDING,
   BOARD_START_Y,
-  PILES_ROW_Y,
   BOARD_COLUMN_COUNT,
   computeDeckPileRect,
   computeSlotRect,
@@ -96,13 +95,6 @@ const HEADER_STYLES: Record<Period, TextStyle> = {
 const GEAR_HEADER_STYLE = new TextStyle({ fill: 0x888888, fontSize: 11, fontFamily: 'Courier New' });
 
 const SLOT_LABEL_STYLE = new TextStyle({ fill: 0x4b5563, fontSize: 9, fontFamily: 'Courier New' });
-const CARD_CHIP_STYLE = new TextStyle({
-  fill: 0x00f5ff,
-  fontSize: 8,
-  fontFamily: 'Courier New',
-  wordWrap: true,
-  wordWrapWidth: SLOT_W - 12,
-});
 const TICKET_STYLE = new TextStyle({ fill: 0xfca5a5, fontSize: 8, fontFamily: 'Courier New' });
 const EMPTY_STYLE = new TextStyle({
   fill: 0x374151,

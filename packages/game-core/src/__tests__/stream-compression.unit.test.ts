@@ -39,15 +39,6 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
   };
 }
 
-/** Build a slots array with the given cards placed sequentially into Morning slots (one card per slot). */
-function slotsWithMorningCards(cards: InstanceType<typeof FourKStreamCard | typeof IoTBurstCard | typeof CloudBackupCard>[]): ReturnType<typeof createInitialTimeSlots> {
-  return createInitialTimeSlots().map((slot) => {
-    if (slot.period !== Period.Morning) return slot;
-    const card = cards[slot.index] ?? null;
-    return { ...slot, card };
-  });
-}
-
 describe('StreamCompressionCard', () => {
   it('is registered and findable in ACTION_CARDS', () => {
     expect(streamComp).toBeDefined();

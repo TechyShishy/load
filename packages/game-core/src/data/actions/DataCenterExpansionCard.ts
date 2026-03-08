@@ -21,7 +21,7 @@ export class DataCenterExpansionCard extends ActionCard {
     _targetTrafficCardId?: string,
     targetPeriod?: Period,
   ): GameContext {
-    let context = commit();
+    const context = commit();
     const resolvedPeriod = targetPeriod ?? Period.Overnight;
 
     // Convert overload slots in the target period first (up to 2),

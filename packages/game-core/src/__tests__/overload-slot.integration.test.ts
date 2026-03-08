@@ -3,7 +3,7 @@ import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { Period, type ActionCard, type TrafficCard } from '../types.js';
+import { Period, type TrafficCard } from '../types.js';
 import { autoFillTrafficSlots } from '../autoFillTrafficSlots.js';
 import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
 import { PhaseId } from '../types.js';
@@ -26,13 +26,6 @@ function safeContext() {
 
 function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
   actor.send({ type: 'DRAW_COMPLETE' });
-}
-
-function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
-  actor.send({ type: 'ADVANCE' }); // scheduling → crisis
-  actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable)
-  actor.send({ type: 'ADVANCE' }); // resolution → end → draw
-  drawComplete(actor);             // draw → scheduling
 }
 
 const iotCard = TRAFFIC_CARDS.find((c) => c.id === 'traffic-iot-burst')!;

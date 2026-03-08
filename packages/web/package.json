@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "yarn workspace @load/game-core run build && tsc --noEmit && vite build",
+    "build": "yarn workspace @load/game-core run build && tsc --noEmit && yarn exec vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -38,7 +38,7 @@
     "jsdom": "^24.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.9.3",
-    "vite": "^5.2.0",
+    "vite": "^7.3.1",
     "vitest": "^1.4.0"
   }
 }

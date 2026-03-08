@@ -63,7 +63,7 @@ describe('useDrawAnimationState', () => {
     // Before the fix, arrivedCardIds.size (5) >= allTrafficIds.length (1) would
     // cause an immediate spurious DRAW_COMPLETE, skipping all weekend animations.
     const onComplete = vi.fn();
-    let drawLog = makeDrawLog(['a1', 'a2', 'a3', 'a4', 'a5']);
+    const drawLog = makeDrawLog(['a1', 'a2', 'a3', 'a4', 'a5']);
 
     const { result, rerender } = renderHook(
       ({ dl }: { dl: DrawLog }) =>

@@ -21,7 +21,7 @@ export class BandwidthUpgradeCard extends ActionCard {
     _targetTrafficCardId?: string,
     targetPeriod?: Period,
   ): GameContext {
-    let context = commit();
+    const context = commit();
     const resolvedPeriod = targetPeriod ?? Period.Afternoon;
 
     // Convert overload slots in the target period first (up to 1),

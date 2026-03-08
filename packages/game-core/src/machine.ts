@@ -93,7 +93,7 @@ export const gameMachine = setup({
       if (!targetId) return false;
       const targetEvent = context.pendingEvents.find((e) => e.id === targetId);
       if (!targetEvent) return false;
-      return (validForEventTemplateIds as readonly string[]).includes(targetEvent.templateId);
+      return validForEventTemplateIds.includes(targetEvent.templateId);
     },
   },
   actions: {
