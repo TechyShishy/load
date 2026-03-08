@@ -1215,7 +1215,7 @@ export function GameCanvas({
         await Promise.allSettled(
           Object.values(CARD_ART)
             .filter((u): u is string => !!u)
-            .map((u) => Assets.load(u) as Promise<unknown>)
+            .map((u) => Assets.load(u))
         );
         if (cancelled) {
           app.destroy(true, { children: true });
