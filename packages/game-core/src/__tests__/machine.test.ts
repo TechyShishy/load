@@ -4,7 +4,7 @@ import { createInitialContext, gameMachine } from '../machine.js';
 import { createInitialTimeSlots } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
-import { MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW, MAX_SLA_FAILURES, HAND_SIZE, Track, type TrafficCard, type ActionCard } from '../types.js';
+import { MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW, MAX_SLA_FAILURES, HAND_SIZE, Track, PhaseId, type TrafficCard, type ActionCard } from '../types.js';
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
 import { EmergencyMaintenanceCard } from '../data/actions/index.js';
 import { AWSOutageCard, DDoSAttackCard, FiveGActivationCard } from '../data/events/index.js';
@@ -87,6 +87,51 @@ describe('gameMachine phase transitions', () => {
     actor.send({ type: 'ADVANCE' }); // crisis → resolution
     // resolution must pause here, not auto-advance
     expect(actor.getSnapshot().value).toBe('resolution');
+  });
+});
+
+describe('gameMachine save/restore routing', () => {
+  it('routes to scheduling when restored from a scheduling-phase save', () => {
+    const actor = createActor(gameMachine, {
+      input: { ...safeContext(), activePhase: PhaseId.Scheduling },
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+  });
+
+  it('does not re-draw traffic when routing to scheduling from a save', () => {
+    const actor = createActor(gameMachine, {
+      input: { ...safeContext(), activePhase: PhaseId.Scheduling },
+    });
+    actor.start();
+    const filledSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.card !== null);
+    expect(filledSlots).toHaveLength(0);
+  });
+
+  it('routes to crisis when restored from a crisis-phase save', () => {
+    const actor = createActor(gameMachine, {
+      input: {
+        ...safeContext(),
+        activePhase: PhaseId.Crisis,
+        pendingEvents: [new DDoSAttackCard('crisis-restore-id')],
+      },
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('crisis');
+  });
+
+  it('does not re-draw events when routing to crisis from a save', () => {
+    const actor = createActor(gameMachine, {
+      input: {
+        ...safeContext(),
+        activePhase: PhaseId.Crisis,
+        pendingEvents: [new DDoSAttackCard('crisis-restore-id')],
+      },
+    });
+    actor.start();
+    const { pendingEvents } = actor.getSnapshot().context;
+    expect(pendingEvents).toHaveLength(1);
+    expect(pendingEvents[0]!.id).toBe('crisis-restore-id');
   });
 });
 

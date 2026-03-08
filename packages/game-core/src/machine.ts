@@ -81,6 +81,8 @@ export const gameMachine = setup({
       if (event.type !== 'PLAY_ACTION') return true;
       return event.card.crisisOnly !== true;
     },
+    isSavedScheduling: ({ context }) => context.activePhase === PhaseId.Scheduling,
+    isSavedCrisis: ({ context }) => context.activePhase === PhaseId.Crisis,
     isActionValidForCrisisTarget: ({ context, event }) => {
       if (event.type !== 'PLAY_ACTION') return true;
       const { validForEventTemplateIds } = event.card;
@@ -165,6 +167,10 @@ export const gameMachine = setup({
     })),
 
     performDrawCrisisEvent: assign(({ context }) => {
+      // Resume-from-save: events were already drawn and saved in context.
+      if (context.pendingEvents.length > 0) {
+        return { ...context, activePhase: PhaseId.Crisis };
+      }
       // Draw event card(s) from the event deck (reshuffle if exhausted)
       const eventRng = makeRng(context.seed + '-ev-' + context.round);
       const [eventDeckInit, eventDiscard] = reshuffleDiscard(
@@ -274,10 +280,17 @@ export const gameMachine = setup({
   },
 }).createMachine({
   id: 'load',
-  initial: 'draw',
+  initial: 'init',
   context: ({ input }) =>
     input ? { ...createInitialContext(input.seed), ...input } : createInitialContext(),
   states: {
+    init: {
+      always: [
+        { guard: 'isSavedScheduling', target: 'scheduling' },
+        { guard: 'isSavedCrisis', target: 'crisis' },
+        { target: 'draw' },
+      ],
+    },
     draw: {
       entry: 'performDraw',
       on: {
