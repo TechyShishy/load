@@ -144,7 +144,7 @@ function ExpandedCardFlyout({
           </button>
         </div>
         <img
-          src={`/cards/${card.templateId}.svg`}
+          src={`./cards/${card.templateId}.svg`}
           alt=""
           aria-hidden="true"
           className="w-full object-cover bg-purple-900/40"
@@ -238,7 +238,7 @@ export function ActionCardPreview({ card, dragging = false }: { card: ActionCard
     >
       <FitText className="font-bold text-purple-300 px-1 pt-0.5 border-b border-purple-700/30">{card.name}</FitText>
       <img
-        src={`/cards/${card.templateId}.svg`}
+        src={`./cards/${card.templateId}.svg`}
         alt=""
         aria-hidden="true"
         className="w-full h-[56px] object-cover bg-purple-900/40"
@@ -326,7 +326,7 @@ function ActionCardView({ card, dragId, disabled, isExpanded, onActivate, onDeac
     >
       <FitText className="font-bold text-purple-300 px-1 pt-0.5 border-b border-purple-700/30">{card.name}</FitText>
       <img
-        src={`/cards/${card.templateId}.svg`}
+        src={`./cards/${card.templateId}.svg`}
         alt=""
         aria-hidden="true"
         className="w-full h-[56px] object-cover bg-purple-900/40"

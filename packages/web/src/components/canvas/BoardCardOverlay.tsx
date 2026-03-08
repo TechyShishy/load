@@ -100,7 +100,7 @@ function BoardCardFlyout({
 
         {/* Art */}
         <img
-          src={`/cards/${card.templateId}.svg`}
+          src={`./cards/${card.templateId}.svg`}
           alt=""
           aria-hidden="true"
           className="w-full object-cover bg-purple-900/40"

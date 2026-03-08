@@ -147,21 +147,21 @@ function fitCardTitle(name: string, fill: number): Text {
 // ── Card art ──────────────────────────────────────────────────────────────────
 /** templateId → public URL for cards that have SVG art. Extend when adding new art. */
 const CARD_ART: Partial<Record<string, string>> = {
-  'traffic-4k-stream': '/cards/traffic-4k-stream.svg',
-  'traffic-cloud-backup': '/cards/traffic-cloud-backup.svg',
-  'traffic-ddos': '/cards/traffic-ddos.svg',
-  'traffic-iot-burst': '/cards/traffic-iot-burst.svg',
-  'action-traffic-prioritization': '/cards/action-traffic-prioritization.svg',
-  'action-security-patch': '/cards/action-security-patch.svg',
-  'event-ddos-attack': '/cards/event-ddos-attack.svg',
-  'event-aws-outage': '/cards/event-aws-outage.svg',
-  'event-5g-activation': '/cards/event-5g-activation.svg',
-  'action-stream-compression': '/cards/action-stream-compression.svg',
-  'action-bandwidth-upgrade': '/cards/action-bandwidth-upgrade.svg',
-  'action-datacenter-expansion': '/cards/action-datacenter-expansion.svg',
-  'action-emergency-maintenance': '/cards/action-emergency-maintenance.svg',
-  'traffic-ai-inference': '/cards/traffic-ai-inference.svg',
-  'traffic-viral-spike': '/cards/traffic-viral-spike.svg',
+  'traffic-4k-stream': './cards/traffic-4k-stream.svg',
+  'traffic-cloud-backup': './cards/traffic-cloud-backup.svg',
+  'traffic-ddos': './cards/traffic-ddos.svg',
+  'traffic-iot-burst': './cards/traffic-iot-burst.svg',
+  'action-traffic-prioritization': './cards/action-traffic-prioritization.svg',
+  'action-security-patch': './cards/action-security-patch.svg',
+  'event-ddos-attack': './cards/event-ddos-attack.svg',
+  'event-aws-outage': './cards/event-aws-outage.svg',
+  'event-5g-activation': './cards/event-5g-activation.svg',
+  'action-stream-compression': './cards/action-stream-compression.svg',
+  'action-bandwidth-upgrade': './cards/action-bandwidth-upgrade.svg',
+  'action-datacenter-expansion': './cards/action-datacenter-expansion.svg',
+  'action-emergency-maintenance': './cards/action-emergency-maintenance.svg',
+  'traffic-ai-inference': './cards/traffic-ai-inference.svg',
+  'traffic-viral-spike': './cards/traffic-viral-spike.svg',
 };
 
 /**
@@ -1210,9 +1210,13 @@ export function GameCanvas({
           return;
         }
         // Preload card art assets so texture creation functions can access them
-        // synchronously via Assets.get(). Silently skip on failure (no art = placeholder).
-        await (Assets.load(Object.values(CARD_ART).filter((u): u is string => !!u)) as Promise<unknown>)
-          .catch(() => { /* no card art = graceful placeholder fallback */ });
+        // synchronously via Assets.get(). Each asset is loaded independently so a
+        // single missing file doesn't prevent the others from caching.
+        await Promise.allSettled(
+          Object.values(CARD_ART)
+            .filter((u): u is string => !!u)
+            .map((u) => Assets.load(u) as Promise<unknown>)
+        );
         if (cancelled) {
           app.destroy(true, { children: true });
           return;

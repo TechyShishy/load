@@ -34,23 +34,23 @@ export class AudioManager implements IAudioManager {
   constructor() {
     // Howler will log a warning if the file 404s, but won't throw — safe in dev before assets exist
     this.cardDrop = new Howl({
-      src: ['/audio/card-drop.ogg', '/audio/card-drop.mp3'],
+      src: ['./audio/card-drop.ogg', './audio/card-drop.mp3'],
       volume: 0.6,
     });
     this.slaFail = new Howl({
-      src: ['/audio/sla-fail.ogg', '/audio/sla-fail.mp3'],
+      src: ['./audio/sla-fail.ogg', './audio/sla-fail.mp3'],
       volume: 0.8,
     });
     this.overload = new Howl({
-      src: ['/audio/overload.ogg', '/audio/overload.mp3'],
+      src: ['./audio/overload.ogg', './audio/overload.mp3'],
       volume: 0.8,
     });
     this.win = new Howl({
-      src: ['/audio/win.ogg', '/audio/win.mp3'],
+      src: ['./audio/win.ogg', './audio/win.mp3'],
       volume: 1.0,
     });
     this.lose = new Howl({
-      src: ['/audio/lose.ogg', '/audio/lose.mp3'],
+      src: ['./audio/lose.ogg', './audio/lose.mp3'],
       volume: 1.0,
     });
   }
