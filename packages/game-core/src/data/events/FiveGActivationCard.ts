@@ -4,16 +4,19 @@ import { issueTicket } from './helpers.js';
 export class FiveGActivationCard extends EventCard {
   readonly templateId = 'event-5g-activation';
   readonly name = '5G Tower Activation';
-  readonly label = 'ISSUE TICKET';
+  readonly label = 'CONTRACT FEE';
   readonly description =
-    'New 5G towers come online; integration project ticket must be handled to capture revenue.';
+    'New 5G towers demand an expensive integration contract. Without mitigation, pay $15,000 and receive a project ticket.';
 
   constructor(public readonly id: string = 'event-5g-activation') {
     super();
   }
 
+  // TODO-0011: add a Negotiate Contract action card (MitigateEvent subtype targeting event-5g-activation)
+  // that lets the player waive the $15,000 fee and project ticket by playing it during crisis phase.
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
-    return issueTicket(ctx, Track.Projects, this);
+    const afterBudget = { ...ctx, budget: ctx.budget - 15_000 };
+    return issueTicket(afterBudget, Track.Projects, this);
   }
 }

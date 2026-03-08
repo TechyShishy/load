@@ -223,4 +223,29 @@ describe('processCrisis', () => {
     expect(context.eventDiscard).toContainEqual(existingCard);
     expect(context.eventDiscard).toContainEqual(ddosEvent);
   });
+
+  it('deducts $15,000 from budget when 5G Activation is unmitigated', () => {
+    const ctx = makeCtx({ pendingEvents: [activationEvent] });
+    const { context } = processCrisis(ctx);
+    expect(context.budget).toBe(500_000 - 15_000);
+  });
+
+  it('issues a Projects ticket when 5G Activation is unmitigated', () => {
+    const ctx = makeCtx({ pendingEvents: [activationEvent] });
+    const { context } = processCrisis(ctx);
+    const projectsTrack = context.tracks.find((t) => t.track === Track.Projects)!;
+    expect(projectsTrack.tickets).toHaveLength(1);
+    expect(projectsTrack.tickets[0]!.templateId).toBe('event-5g-activation');
+  });
+
+  it('does nothing when 5G Activation is mitigated', () => {
+    const ctx = makeCtx({
+      pendingEvents: [activationEvent],
+      mitigatedEventIds: [activationEvent.id],
+    });
+    const { context } = processCrisis(ctx);
+    expect(context.budget).toBe(500_000);
+    const projectsTrack = context.tracks.find((t) => t.track === Track.Projects)!;
+    expect(projectsTrack.tickets).toHaveLength(0);
+  });
 });
