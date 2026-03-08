@@ -77,6 +77,7 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
     loseReason: ctx.loseReason,
     pendingRevenue: ctx.pendingRevenue,
     seed: ctx.seed,
+    skipNextTrafficDraw: ctx.skipNextTrafficDraw,
   };
 }
 
@@ -149,6 +150,7 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     loseReason: raw.loseReason,
     pendingRevenue: raw.pendingRevenue,
     seed: raw.seed,
+    skipNextTrafficDraw: raw.skipNextTrafficDraw,
     drawLog: null,
   };
 }

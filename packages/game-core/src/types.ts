@@ -142,6 +142,8 @@ export interface SerializedGameContext {
   loseReason: LoseReason | null;
   pendingRevenue: number;
   seed: string;
+  /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
+  skipNextTrafficDraw: boolean;
 }
 
 // ─── Board State ──────────────────────────────────────────────────────────────
@@ -232,6 +234,8 @@ export interface GameContext {
   pendingRevenue: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
+  /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
+  skipNextTrafficDraw: boolean;
   /** Animation draw log — runtime only, not persisted — describes cards drawn this phase. */
   drawLog: DrawLog | null;
 }

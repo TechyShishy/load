@@ -75,4 +75,5 @@ export const GameContextSchema = z.object({
   loseReason: LoseReasonSchema.nullable(),
   pendingRevenue: z.number(),
   seed: z.string(),
+  skipNextTrafficDraw: z.boolean().default(false),
 });

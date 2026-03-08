@@ -45,6 +45,7 @@ export function createInitialContext(seed?: string): GameContext {
     loseReason: null,
     pendingRevenue: 0,
     seed: resolvedSeed,
+    skipNextTrafficDraw: false,
     drawLog: { traffic: [], action: initialHand, events: [] },
   };
 }
@@ -100,6 +101,21 @@ export const gameMachine = setup({
       const freshSlots = getDayOfWeek(context.round) === 1
         ? stripWeeklyTemporarySlots(afterReset)
         : afterReset;
+
+      // AWS Outage carry-over: skip traffic draw this round
+      if (context.skipNextTrafficDraw) {
+        return {
+          ...context,
+          timeSlots: freshSlots,
+          playedThisRound: [],
+          mitigatedEventIds: [],
+          pendingEvents: [],
+          spawnedTrafficQueue: [],
+          skipNextTrafficDraw: false,
+          activePhase: PhaseId.Scheduling,
+          drawLog: { traffic: [], action: context.drawLog?.action ?? [], events: [] },
+        };
+      }
 
       // Reshuffle if exhausted, then draw traffic cards
       // trafficDrawCount is computed first so it always consumes RNG position 0,
