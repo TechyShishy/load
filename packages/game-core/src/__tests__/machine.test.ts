@@ -69,24 +69,22 @@ describe('gameMachine phase transitions', () => {
     expect(actor.getSnapshot().value).toBe('crisis');
   });
 
-  it('ADVANCE from crisis → resolution (stable) → end → draw (next round scheduling)', () => {
+  it('ADVANCE from crisis → resolution (auto) → end → draw (next round scheduling)', () => {
     const actor = getToScheduling();
     actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable — pauses here)
-    expect(actor.getSnapshot().value).toBe('resolution');
-    actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
     actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling
     const snap = actor.getSnapshot();
     expect(snap.value).toBe('scheduling');
     expect(snap.context.round).toBe(2);
   });
 
-  it('resolution state is stable — waits for ADVANCE before ending round', () => {
+  it('resolution state auto-advances — does not wait for ADVANCE', () => {
     const actor = getToScheduling();
     actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // crisis → resolution
-    // resolution must pause here, not auto-advance
-    expect(actor.getSnapshot().value).toBe('resolution');
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
+    // resolution must NOT pause — machine is now in draw state
+    expect(actor.getSnapshot().value).toBe('draw');
   });
 });
 
@@ -251,8 +249,8 @@ describe('gameMachine Traffic Prioritization revenue', () => {
       .reduce((sum, c) => sum + c.revenue, 0);
 
     actor.send({ type: 'PLAY_ACTION', card: tpCard, targetTrafficCardId: targetCard.id });
-    actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable)
-    expect(actor.getSnapshot().value).toBe('resolution');
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling
 
     const summary = actor.getSnapshot().context.lastRoundSummary!;
     expect(summary.budgetDelta).toBe(expectedDelta);
@@ -307,18 +305,16 @@ describe('calendar helpers', () => {
 // ─── Weekend Mechanics ───────────────────────────────────────────────────────
 
 describe('gameMachine weekend mechanics', () => {
-  /** Advance a workday: scheduling → crisis → resolution → end → draw → next phase */
+  /** Advance a workday: scheduling → crisis → resolution (auto) → end → draw → next phase */
   function advanceWorkday(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
     actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
-    actor.send({ type: 'ADVANCE' }); // crisis → resolution
-    actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
     actor.send({ type: 'DRAW_COMPLETE' }); // draw → next phase (scheduling or crisis)
   }
 
-  /** Advance a weekend day: crisis → resolution → end → draw → next phase */
+  /** Advance a weekend day: crisis → resolution (auto) → end → draw → next phase */
   function advanceWeekendDay(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
-    actor.send({ type: 'ADVANCE' }); // crisis → resolution
-    actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
     actor.send({ type: 'DRAW_COMPLETE' }); // draw → next phase
   }
 
@@ -527,8 +523,7 @@ describe('gameMachine weekend mechanics', () => {
 
     // Advance through Friday
     actor.send({ type: 'ADVANCE' }); // → crisis
-    actor.send({ type: 'ADVANCE' }); // → resolution
-    actor.send({ type: 'ADVANCE' }); // → end → draw (Sat)
+    actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw (Sat)
 
     // Hand should be fully refreshed (HAND_SIZE cards, none of the old IDs)
     const handAfter = actor.getSnapshot().context.hand;

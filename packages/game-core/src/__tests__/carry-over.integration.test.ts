@@ -30,8 +30,7 @@ function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>)
 
 function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
   actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
-  actor.send({ type: 'ADVANCE' }); // crisis → resolution (stable)
-  actor.send({ type: 'ADVANCE' }); // resolution → end → draw
+  actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
   drawComplete(actor);             // draw → scheduling
 }
 

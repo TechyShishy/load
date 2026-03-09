@@ -324,10 +324,8 @@ export const gameMachine = setup({
         { guard: 'isBankrupt', target: 'gameLost', actions: 'markGameLost' },
         { guard: 'isSLAExceeded', target: 'gameLost', actions: 'markGameLost' },
         { guard: 'isGameWon', target: 'gameWon', actions: 'markGameWon' },
+        { target: 'end' },
       ],
-      on: {
-        ADVANCE: { target: 'end' },
-      },
     },
     end: {
       entry: 'performEnd',

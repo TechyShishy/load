@@ -43,7 +43,7 @@ async function clickAdvance(page: Page) {
 }
 
 /**
- * Play one full round: scheduling → ADVANCE → crisis → ADVANCE → resolution → ADVANCE.
+ * Play one full round: scheduling → ADVANCE → crisis → ADVANCE → resolution (auto).
  * Returns true when a win/lose end-screen is detected instead of the next round.
  */
 async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise<boolean> {
@@ -68,14 +68,7 @@ async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise
   if (await isEndScreen(page)) return true;
 
   // ── Crisis phase ──────────────────────────────────────────────────────────
-  await clickAdvance(page); // crisis → resolution (handles EventModal if present)
-
-  // ── Check for end screen after crisis resolution ─────────────────────────
-  if (await isEndScreen(page)) return true;
-
-  // ── Resolution phase ──────────────────────────────────────────────────────
-  await expect(ADVANCE(page)).toBeEnabled({ timeout: 8_000 });
-  await clickAdvance(page); // resolution → end → draw → (DRAW_COMPLETE) → scheduling
+  await clickAdvance(page); // crisis → resolution (auto) → end → draw
 
   // ── Check for end screen after resolution ────────────────────────────────
   if (await isEndScreen(page)) return true;
@@ -155,13 +148,9 @@ test.describe('LOAD – Network Traffic Balancer', () => {
     // Advance → resolution (handles EventModal if present)
     await clickAdvance(page);
 
-    // The game may have ended after crisis resolution (e.g. bankrupt)
+    // The game may have ended after crisis resolution or during resolution (e.g. bankrupt)
     const endedAfterCrisis = await isEndScreen(page);
     if (endedAfterCrisis) return;
-
-    // Resolution phase shows round summary; ADVANCE to proceed
-    await expect(ADVANCE(page)).toBeEnabled({ timeout: 5_000 });
-    await clickAdvance(page); // resolution → end → draw → scheduling
 
     // The game may have ended in round 1
     const ended = await isEndScreen(page);
