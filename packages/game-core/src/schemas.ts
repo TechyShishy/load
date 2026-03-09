@@ -76,4 +76,5 @@ export const GameContextSchema = z.object({
   pendingRevenue: z.number(),
   seed: z.string(),
   skipNextTrafficDraw: z.boolean().default(false),
+  revenueBoostMultiplier: z.number().default(1),
 });

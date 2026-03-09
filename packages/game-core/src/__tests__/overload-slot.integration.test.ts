@@ -71,6 +71,7 @@ describe('integration: overload slot creation', () => {
       pendingRevenue: 0,
       seed: 'overload-test',
       skipNextTrafficDraw: false,
+      revenueBoostMultiplier: 1,
       drawLog: null,
     };
     const { context } = autoFillTrafficSlots(initialCtx, [iotCard]);
@@ -116,6 +117,7 @@ describe('integration: resolution sweeps overload slots', () => {
       pendingRevenue: 0,
       seed: 'sweep-test',
       skipNextTrafficDraw: false,
+      revenueBoostMultiplier: 1,
       drawLog: null,
     };
 

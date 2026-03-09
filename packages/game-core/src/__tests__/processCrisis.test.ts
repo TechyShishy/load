@@ -38,6 +38,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     pendingRevenue: 0,
     seed: 'test-seed',
     skipNextTrafficDraw: false,
+    revenueBoostMultiplier: 1,
     drawLog: null,
     ...overrides,
   };

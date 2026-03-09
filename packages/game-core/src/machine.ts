@@ -46,6 +46,7 @@ export function createInitialContext(seed?: string): GameContext {
     pendingRevenue: 0,
     seed: resolvedSeed,
     skipNextTrafficDraw: false,
+    revenueBoostMultiplier: 1,
     drawLog: { traffic: [], action: initialHand, events: [] },
   };
 }
@@ -103,6 +104,7 @@ export const gameMachine = setup({
       const freshSlots = getDayOfWeek(context.round) === 1
         ? stripWeeklyTemporarySlots(afterReset)
         : afterReset;
+      const freshMultiplier = getDayOfWeek(context.round) === 1 ? 1 : context.revenueBoostMultiplier;
 
       // AWS Outage carry-over: skip traffic draw this round
       if (context.skipNextTrafficDraw) {
@@ -114,6 +116,7 @@ export const gameMachine = setup({
           pendingEvents: [],
           spawnedTrafficQueue: [],
           skipNextTrafficDraw: false,
+          revenueBoostMultiplier: freshMultiplier,
           activePhase: PhaseId.Scheduling,
           drawLog: { traffic: [], action: context.drawLog?.action ?? [], events: [] },
         };
@@ -143,6 +146,7 @@ export const gameMachine = setup({
         pendingEvents: [],
         spawnedTrafficQueue: [],
         activePhase: PhaseId.Scheduling,
+        revenueBoostMultiplier: freshMultiplier,
       };
 
       // Auto-fill slots using round-robin period assignment

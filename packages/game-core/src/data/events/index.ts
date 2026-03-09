@@ -3,11 +3,13 @@ import { DDoSAttackCard } from './DDoSAttackCard.js';
 import { AWSOutageCard } from './AWSOutageCard.js';
 import { FiveGActivationCard } from './FiveGActivationCard.js';
 import { FalseAlarmCard } from './FalseAlarmCard.js';
+import { TierOnePeeringCard } from './TierOnePeeringCard.js';
 
 export { DDoSAttackCard } from './DDoSAttackCard.js';
 export { AWSOutageCard } from './AWSOutageCard.js';
 export { FiveGActivationCard } from './FiveGActivationCard.js';
 export { FalseAlarmCard } from './FalseAlarmCard.js';
+export { TierOnePeeringCard } from './TierOnePeeringCard.js';
 
 /** Registry mapping templateId → constructor for deserialization. */
 export const EVENT_CARD_REGISTRY = new Map<string, new (instanceId: string) => EventCard>([
@@ -15,6 +17,7 @@ export const EVENT_CARD_REGISTRY = new Map<string, new (instanceId: string) => E
   ['event-aws-outage', AWSOutageCard],
   ['event-5g-activation', FiveGActivationCard],
   ['event-false-alarm', FalseAlarmCard],
+  ['event-tier1-peering', TierOnePeeringCard],
 ]);
 
 /** Singleton template instances (id === templateId). Used by deck builder. */
@@ -23,4 +26,5 @@ export const EVENT_CARDS: EventCard[] = [
   new AWSOutageCard(),
   new FiveGActivationCard(),
   new FalseAlarmCard(),
+  new TierOnePeeringCard(),
 ];

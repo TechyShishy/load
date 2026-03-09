@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background: forest-black (positive event) -->
+  <rect width="160" height="100" fill="#001a0a"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Square halos radiating from IX node (top edges clip off-canvas) ── -->
+
+    <!-- Halo 3 — outermost (opacity 0.20) -->
+    <rect x="5"  y="0"  width="1"  height="14" fill="#00ffcc" opacity="0.20"/>
+    <rect x="26" y="0"  width="1"  height="14" fill="#00ffcc" opacity="0.20"/>
+    <rect x="5"  y="14" width="22" height="1"   fill="#00ffcc" opacity="0.20"/>
+
+    <!-- Halo 2 — middle (opacity 0.40) -->
+    <rect x="8"  y="0"  width="1"  height="11" fill="#00ffcc" opacity="0.40"/>
+    <rect x="23" y="0"  width="1"  height="11" fill="#00ffcc" opacity="0.40"/>
+    <rect x="8"  y="11" width="16" height="1"   fill="#00ffcc" opacity="0.40"/>
+
+    <!-- Halo 1 — inner (opacity 0.65, fully visible square ring) -->
+    <rect x="11" y="1"  width="10" height="1"  fill="#00ffcc" opacity="0.65"/>
+    <rect x="11" y="2"  width="1"  height="7"  fill="#00ffcc" opacity="0.65"/>
+    <rect x="20" y="2"  width="1"  height="7"  fill="#00ffcc" opacity="0.65"/>
+    <rect x="11" y="9"  width="10" height="1"  fill="#00ffcc" opacity="0.65"/>
+
+    <!-- ── IX diamond — glow aura (1px wider than diamond, drawn first) ── -->
+    <rect x="14" y="2"  width="4"  height="1"  fill="#00ffcc" opacity="0.35"/>
+    <rect x="13" y="3"  width="6"  height="1"  fill="#00ffcc" opacity="0.35"/>
+    <rect x="12" y="4"  width="8"  height="1"  fill="#00ffcc" opacity="0.35"/>
+    <rect x="11" y="5"  width="10" height="1"  fill="#00ffcc" opacity="0.35"/>
+    <rect x="12" y="6"  width="8"  height="1"  fill="#00ffcc" opacity="0.35"/>
+    <rect x="13" y="7"  width="6"  height="1"  fill="#00ffcc" opacity="0.35"/>
+    <rect x="14" y="8"  width="4"  height="1"  fill="#00ffcc" opacity="0.35"/>
+
+    <!-- ── IX diamond — main shape ── -->
+    <rect x="15" y="3"  width="2"  height="1"  fill="#00ffcc"/>
+    <rect x="14" y="4"  width="4"  height="1"  fill="#00ffcc"/>
+    <rect x="13" y="5"  width="6"  height="1"  fill="#00ffcc"/>
+    <rect x="14" y="6"  width="4"  height="1"  fill="#00ffcc"/>
+    <rect x="15" y="7"  width="2"  height="1"  fill="#00ffcc"/>
+    <!-- bright center -->
+    <rect x="15" y="5"  width="2"  height="1"  fill="#ffffff"   opacity="0.80"/>
+
+    <!-- ── Branch lines: IX node to peer racks ── -->
+    <!-- Left branch (diagonal, down-left) -->
+    <rect x="12" y="8"  width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="11" y="9"  width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="10" y="10" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="9"  y="11" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="8"  y="12" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="7"  y="13" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="6"  y="14" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="5"  y="15" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="4"  y="16" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+
+    <!-- Right branch (diagonal, down-right) -->
+    <rect x="18" y="8"  width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="19" y="9"  width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="20" y="10" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="21" y="11" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="22" y="12" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="23" y="13" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="24" y="14" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="25" y="15" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+    <rect x="26" y="16" width="2"  height="1"  fill="#00ffcc" opacity="0.70"/>
+
+    <!-- ── Left peer rack (small, isometric) ── -->
+    <polygon points="1,19 9,19 11,17 3,17"  fill="#1a5535"/>
+    <polygon points="9,19 11,17 11,23 9,23"  fill="#062010"/>
+    <rect x="1"  y="19" width="8"  height="4" fill="#0d3320"/>
+    <rect x="1"  y="19" width="1"  height="4" fill="#062010"/>
+    <rect x="8"  y="19" width="1"  height="4" fill="#062010"/>
+    <rect x="1"  y="19" width="8"  height="1" fill="#00ffcc" opacity="0.25"/>
+    <rect x="2"  y="20" width="2"  height="2" fill="#00ffcc"/>
+    <rect x="5"  y="20" width="2"  height="2" fill="#00ffcc" opacity="0.60"/>
+
+    <!-- ── Right peer rack (small, isometric) ── -->
+    <polygon points="21,19 29,19 31,17 23,17" fill="#1a5535"/>
+    <polygon points="29,19 31,17 31,23 29,23" fill="#062010"/>
+    <rect x="21" y="19" width="8"  height="4" fill="#0d3320"/>
+    <rect x="21" y="19" width="1"  height="4" fill="#062010"/>
+    <rect x="28" y="19" width="1"  height="4" fill="#062010"/>
+    <rect x="21" y="19" width="8"  height="1" fill="#00ffcc" opacity="0.25"/>
+    <rect x="22" y="20" width="2"  height="2" fill="#00ffcc"/>
+    <rect x="25" y="20" width="2"  height="2" fill="#00ffcc" opacity="0.60"/>
+
+    <!-- ── Atmospheric scanlines ── -->
+    <rect x="3"  y="27" width="26" height="1"  fill="#00ffcc" opacity="0.15"/>
+    <rect x="3"  y="29" width="26" height="1"  fill="#00ffcc" opacity="0.10"/>
+    <rect x="3"  y="31" width="26" height="1"  fill="#00ffcc" opacity="0.06"/>
+
+  </g>
+</svg>

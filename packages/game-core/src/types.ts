@@ -143,6 +143,9 @@ export interface SerializedGameContext {
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
   skipNextTrafficDraw: boolean;
+  /** Revenue multiplier applied to all traffic-card removals. Set by beneficial events; resets to 1 on Monday. */
+  revenueBoostMultiplier: number;
+
 }
 
 // ─── Board State ──────────────────────────────────────────────────────────────
@@ -235,6 +238,8 @@ export interface GameContext {
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
   skipNextTrafficDraw: boolean;
+  /** Revenue multiplier applied to all traffic-card removals. Set by beneficial events (e.g. Tier-1 Peering Agreement); resets to 1 on Monday. */
+  revenueBoostMultiplier: number;
   /** Animation draw log — runtime only, not persisted — describes cards drawn this phase. */
   drawLog: DrawLog | null;
 }

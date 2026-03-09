@@ -34,6 +34,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
     pendingRevenue: 0,
     seed: 'test-seed',
     skipNextTrafficDraw: false,
+    revenueBoostMultiplier: 1,
     drawLog: null,
     ...overrides,
   };
@@ -271,5 +272,40 @@ describe('StreamCompressionCard', () => {
     const ctx = makeCtx();
     const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
     expect(updated.trafficDiscard).toHaveLength(0);
+  });
+});
+
+// ─── revenueBoostMultiplier — multiplier applied at revenue-collection sites ──
+
+describe('revenueBoostMultiplier applied by StreamCompressionCard', () => {
+  it('multiplies revenue when revenueBoostMultiplier > 1', () => {
+    const a = new FourKStreamCard('4k-a');
+    const b = new FourKStreamCard('4k-b');
+    const timeSlots = createInitialTimeSlots().map((slot) => {
+      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: a };
+      if (slot.period === Period.Morning && slot.index === 1) return { ...slot, card: b };
+      return slot;
+    });
+    const ctx = makeCtx({ timeSlots, revenueBoostMultiplier: 1.5 });
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+    const expectedRevenue = Math.round((a.revenue + b.revenue) * 1.5);
+    expect(updated.budget).toBe(500_000 - streamComp.cost + expectedRevenue);
+    expect(updated.pendingRevenue).toBe(expectedRevenue);
+  });
+});
+
+describe('revenueBoostMultiplier applied by TrafficPrioritizationCard', () => {
+  const trafficPrio = ACTION_CARDS.find((c) => c.templateId === 'action-traffic-prioritization')!;
+
+  it('multiplies revenue when revenueBoostMultiplier > 1', () => {
+    const iot = new IoTBurstCard('iot-test');
+    const timeSlots = createInitialTimeSlots().map((s) =>
+      s.period === Period.Morning && s.index === 0 ? { ...s, card: iot } : s,
+    );
+    const ctx = makeCtx({ timeSlots, hand: [trafficPrio], revenueBoostMultiplier: 1.5 });
+    const updated = playActionCard(ctx, trafficPrio, undefined, iot.id);
+    const expectedRevenue = Math.round(iot.revenue * 1.5);
+    expect(updated.budget).toBe(500_000 + expectedRevenue); // cost=0 for trafficPrio
+    expect(updated.pendingRevenue).toBe(expectedRevenue);
   });
 });

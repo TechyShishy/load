@@ -83,10 +83,11 @@ export class StreamCompressionCard extends ActionCard {
     }
 
     if (collectedRevenue > 0) {
+      const boostedRevenue = Math.round(collectedRevenue * context.revenueBoostMultiplier);
       context = {
         ...context,
-        budget: context.budget + collectedRevenue,
-        pendingRevenue: context.pendingRevenue + collectedRevenue,
+        budget: context.budget + boostedRevenue,
+        pendingRevenue: context.pendingRevenue + boostedRevenue,
       };
     }
 

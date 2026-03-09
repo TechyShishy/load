@@ -53,9 +53,9 @@ describe('buildTrafficDeck', () => {
 });
 
 describe('buildEventDeck', () => {
-  it('contains 12 Event cards', () => {
+  it('contains 14 Event cards', () => {
     const deck = buildEventDeck();
-    expect(deck).toHaveLength(12);
+    expect(deck).toHaveLength(14);
     expect(deck.every((c) => c.type === CardType.Event)).toBe(true);
   });
 
