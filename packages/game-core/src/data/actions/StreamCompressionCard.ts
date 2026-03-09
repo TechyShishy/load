@@ -61,6 +61,7 @@ export class StreamCompressionCard extends ActionCard {
 
     // Iterate actors to find matching cards on the board in this period.
     for (const [id, actor] of Object.entries(context.trafficCardActors)) {
+      if (!actor) continue;
       if (removedCount >= removeCount) break;
       const snap = actor.getSnapshot();
       if (snap.value !== 'onSlot') continue;

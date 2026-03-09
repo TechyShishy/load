@@ -23,6 +23,7 @@ export function getFilledTimeSlots(ctx: GameContext): TimeSlot[] {
   // Build a single-pass lookup: 'period:index' → instanceId
   const slotMap = new Map<string, string>();
   for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
+    if (!actor) continue;
     const snap = actor.getSnapshot();
     if (snap.value === 'onSlot') {
       const c = snap.context as TrafficCardPositionContext;

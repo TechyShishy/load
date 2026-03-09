@@ -216,6 +216,7 @@ export const gameMachine = setup({
       // Compute slot placements (pure, no side effects).
       const occupiedSlots = new Set<string>();
       for (const actor of Object.values(context.trafficCardActors)) {
+        if (!actor) continue;
         const snap = actor.getSnapshot();
         if (snap.value === 'onSlot') {
           const c = snap.context;
@@ -314,6 +315,7 @@ export const gameMachine = setup({
       if (spawnCount > 0) {
         const occupiedSlots = new Set<string>();
         for (const actor of Object.values(context.trafficCardActors)) {
+          if (!actor) continue;
           const snap = actor.getSnapshot();
           if (snap.value === 'onSlot') {
             const c = snap.context;

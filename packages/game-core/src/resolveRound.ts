@@ -16,6 +16,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
   // Find all traffic card actors currently in an overloaded slot.
   const overloadedCardIds: string[] = [];
   for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
+    if (!actor) continue;
     const snap = actor.getSnapshot();
     if (snap.value === 'onSlot') {
       const c = snap.context as TrafficCardPositionContext;
@@ -41,6 +42,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
   // Count cards remaining on board (non-overloaded slots with a card).
   let resolvedCount = 0;
   for (const actor of Object.values(ctx.trafficCardActors)) {
+    if (!actor) continue;
     const snap = actor.getSnapshot();
     if (snap.value === 'onSlot') {
       const c = snap.context as TrafficCardPositionContext;
