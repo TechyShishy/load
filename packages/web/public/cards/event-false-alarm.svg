@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background: forest-black (positive / noop event) -->
+  <rect width="160" height="100" fill="#001a0a"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered (30px margin each side) -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Checkmark: all-systems-nominal indicator ──────────────────── -->
+
+    <!-- Glow aura (behind main mark) -->
+    <rect x="7"  y="7"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="8"  y="8"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="9"  y="9"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="10" y="10" width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="11" y="9"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="12" y="8"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="13" y="7"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="14" y="6"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="15" y="5"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="16" y="4"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="17" y="3"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="18" y="2"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+    <rect x="19" y="1"  width="5" height="1" fill="#00ffcc" opacity="0.20"/>
+
+    <!-- Short down-right leg of checkmark -->
+    <rect x="9"  y="7"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="10" y="8"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="11" y="9"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="12" y="10" width="2" height="1" fill="#00ffcc"/>
+
+    <!-- Long up-right leg of checkmark -->
+    <rect x="13" y="9"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="14" y="8"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="15" y="7"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="16" y="6"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="17" y="5"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="18" y="4"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="19" y="3"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="20" y="2"  width="2" height="1" fill="#00ffcc"/>
+    <rect x="21" y="1"  width="2" height="1" fill="#00ffcc"/>
+
+    <!-- ── Server rack: all systems nominal ──────────────────────────── -->
+
+    <!-- Isometric top face -->
+    <polygon points="5,16 25,16 27,14 7,14" fill="#005533"/>
+    <!-- Isometric right side face -->
+    <polygon points="25,16 27,14 27,24 25,24" fill="#003322"/>
+    <!-- Front face -->
+    <rect x="5" y="16" width="20" height="8" fill="#004428"/>
+    <!-- Mounting ears -->
+    <rect x="5"  y="16" width="2" height="8" fill="#003322"/>
+    <rect x="23" y="16" width="2" height="8" fill="#003322"/>
+    <!-- Top-edge highlight -->
+    <rect x="5" y="16" width="20" height="1" fill="#00ffcc" opacity="0.35"/>
+    <!-- All-green status LEDs -->
+    <rect x="7"  y="19" width="2" height="2" fill="#00ffcc"/>
+    <rect x="10" y="19" width="2" height="2" fill="#00ffcc"/>
+    <rect x="13" y="19" width="2" height="2" fill="#00ffcc"/>
+    <rect x="16" y="19" width="2" height="2" fill="#00ffcc"/>
+    <rect x="19" y="19" width="2" height="2" fill="#00ffcc"/>
+    <!-- Port slots -->
+    <rect x="7"  y="22" width="3" height="2" fill="#001a0a"/>
+    <rect x="11" y="22" width="3" height="2" fill="#001a0a"/>
+    <rect x="15" y="22" width="3" height="2" fill="#001a0a"/>
+    <rect x="19" y="22" width="3" height="2" fill="#001a0a"/>
+
+    <!-- ── Atmospheric scanlines ─────────────────────────────────────── -->
+    <rect x="4" y="26" width="24" height="1" fill="#00ffcc" opacity="0.15"/>
+    <rect x="4" y="28" width="24" height="1" fill="#00ffcc" opacity="0.10"/>
+    <rect x="4" y="30" width="24" height="1" fill="#00ffcc" opacity="0.06"/>
+
+  </g>
+</svg>

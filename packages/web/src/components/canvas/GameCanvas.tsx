@@ -156,6 +156,7 @@ const CARD_ART: Partial<Record<string, string>> = {
   'event-ddos-attack': './cards/event-ddos-attack.svg',
   'event-aws-outage': './cards/event-aws-outage.svg',
   'event-5g-activation': './cards/event-5g-activation.svg',
+  'event-false-alarm': './cards/event-false-alarm.svg',
   'action-stream-compression': './cards/action-stream-compression.svg',
   'action-bandwidth-upgrade': './cards/action-bandwidth-upgrade.svg',
   'action-datacenter-expansion': './cards/action-datacenter-expansion.svg',

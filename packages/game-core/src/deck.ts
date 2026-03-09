@@ -56,7 +56,7 @@ export function buildTrafficDeck(rng: Rng = Math.random): TrafficCard[] {
 
 /**
  * Canonical event-deck composition.
- * Total: 8 cards (DDoSAttack×3, AWSOutage×3, FiveGActivation×2).
+ * Total: 12 cards (DDoSAttack×3, AWSOutage×3, FiveGActivation×2, FalseAlarm×4).
  */
 export const DEFAULT_EVENT_DECK: ReadonlyArray<{
   readonly templateId: string;
@@ -65,6 +65,7 @@ export const DEFAULT_EVENT_DECK: ReadonlyArray<{
   { templateId: 'event-ddos-attack',    count: 3 },
   { templateId: 'event-aws-outage',     count: 3 },
   { templateId: 'event-5g-activation',  count: 2 },
+  { templateId: 'event-false-alarm',    count: 4 },
 ];
 
 /**

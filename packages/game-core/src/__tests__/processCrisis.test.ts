@@ -45,6 +45,7 @@ function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
 
 const ddosEvent = EVENT_CARDS.find((c) => c.id === 'event-ddos-attack')!;
 const activationEvent = EVENT_CARDS.find((c) => c.id === 'event-5g-activation')!;
+const falseAlarmEvent = EVENT_CARDS.find((c) => c.id === 'event-false-alarm')!;
 const emMaint = ACTION_CARDS.find((c) => c.id === 'action-emergency-maintenance')!;
 const secPatch = ACTION_CARDS.find((c) => c.id === 'action-security-patch')!;
 const trafficPrio = ACTION_CARDS.find((c) => c.id === 'action-traffic-prioritization')!;
@@ -211,6 +212,18 @@ describe('processCrisis', () => {
     expect(context.eventDiscard).toHaveLength(2);
     expect(context.eventDiscard).toContainEqual(ddosEvent);
     expect(context.eventDiscard).toContainEqual(activationEvent);
+  });
+
+  it('moves FalseAlarm into eventDiscard with no other side-effects', () => {
+    const ctx = makeCtx({
+      pendingEvents: [falseAlarmEvent],
+      eventDiscard: [],
+    });
+    const { context } = processCrisis(ctx);
+    expect(context.pendingEvents).toHaveLength(0);
+    expect(context.eventDiscard).toContainEqual(falseAlarmEvent);
+    expect(context.budget).toBe(500_000);
+    expect(context.spawnedTrafficQueue).toHaveLength(0);
   });
 
   it('appends to an existing eventDiscard', () => {
