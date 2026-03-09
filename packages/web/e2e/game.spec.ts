@@ -62,9 +62,9 @@ async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise
     }
   }
 
-  await clickAdvance(page); // scheduling → execution → crisis (auto-transition)
+  await clickAdvance(page); // scheduling → crisis
 
-  // ── Check for end screen after execution/crisis entry ────────────────────
+  // ── Check for end screen after crisis entry ──────────────────────────────
   if (await isEndScreen(page)) return true;
 
   // ── Crisis phase ──────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ test.describe('LOAD – Network Traffic Balancer', () => {
     await expect(page.getByText('Schedule', { exact: true })).toBeVisible();
     await expect(ADVANCE(page)).toBeEnabled();
 
-    // Advance → execution (instant) → crisis
+    // Advance → crisis
     await clickAdvance(page);
     await expect(page.getByText('Crisis', { exact: true })).toBeVisible({ timeout: 5_000 });
 

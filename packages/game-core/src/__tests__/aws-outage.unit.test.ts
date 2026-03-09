@@ -23,7 +23,7 @@ function safeContext() {
 }
 
 function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
-  actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
+  actor.send({ type: 'ADVANCE' }); // scheduling → crisis
   actor.send({ type: 'ADVANCE' }); // crisis → resolution
   actor.send({ type: 'ADVANCE' }); // resolution → end → draw (performDraw fires)
 }

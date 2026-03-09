@@ -62,10 +62,9 @@ describe('gameMachine phase transitions', () => {
     return actor;
   }
 
-  it('ADVANCE from scheduling → execution → crisis', () => {
+  it('ADVANCE from scheduling → crisis', () => {
     const actor = getToScheduling();
     actor.send({ type: 'ADVANCE' });
-    // execution is transient → immediately moves to crisis entry
     expect(actor.getSnapshot().value).toBe('crisis');
   });
 
@@ -307,7 +306,7 @@ describe('calendar helpers', () => {
 describe('gameMachine weekend mechanics', () => {
   /** Advance a workday: scheduling → crisis → resolution (auto) → end → draw → next phase */
   function advanceWorkday(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
-    actor.send({ type: 'ADVANCE' }); // scheduling → execution → crisis
+    actor.send({ type: 'ADVANCE' }); // scheduling → crisis
     actor.send({ type: 'ADVANCE' }); // crisis → resolution → auto → end → draw
     actor.send({ type: 'DRAW_COMPLETE' }); // draw → next phase (scheduling or crisis)
   }

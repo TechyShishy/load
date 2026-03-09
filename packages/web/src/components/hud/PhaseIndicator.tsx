@@ -4,7 +4,6 @@ import { getDayName, getWeekNumber, isWeekend } from '@load/game-core';
 const PHASES: { id: string; label: string }[] = [
   { id: 'draw', label: 'Draw' },
   { id: 'scheduling', label: 'Schedule' },
-  { id: 'execution', label: 'Execute' },
   { id: 'crisis', label: 'Crisis' },
   { id: 'resolution', label: 'Resolve' },
   { id: 'end', label: 'End' },

@@ -161,11 +161,6 @@ export const gameMachine = setup({
       };
     }),
 
-    performExecution: assign(({ context }) => ({
-      ...context,
-      activePhase: PhaseId.Execution,
-    })),
-
     performDrawCrisisEvent: assign(({ context }) => {
       // Resume-from-save: events were already drawn and saved in context.
       if (context.pendingEvents.length > 0) {
@@ -304,12 +299,8 @@ export const gameMachine = setup({
     scheduling: {
       on: {
         PLAY_ACTION: { guard: 'isNotCrisisOnly', actions: 'applyPlayAction' },
-        ADVANCE: { target: 'execution' },
+        ADVANCE: { target: 'crisis' },
       },
-    },
-    execution: {
-      entry: 'performExecution',
-      always: { target: 'crisis' },
     },
     crisis: {
       entry: 'performDrawCrisisEvent',

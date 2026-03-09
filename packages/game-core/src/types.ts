@@ -16,7 +16,6 @@ export enum Track {
 export enum PhaseId {
   Draw = 'Draw',
   Scheduling = 'Scheduling',
-  Execution = 'Execution',
   Crisis = 'Crisis',
   Resolution = 'Resolution',
   End = 'End',

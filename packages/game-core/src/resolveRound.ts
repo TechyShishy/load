@@ -6,7 +6,7 @@ export interface ResolutionResult {
 }
 
 /**
- * Resolve the Execution + Resolution phases:
+ * Resolve the Resolution phase:
  * 1. Sweep overload slots: each costs 1 SLA failure; cards go to trafficDiscard.
  * 2. Count remaining resolved Traffic cards across all normal time slots.
  * 3. Return a RoundSummary.
