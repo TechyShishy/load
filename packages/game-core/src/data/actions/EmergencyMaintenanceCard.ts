@@ -23,13 +23,18 @@ export class EmergencyMaintenanceCard extends ActionCard {
   ): GameContext {
     let context = commit();
     const resolvedTrack = targetTrack ?? Track.BreakFix;
-    const track = context.tracks.find((t) => t.track === resolvedTrack);
-    if (track && track.tickets.length > 0) {
+    const ticketIds = context.ticketOrders[resolvedTrack] ?? [];
+    if (ticketIds.length > 0) {
+      const removedId = ticketIds[0]!;
+      // Move from asTicket → inDiscard in the event card's actor.
+      context.eventCardActors[removedId]?.send({ type: 'CLEAR_TICKET' });
       context = {
         ...context,
-        tracks: context.tracks.map((t) =>
-          t.track === resolvedTrack ? { ...t, tickets: t.tickets.slice(1) } : t,
-        ),
+        ticketOrders: {
+          ...context.ticketOrders,
+          [resolvedTrack]: ticketIds.slice(1),
+        },
+        eventDiscardOrder: [...context.eventDiscardOrder, removedId],
       };
     }
     return context;

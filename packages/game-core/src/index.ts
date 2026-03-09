@@ -5,6 +5,7 @@ export {
   PhaseId,
   CardType,
   LoseReason,
+  SlotType,
   EventCard,
   TrafficCard,
   ActionCard,
@@ -33,6 +34,7 @@ export type {
   DropZoneTarget,
   Card,
   TimeSlot,
+  TimeSlotLayout,
   TrackSlot,
   VendorSlot,
   GameContext,
@@ -42,7 +44,15 @@ export type {
   SerializedCard,
   SerializedGameContext,
   StorageAdapter,
+  TrafficCardActorRegistry,
+  ActionCardActorRegistry,
+  EventCardActorRegistry,
 } from './types.js';
+export type {
+  TrafficCardActorRef,
+  ActionCardActorRef,
+  EventCardActorRef,
+} from './cardPositionMachines.js';
 
 // ── Persistence schema (for save/load validation) ─────────────────────────────
 export { GameContextSchema } from './schemas.js';
@@ -63,3 +73,21 @@ export {
 
 // ── Deck constants ────────────────────────────────────────────────────────────
 export { DEFAULT_ACTION_DECK, DEFAULT_TRAFFIC_DECK, DEFAULT_EVENT_DECK } from './deck.js';
+
+// ── Card position view functions ──────────────────────────────────────────────
+export {
+  getTrafficDeck,
+  getTrafficDiscard,
+  getSpawnedTrafficQueue,
+  getFilledTimeSlots,
+  getActionDeck,
+  getActionDiscard,
+  getHand,
+  getPlayedThisRound,
+  getEventDeck,
+  getEventDiscard,
+  getPendingEvents,
+  getTrackTickets,
+  getTracks,
+  getActorAtSlot,
+} from './cardPositionViews.js';

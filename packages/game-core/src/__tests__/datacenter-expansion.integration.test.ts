@@ -1,145 +1,109 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
-import { createInitialContext, gameMachine } from '../machine.js';
-
-function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
-  actor.send({ type: 'DRAW_COMPLETE' });
-}
+import { gameMachine } from '../machine.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
-import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { Period, PERIOD_SLOT_COUNTS, type TimeSlot, type TrafficCard } from '../types.js';
+import { Period, PhaseId, PERIOD_SLOT_COUNTS, SlotType, type TimeSlotLayout } from '../types.js';
+import { safeContext, ctxWithHandCardsFixedIds } from './testHelpers.js';
 
-const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
+const dcExpansion = ACTION_CARDS.find((c) => c.templateId === 'action-datacenter-expansion')!;
 
-/** Traffic-only deck — no events — so rounds complete without surprise game-overs. */
-function safeContext() {
-  const trafficDeck: TrafficCard[] = Array.from({ length: 56 }, (_, i) =>
-    TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!,
-  );
-  return {
-    ...createInitialContext(),
-    trafficDeck,
-    trafficDiscard: [] as TrafficCard[],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [] as TrafficCard[],
-  };
-}
-
-function makeWeeklySlot(period: Period, index: number): TimeSlot {
-  return {
-    period,
-    index,
-    card: null,
-    weeklyTemporary: true,
-  };
+function makeWeeklySlot(period: Period, index: number): TimeSlotLayout {
+  return { period, index, slotType: SlotType.WeeklyTemporary };
 }
 
 describe('integration: Data Center Expansion persists until Monday', () => {
   it('playing DC Expansion creates weeklyTemporary (not temporary) slots', () => {
     // Start on round 3 (Wed) with DC Expansion in hand. Play it targeting Evening.
-    // New slots must have weeklyTemporary: true, not temporary: true.
-    const base = safeContext();
-    const actor = createActor(gameMachine, {
-      input: { ...base, round: 3, hand: [dcExpansion] },
-    });
+    // New slots must have slotType WeeklyTemporary, not Temporary.
+    const ctx = ctxWithHandCardsFixedIds(
+      [dcExpansion],
+      safeContext('dc-test', { round: 3, activePhase: PhaseId.Scheduling }),
+    );
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
-
     expect(actor.getSnapshot().value).toBe('scheduling');
-    const beforeCount = actor.getSnapshot().context.timeSlots.filter(
+
+    const beforeCount = actor.getSnapshot().context.slotLayout.filter(
       (s) => s.period === Period.Evening,
     ).length;
-
     actor.send({ type: 'PLAY_ACTION', card: dcExpansion, targetPeriod: Period.Evening });
 
-    const eveningSlots = actor.getSnapshot().context.timeSlots.filter(
+    const eveningSlots = actor.getSnapshot().context.slotLayout.filter(
       (s) => s.period === Period.Evening,
     );
     expect(eveningSlots).toHaveLength(beforeCount + 2);
-    expect(eveningSlots.filter((s) => s.weeklyTemporary)).toHaveLength(2);
-    expect(eveningSlots.filter((s) => s.temporary)).toHaveLength(0);
+    expect(eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary)).toHaveLength(2);
+    expect(eveningSlots.filter((s) => s.slotType === SlotType.Temporary)).toHaveLength(0);
   });
 
   it('weeklyTemporary slots survive a non-Monday performDraw', () => {
     // Inject weeklyTemporary slots into the starting context at round 4 (Thu).
     // performDraw runs on actor.start(); slots must not be stripped on a non-Monday.
-    const base = safeContext();
-    const extraSlots = [
-      makeWeeklySlot(Period.Evening, 4),
-      makeWeeklySlot(Period.Evening, 5),
-    ];
-    const actor = createActor(gameMachine, {
-      input: { ...base, round: 4, timeSlots: [...base.timeSlots, ...extraSlots] },
-    });
+    const base = safeContext('dc-survive-test', { round: 4 });
+    const extraSlots = [makeWeeklySlot(Period.Evening, 4), makeWeeklySlot(Period.Evening, 5)];
+    const ctx = { ...base, trafficDeckOrder: [] as string[], slotLayout: [...base.slotLayout, ...extraSlots] };
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     expect(actor.getSnapshot().context.round).toBe(4);
 
-    const eveningSlots = actor.getSnapshot().context.timeSlots.filter(
+    const eveningSlots = actor.getSnapshot().context.slotLayout.filter(
       (s) => s.period === Period.Evening,
     );
-    // Original 4 + 2 injected weekly slots must all survive
+    // Original slots + 2 injected weekly slots must all survive
     expect(eveningSlots).toHaveLength(PERIOD_SLOT_COUNTS[Period.Evening] + 2);
-    expect(eveningSlots.filter((s) => s.weeklyTemporary)).toHaveLength(2);
+    expect(eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary)).toHaveLength(2);
   });
 
   it('weeklyTemporary slots are stripped by a Monday performDraw', () => {
     // Inject weeklyTemporary slots into the starting context at round 8 (Mon).
     // performDraw runs on actor.start(); Monday cleanup must strip them.
-    const base = safeContext();
-    const extraSlots = [
-      makeWeeklySlot(Period.Afternoon, 4),
-      makeWeeklySlot(Period.Afternoon, 5),
-    ];
-    const actor = createActor(gameMachine, {
-      input: { ...base, round: 8, timeSlots: [...base.timeSlots, ...extraSlots] },
-    });
+    const base = safeContext('dc-strip-test', { round: 8 });
+    const extraSlots = [makeWeeklySlot(Period.Afternoon, 4), makeWeeklySlot(Period.Afternoon, 5)];
+    const ctx = { ...base, trafficDeckOrder: [] as string[], slotLayout: [...base.slotLayout, ...extraSlots] };
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
+    actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling
 
     expect(actor.getSnapshot().value).toBe('scheduling');
     expect(actor.getSnapshot().context.round).toBe(8);
 
-    const afternoonSlots = actor.getSnapshot().context.timeSlots.filter(
+    const afternoonSlots = actor.getSnapshot().context.slotLayout.filter(
       (s) => s.period === Period.Afternoon,
     );
     // All weeklyTemporary slots must be gone; only base permanent slots remain
     expect(afternoonSlots).toHaveLength(PERIOD_SLOT_COUNTS[Period.Afternoon]);
-    expect(afternoonSlots.every((s) => !s.weeklyTemporary)).toBe(true);
+    expect(afternoonSlots.every((s) => s.slotType !== SlotType.WeeklyTemporary)).toBe(true);
   });
 
   it('weeklyTemporary slots survive round 7 (Sun) but are stripped at round 8 (Mon)', () => {
-    // Round 7 (Sun) is a weekend — performDraw runs but must NOT strip weeklyTemporary.
-    const base7 = safeContext();
+    // Round 7 (Sun) — draw entry runs but must NOT strip weeklyTemporary (not Monday).
+    const base7 = safeContext('dc-r7-test', { round: 7 });
     const extra7 = [makeWeeklySlot(Period.Overnight, 4)];
-    const actor7 = createActor(gameMachine, {
-      input: { ...base7, round: 7, timeSlots: [...base7.timeSlots, ...extra7] },
-    });
+    const ctx7 = { ...base7, trafficDeckOrder: [] as string[], slotLayout: [...base7.slotLayout, ...extra7] };
+    const actor7 = createActor(gameMachine, { input: ctx7 });
     actor7.start();
-
+    // draw entry action ran (round 7 = Sun → no Monday strip); machine waits for DRAW_COMPLETE.
     expect(actor7.getSnapshot().context.round).toBe(7);
-    // Round 7 is weekend → crisis phase (skips scheduling)
-    const overnightSlots7 = actor7.getSnapshot().context.timeSlots.filter(
+    const overnightSlots7 = actor7.getSnapshot().context.slotLayout.filter(
       (s) => s.period === Period.Overnight,
     );
-    expect(overnightSlots7.some((s) => s.weeklyTemporary)).toBe(true);
+    expect(overnightSlots7.some((s) => s.slotType === SlotType.WeeklyTemporary)).toBe(true);
 
-    // Round 8 (Mon) — same slot injected, must be stripped
-    const base8 = safeContext();
+    // Round 8 (Mon) — same slot injected, must be stripped by draw entry.
+    const base8 = safeContext('dc-r8-test', { round: 8 });
     const extra8 = [makeWeeklySlot(Period.Overnight, 4)];
-    const actor8 = createActor(gameMachine, {
-      input: { ...base8, round: 8, timeSlots: [...base8.timeSlots, ...extra8] },
-    });
+    const ctx8 = { ...base8, trafficDeckOrder: [] as string[], slotLayout: [...base8.slotLayout, ...extra8] };
+    const actor8 = createActor(gameMachine, { input: ctx8 });
     actor8.start();
-
+    // draw entry action ran (round 8 = Mon → strips weeklyTemporary).
     expect(actor8.getSnapshot().context.round).toBe(8);
-    const overnightSlots8 = actor8.getSnapshot().context.timeSlots.filter(
+    const overnightSlots8 = actor8.getSnapshot().context.slotLayout.filter(
       (s) => s.period === Period.Overnight,
     );
     expect(overnightSlots8).toHaveLength(PERIOD_SLOT_COUNTS[Period.Overnight]);
-    expect(overnightSlots8.every((s) => !s.weeklyTemporary)).toBe(true);
+    expect(overnightSlots8.every((s) => s.slotType !== SlotType.WeeklyTemporary)).toBe(true);
   });
 });

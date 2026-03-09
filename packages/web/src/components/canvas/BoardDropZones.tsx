@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Period, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
+import { Period, getFilledTimeSlots, getTracks, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
 import { computePeriodRect, computeSlotRect, computeTrackRect, rowsForPeriod } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
@@ -147,6 +147,8 @@ export interface BoardDropZonesProps {
 
 export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZonesProps) {
   const [containerWidth, setContainerWidth] = useState(0);
+  const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
+  const tracks = useMemo(() => getTracks(context), [context]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -167,7 +169,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
   const showBoardArea = zones.includes('board');
   const periodZoneVariant: 'remove' | 'add' = activeCard?.periodZoneVariant ?? 'remove';
   const maxRows = Math.max(
-    ...PERIOD_ORDER.map((p) => rowsForPeriod(context.timeSlots.filter((s) => s.period === p).length)),
+    ...PERIOD_ORDER.map((p) => rowsForPeriod(timeSlots.filter((s) => s.period === p).length)),
   );
 
   return (
@@ -175,7 +177,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
       {showBoardArea && <BoardAreaDropZone />}
       {showPeriodZones &&
         PERIOD_ORDER.map((period, pi) => {
-          const slotCount = context.timeSlots.filter((s) => s.period === period).length;
+          const slotCount = timeSlots.filter((s) => s.period === period).length;
           return (
             <PeriodDropZone
               key={`period-${period}`}
@@ -187,10 +189,10 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
             />
           );
         })}
-      {showSlotZones && context.timeSlots.map((slot) => {
+      {showSlotZones && timeSlots.map((slot) => {
         if (zones.includes('occupied-slot') && slot.card === null) return null;
         const periodIndex = PERIOD_ORDER.indexOf(slot.period);
-        const periodSlotCount = context.timeSlots.filter((s) => s.period === slot.period).length;
+        const periodSlotCount = timeSlots.filter((s) => s.period === slot.period).length;
         return (
           <SlotDropZone
             key={`slot-${slot.period}-${slot.index}`}
@@ -201,7 +203,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           />
         );
       })}
-      {showTrackZones && context.tracks.map((track, ti) => (
+      {showTrackZones && tracks.map((track, ti) => (
         <TrackDropZone
           key={`track-${track.track}`}
           track={track}

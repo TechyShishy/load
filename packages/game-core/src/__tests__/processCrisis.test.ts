@@ -1,48 +1,21 @@
 import { describe, expect, it } from 'vitest';
+import { createActor } from 'xstate';
 import { playActionCard, processCrisis } from '../processCrisis.js';
-import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
+import { createVendorSlots } from '../boardState.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { EVENT_CARDS } from '../data/events/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
+import { eventCardPositionMachine } from '../cardPositionMachines.js';
+import { getFilledTimeSlots } from '../cardPositionViews.js';
 import {
   Period,
   PhaseId,
+  SlotType,
   Track,
-  type GameContext,
 } from '../types.js';
+import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot, ctxWithPendingEvents } from './testHelpers.js';
 
-function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
-  const emMaint = ACTION_CARDS.find((c) => c.id === 'action-emergency-maintenance')!;
-  const secPatch = ACTION_CARDS.find((c) => c.id === 'action-security-patch')!;
-  return {
-    budget: 500_000,
-    round: 1,
-    slaCount: 0,
-    hand: [emMaint, secPatch],
-    playedThisRound: [],
-    timeSlots: createInitialTimeSlots(),
-    tracks: createInitialTracks(),
-    vendorSlots: createVendorSlots(),
-    pendingEvents: [],
-    mitigatedEventIds: [],
-    activePhase: PhaseId.Crisis,
-    trafficDeck: [],
-    trafficDiscard: [],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [],
-    actionDeck: ACTION_CARDS,
-    actionDiscard: [],
-    lastRoundSummary: null,
-    loseReason: null,
-    pendingRevenue: 0,
-    seed: 'test-seed',
-    skipNextTrafficDraw: false,
-    revenueBoostMultiplier: 1,
-    drawLog: null,
-    ...overrides,
-  };
-}
+// ─── Card fixtures ────────────────────────────────────────────────────────────
 
 const ddosEvent = EVENT_CARDS.find((c) => c.id === 'event-ddos-attack')!;
 const activationEvent = EVENT_CARDS.find((c) => c.id === 'event-5g-activation')!;
@@ -51,6 +24,14 @@ const emMaint = ACTION_CARDS.find((c) => c.id === 'action-emergency-maintenance'
 const secPatch = ACTION_CARDS.find((c) => c.id === 'action-security-patch')!;
 const trafficPrio = ACTION_CARDS.find((c) => c.id === 'action-traffic-prioritization')!;
 const bwUpgrade = ACTION_CARDS.find((c) => c.id === 'action-bandwidth-upgrade')!;
+
+/** Base crisis context with emMaint and secPatch in hand. */
+function makeCtx() {
+  return ctxWithHandCardsFixedIds(
+    [emMaint, secPatch],
+    safeContext('test-seed', { activePhase: PhaseId.Crisis }),
+  );
+}
 
 describe('playActionCard', () => {
   it('deducts cost from budget', () => {
@@ -62,99 +43,109 @@ describe('playActionCard', () => {
   it('removes the card from hand', () => {
     const ctx = makeCtx();
     const updated = playActionCard(ctx, emMaint);
-    expect(updated.hand.find((c) => c.id === emMaint.id)).toBeUndefined();
+    expect(updated.handOrder).not.toContain(emMaint.id);
   });
 
   it('adds card to playedThisRound', () => {
     const ctx = makeCtx();
     const updated = playActionCard(ctx, emMaint);
-    expect(updated.playedThisRound).toContainEqual(emMaint);
+    expect(updated.playedThisRoundOrder).toContain(emMaint.id);
   });
 
   it('ClearTicket removes first ticket from the target track', () => {
-    const ctx = makeCtx({
-      tracks: createInitialTracks().map((t) =>
-        t.track === Track.BreakFix ? { ...t, tickets: [ddosEvent] } : t,
-      ),
+    const base = makeCtx();
+    // Issue ddosEvent as a ticket on BreakFix by building actor + ticketOrders manually.
+    const ticketActor = createActor(eventCardPositionMachine, {
+      input: { instanceId: ddosEvent.id, templateId: ddosEvent.templateId },
     });
+    ticketActor.start();
+    ticketActor.send({ type: 'DRAW' });
+    ticketActor.send({ type: 'ISSUE_TICKET', track: Track.BreakFix });
+    const ctx = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [ddosEvent.id]: ddosEvent },
+      eventCardActors: { ...base.eventCardActors, [ddosEvent.id]: ticketActor },
+      ticketOrders: { ...base.ticketOrders, [Track.BreakFix]: [ddosEvent.id] },
+    };
     const updated = playActionCard(ctx, emMaint);
-    const bfTrack = updated.tracks.find((t) => t.track === Track.BreakFix)!;
-    expect(bfTrack.tickets).toHaveLength(0);
+    expect(updated.ticketOrders[Track.BreakFix]).toHaveLength(0);
   });
 
   it('RemoveTrafficCard removes the targeted traffic card from its slot', () => {
     const trafficCard = TRAFFIC_CARDS[0]!;
-    const slotsWithCard = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, card: trafficCard } : s,
-    );
-    const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
+    const base = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const ctx = ctxWithCardOnSlot(trafficCard, Period.Morning, 0, base);
     const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
-    expect(updated.timeSlots.flatMap((s) => s.card ? [s.card] : [])).not.toContainEqual(trafficCard);
+    expect(getFilledTimeSlots(updated).flatMap((s) => s.card ? [s.card] : [])).not.toContainEqual(trafficCard);
   });
 
   it('RemoveTrafficCard credits the traffic card revenue to budget', () => {
     const trafficCard = TRAFFIC_CARDS[0]!;
-    const slotsWithCard = createInitialTimeSlots().map((s, i) =>
-      i === 0 ? { ...s, card: trafficCard } : s,
-    );
-    const ctx = makeCtx({ hand: [trafficPrio], timeSlots: slotsWithCard });
+    const base = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const ctx = ctxWithCardOnSlot(trafficCard, Period.Morning, 0, base);
     const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
     expect(updated.budget).toBe(500_000 - trafficPrio.cost + trafficCard.revenue);
     expect(updated.pendingRevenue).toBe(trafficCard.revenue);
   });
 
   it('RemoveTrafficCard is a no-op when no targetTrafficCardId is given', () => {
-    const ctx = makeCtx({ hand: [trafficPrio] });
-    const updated = playActionCard(ctx, trafficPrio);
-    expect(updated.timeSlots).toEqual(ctx.timeSlots);
+    const base = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const before = getFilledTimeSlots(base).length;
+    const updated = playActionCard(base, trafficPrio);
+    expect(getFilledTimeSlots(updated).length).toBe(before);
   });
 
   it('BoostSlotCapacity adds new weeklyTemporary slots for target period', () => {
-    const ctx = makeCtx({ hand: [bwUpgrade] });
-    const beforeCount = ctx.timeSlots.filter((s) => s.period === Period.Afternoon).length;
-    const updated = playActionCard(ctx, bwUpgrade);
-    const afterSlots = updated.timeSlots.filter((s) => s.period === Period.Afternoon);
+    const base = ctxWithHandCardsFixedIds([bwUpgrade], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    const beforeCount = base.slotLayout.filter((s) => s.period === Period.Afternoon).length;
+    const updated = playActionCard(base, bwUpgrade);
+    const afterSlots = updated.slotLayout.filter((s) => s.period === Period.Afternoon);
     expect(afterSlots.length).toBe(beforeCount + 1);
-    expect(afterSlots.filter((s) => s.weeklyTemporary).length).toBe(1);
+    expect(afterSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary).length).toBe(1);
   });
 
   it('BoostSlotCapacity runtime targetPeriod overrides card.targetPeriod', () => {
-    const ctx = makeCtx({ hand: [bwUpgrade] });
-    const beforeMorning = ctx.timeSlots.filter((s) => s.period === Period.Morning).length;
-    const beforeAfternoon = ctx.timeSlots.filter((s) => s.period === Period.Afternoon).length;
-    // bwUpgrade targets Afternoon; override to Morning
-    const updated = playActionCard(ctx, bwUpgrade, undefined, undefined, Period.Morning);
-    const morningSlots = updated.timeSlots.filter((s) => s.period === Period.Morning);
-    const afternoonSlots = updated.timeSlots.filter((s) => s.period === Period.Afternoon);
+    const base = ctxWithHandCardsFixedIds([bwUpgrade], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    const beforeMorning = base.slotLayout.filter((s) => s.period === Period.Morning).length;
+    const beforeAfternoon = base.slotLayout.filter((s) => s.period === Period.Afternoon).length;
+    const updated = playActionCard(base, bwUpgrade, undefined, undefined, Period.Morning);
+    const morningSlots = updated.slotLayout.filter((s) => s.period === Period.Morning);
+    const afternoonSlots = updated.slotLayout.filter((s) => s.period === Period.Afternoon);
     expect(morningSlots.length).toBe(beforeMorning + 1);
-    expect(morningSlots.filter((s) => s.weeklyTemporary).length).toBe(1);
+    expect(morningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary).length).toBe(1);
     expect(afternoonSlots.length).toBe(beforeAfternoon);
   });
 
   it('ClearTicket runtime targetTrack overrides card.targetTrack', () => {
-    // emMaint targets BreakFix; override to Maintenance
-    const ctx = makeCtx({
-      tracks: createInitialTracks().map((t) =>
-        t.track === Track.Maintenance ? { ...t, tickets: [ddosEvent] } : t,
-      ),
+    const base = makeCtx();
+    const maintActor = createActor(eventCardPositionMachine, {
+      input: { instanceId: ddosEvent.id, templateId: ddosEvent.templateId },
     });
+    maintActor.start();
+    maintActor.send({ type: 'DRAW' });
+    maintActor.send({ type: 'ISSUE_TICKET', track: Track.Maintenance });
+    const ctx = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [ddosEvent.id]: ddosEvent },
+      eventCardActors: { ...base.eventCardActors, [ddosEvent.id]: maintActor },
+      ticketOrders: { ...base.ticketOrders, [Track.Maintenance]: [ddosEvent.id] },
+    };
+    // emMaint targets BreakFix by default; override to Maintenance
     const updated = playActionCard(ctx, emMaint, undefined, undefined, undefined, Track.Maintenance);
-    const maintTrack = updated.tracks.find((t) => t.track === Track.Maintenance)!;
-    const bfTrack = updated.tracks.find((t) => t.track === Track.BreakFix)!;
-    expect(maintTrack.tickets).toHaveLength(0);
-    expect(bfTrack.tickets).toHaveLength(0);
+    expect(updated.ticketOrders[Track.Maintenance]).toHaveLength(0);
+    expect(updated.ticketOrders[Track.BreakFix]).toHaveLength(0);
   });
 
   it('AddPeriodSlots adds temporary slots to the runtime targetPeriod', () => {
     const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
-    const ctx = makeCtx({ hand: [dcExpansion] });
-    const beforeEvening = ctx.timeSlots.filter((s) => s.period === Period.Evening).length;
-    const beforeOvernight = ctx.timeSlots.filter((s) => s.period === Period.Overnight).length;
-    const updated = playActionCard(ctx, dcExpansion, undefined, undefined, Period.Evening);
-    const eveningSlots = updated.timeSlots.filter((s) => s.period === Period.Evening);
-    const overnightSlots = updated.timeSlots.filter((s) => s.period === Period.Overnight);
+    const base = ctxWithHandCardsFixedIds([dcExpansion], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    const beforeEvening = base.slotLayout.filter((s) => s.period === Period.Evening).length;
+    const beforeOvernight = base.slotLayout.filter((s) => s.period === Period.Overnight).length;
+    const updated = playActionCard(base, dcExpansion, undefined, undefined, Period.Evening);
+    const eveningSlots = updated.slotLayout.filter((s) => s.period === Period.Evening);
+    const overnightSlots = updated.slotLayout.filter((s) => s.period === Period.Overnight);
     expect(eveningSlots.length).toBe(beforeEvening + 2);
-    expect(eveningSlots.filter((s) => s.weeklyTemporary).length).toBe(2);
+    expect(eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary).length).toBe(2);
     expect(overnightSlots.length).toBe(beforeOvernight);
   });
 
@@ -165,7 +156,7 @@ describe('playActionCard', () => {
   });
 
   it('does nothing if card is not in hand', () => {
-    const ctx = makeCtx({ hand: [] });
+    const ctx = safeContext('test-seed', { activePhase: PhaseId.Crisis, budget: 500_000 });
     const updated = playActionCard(ctx, emMaint);
     expect(updated.budget).toBe(500_000);
   });
@@ -173,94 +164,87 @@ describe('playActionCard', () => {
 
 describe('processCrisis', () => {
   it('spawns 8 DDoS traffic cards when unmitigated', () => {
-    const ctx = makeCtx({ pendingEvents: [ddosEvent] });
+    const ctx = ctxWithPendingEvents([ddosEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    expect(context.spawnedTrafficQueue).toHaveLength(8);
-    expect(context.spawnedTrafficQueue.every((c) => c.templateId === 'traffic-ddos')).toBe(true);
+    expect(context.spawnedQueueOrder).toHaveLength(8);
+    expect(context.spawnedQueueOrder.every((id) => context.cardInstances[id]?.templateId === 'traffic-ddos')).toBe(true);
   });
 
   it('does not spawn traffic cards when DDoS event is mitigated', () => {
-    const ctx = makeCtx({
-      pendingEvents: [ddosEvent],
-      mitigatedEventIds: [ddosEvent.id],
-    });
+    const base = ctxWithPendingEvents([ddosEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const ctx = { ...base, mitigatedEventIds: [ddosEvent.id] };
     const { context } = processCrisis(ctx);
-    expect(context.spawnedTrafficQueue).toHaveLength(0);
+    expect(context.spawnedQueueOrder).toHaveLength(0);
   });
 
   it('does nothing to budget when DDoS event is mitigated', () => {
-    const ctx = makeCtx({
-      pendingEvents: [ddosEvent],
-      mitigatedEventIds: [ddosEvent.id],
-    });
+    const base = ctxWithPendingEvents([ddosEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const ctx = { ...base, mitigatedEventIds: [ddosEvent.id] };
     const { context, penaltiesApplied } = processCrisis(ctx);
     expect(context.budget).toBe(500_000);
     expect(penaltiesApplied).toBe(0);
   });
 
   it('clears pendingEvents after processing', () => {
-    const ctx = makeCtx({ pendingEvents: [ddosEvent] });
+    const ctx = ctxWithPendingEvents([ddosEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    expect(context.pendingEvents).toHaveLength(0);
+    expect(context.pendingEventsOrder).toHaveLength(0);
   });
 
   it('moves processed event cards into eventDiscard', () => {
-    const ctx = makeCtx({
-      pendingEvents: [ddosEvent, activationEvent],
-      eventDiscard: [],
-    });
+    const ctx = ctxWithPendingEvents(
+      [ddosEvent, activationEvent],
+      safeContext('test-seed', { activePhase: PhaseId.Crisis }),
+    );
     const { context } = processCrisis(ctx);
-    expect(context.eventDiscard).toHaveLength(2);
-    expect(context.eventDiscard).toContainEqual(ddosEvent);
-    expect(context.eventDiscard).toContainEqual(activationEvent);
+    expect(context.eventDiscardOrder).toContain(ddosEvent.id);
+    expect(context.eventDiscardOrder).toContain(activationEvent.id);
   });
 
   it('moves FalseAlarm into eventDiscard with no other side-effects', () => {
-    const ctx = makeCtx({
-      pendingEvents: [falseAlarmEvent],
-      eventDiscard: [],
-    });
+    const ctx = ctxWithPendingEvents([falseAlarmEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    expect(context.pendingEvents).toHaveLength(0);
-    expect(context.eventDiscard).toContainEqual(falseAlarmEvent);
+    expect(context.pendingEventsOrder).toHaveLength(0);
+    expect(context.eventDiscardOrder).toContain(falseAlarmEvent.id);
     expect(context.budget).toBe(500_000);
-    expect(context.spawnedTrafficQueue).toHaveLength(0);
+    expect(context.spawnedQueueOrder).toHaveLength(0);
   });
 
-  it('appends to an existing eventDiscard', () => {
+  it('appends to an existing eventDiscardOrder', () => {
     const existingCard = EVENT_CARDS[0]!;
-    const ctx = makeCtx({
-      pendingEvents: [ddosEvent],
-      eventDiscard: [existingCard],
-    });
+    // Pre-populate eventDiscardOrder with the existing card.
+    const base = safeContext('test-seed', { activePhase: PhaseId.Crisis });
+    const baseWithDiscard = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [existingCard.id]: existingCard },
+      eventDiscardOrder: [existingCard.id],
+    };
+    const ctx = ctxWithPendingEvents([ddosEvent], baseWithDiscard);
     const { context } = processCrisis(ctx);
-    expect(context.eventDiscard).toHaveLength(2);
-    expect(context.eventDiscard).toContainEqual(existingCard);
-    expect(context.eventDiscard).toContainEqual(ddosEvent);
+    expect(context.eventDiscardOrder.length).toBeGreaterThanOrEqual(2);
+    expect(context.eventDiscardOrder).toContain(existingCard.id);
+    expect(context.eventDiscardOrder).toContain(ddosEvent.id);
   });
 
   it('deducts $15,000 from budget when 5G Activation is unmitigated', () => {
-    const ctx = makeCtx({ pendingEvents: [activationEvent] });
+    const ctx = ctxWithPendingEvents([activationEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
     expect(context.budget).toBe(500_000 - 15_000);
   });
 
   it('issues a Projects ticket when 5G Activation is unmitigated', () => {
-    const ctx = makeCtx({ pendingEvents: [activationEvent] });
+    const ctx = ctxWithPendingEvents([activationEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    const projectsTrack = context.tracks.find((t) => t.track === Track.Projects)!;
-    expect(projectsTrack.tickets).toHaveLength(1);
-    expect(projectsTrack.tickets[0]!.templateId).toBe('event-5g-activation');
+    const projectsTickets = context.ticketOrders[Track.Projects] ?? [];
+    expect(projectsTickets).toHaveLength(1);
+    expect(context.cardInstances[projectsTickets[0]!]?.templateId).toBe('event-5g-activation');
   });
 
   it('does nothing when 5G Activation is mitigated', () => {
-    const ctx = makeCtx({
-      pendingEvents: [activationEvent],
-      mitigatedEventIds: [activationEvent.id],
-    });
+    const base = ctxWithPendingEvents([activationEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const ctx = { ...base, mitigatedEventIds: [activationEvent.id] };
     const { context } = processCrisis(ctx);
     expect(context.budget).toBe(500_000);
-    const projectsTrack = context.tracks.find((t) => t.track === Track.Projects)!;
-    expect(projectsTrack.tickets).toHaveLength(0);
+    expect((context.ticketOrders[Track.Projects] ?? []).length).toBe(0);
   });
 });

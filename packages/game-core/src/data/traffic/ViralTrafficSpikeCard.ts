@@ -1,4 +1,7 @@
-import { Period, TrafficCard, type GameContext } from '../../types.js';
+import { createActor } from 'xstate';
+import { Period, SlotType, TrafficCard, type GameContext } from '../../types.js';
+import { trafficCardPositionMachine } from '../../cardPositionMachines.js';
+import { getActorAtSlot } from '../../cardPositionViews.js';
 
 export class ViralTrafficSpikeCard extends TrafficCard {
   readonly templateId = 'traffic-viral-spike';
@@ -17,27 +20,42 @@ export class ViralTrafficSpikeCard extends TrafficCard {
     const periodOrder = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
     const nextPeriod = periodOrder[periodOrder.indexOf(sourcePeriod) + 1] ?? Period.Overnight;
 
-    const targetSlot = ctx.timeSlots.find(
-      (s) => s.period === nextPeriod && !s.overloaded && s.card === null,
-    );
-    if (targetSlot) {
+    // Create actor for the copy, starting in inDeck (will immediately be placed or spawned).
+    const copyActor = createActor(trafficCardPositionMachine, {
+      input: { instanceId: copy.id, templateId: copy.templateId },
+    });
+    copyActor.start();
+
+    // Try to find a free non-overloaded slot in the next period.
+    const freeSlot = ctx.slotLayout.find((s) => {
+      if (s.period !== nextPeriod || s.slotType === SlotType.Overloaded) return false;
+      return getActorAtSlot(ctx, s.period, s.index) === undefined;
+    });
+
+    const newCardInstances = { ...ctx.cardInstances, [copy.id]: copy };
+    const newTrafficCardActors = { ...ctx.trafficCardActors, [copy.id]: copyActor };
+
+    if (freeSlot) {
+      copyActor.send({
+        type: 'PLACE',
+        period: freeSlot.period,
+        slotIndex: freeSlot.index,
+        slotType: freeSlot.slotType,
+      });
       return {
         ...ctx,
-        timeSlots: ctx.timeSlots.map((s) =>
-          s.period === targetSlot.period && s.index === targetSlot.index
-            ? { ...s, card: copy }
-            : s,
-        ),
+        cardInstances: newCardInstances,
+        trafficCardActors: newTrafficCardActors,
       };
     }
-    // No free slot in the next period — create an overload slot
-    const overloadIndex = ctx.timeSlots.filter((s) => s.period === nextPeriod).length;
+
+    // No free slot — spawn into queue (overload slot created during placement in resolution).
+    copyActor.send({ type: 'SPAWN' });
     return {
       ...ctx,
-      timeSlots: [
-        ...ctx.timeSlots,
-        { period: nextPeriod, index: overloadIndex, card: copy, overloaded: true as const },
-      ],
+      cardInstances: newCardInstances,
+      trafficCardActors: newTrafficCardActors,
+      spawnedQueueOrder: [...ctx.spawnedQueueOrder, copy.id],
     };
   }
 }

@@ -1,3 +1,5 @@
+import type { TrafficCardActorRef, ActionCardActorRef, EventCardActorRef } from './cardPositionMachines.js';
+
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export enum Period {
@@ -33,6 +35,19 @@ export enum LoseReason {
   Bankrupt = 'Bankrupt',
   SLAExceeded = 'SLAExceeded',
 }
+
+/** Classifies the sub-type of a time slot on the board. */
+export enum SlotType {
+  Normal = 'normal',
+  Overloaded = 'overloaded',
+  Temporary = 'temporary',
+  WeeklyTemporary = 'weeklyTemporary',
+}
+
+/** Registries of per-card position actors keyed by instanceId. */
+export type TrafficCardActorRegistry = Record<string, TrafficCardActorRef>;
+export type ActionCardActorRegistry = Record<string, ActionCardActorRef>;
+export type EventCardActorRegistry = Record<string, EventCardActorRef>;
 
 export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'board';
 
@@ -117,26 +132,59 @@ export interface SerializedCard {
   readonly instanceId: string;
 }
 
-/** GameContext shape as stored in JSON — cards are { templateId, instanceId } pairs. */
+// ─── Serialized actor snapshot shapes (for save/load) ────────────────────────
+
+export interface SerializedTrafficActorSnapshot {
+  status: 'active';
+  value: string;
+  context: {
+    instanceId: string;
+    templateId: string;
+    period?: string;
+    slotIndex?: number;
+    slotType?: string;
+  };
+}
+
+export interface SerializedActionActorSnapshot {
+  status: 'active';
+  value: string;
+  context: { instanceId: string; templateId: string };
+}
+
+export interface SerializedEventActorSnapshot {
+  status: 'active';
+  value: string;
+  context: { instanceId: string; templateId: string; track?: string };
+}
+
+/** GameContext shape as stored in JSON — cards are represented as actor snapshots. */
 export interface SerializedGameContext {
   budget: number;
   round: number;
   slaCount: number;
-  hand: SerializedCard[];
-  playedThisRound: SerializedCard[];
-  timeSlots: Array<Omit<TimeSlot, 'card'> & { card: SerializedCard | null }>;
-  tracks: Array<{ track: Track; tickets: SerializedCard[] }>;
+  /** Per-card position actor snapshots keyed by instanceId. */
+  trafficActorSnapshots: Record<string, SerializedTrafficActorSnapshot>;
+  actionActorSnapshots: Record<string, SerializedActionActorSnapshot>;
+  eventActorSnapshots: Record<string, SerializedEventActorSnapshot>;
+  /** Slot layout (structure only, no card refs). */
+  slotLayout: Array<{ period: string; index: number; slotType: string }>;
+  /** Ordered ticket instance IDs per track. */
+  ticketOrders: Record<string, string[]>;
+  /** Ordering arrays — IDs only. */
+  trafficDeckOrder: string[];
+  trafficDiscardOrder: string[];
+  actionDeckOrder: string[];
+  actionDiscardOrder: string[];
+  eventDeckOrder: string[];
+  eventDiscardOrder: string[];
+  handOrder: string[];
+  playedThisRoundOrder: string[];
+  pendingEventsOrder: string[];
+  spawnedQueueOrder: string[];
   vendorSlots: VendorSlot[];
-  pendingEvents: SerializedCard[];
   mitigatedEventIds: string[];
   activePhase: PhaseId;
-  trafficDeck: SerializedCard[];
-  trafficDiscard: SerializedCard[];
-  eventDeck: SerializedCard[];
-  eventDiscard: SerializedCard[];
-  spawnedTrafficQueue: SerializedCard[];
-  actionDeck: SerializedCard[];
-  actionDiscard: SerializedCard[];
   lastRoundSummary: RoundSummary | null;
   loseReason: LoseReason | null;
   pendingRevenue: number;
@@ -150,21 +198,31 @@ export interface SerializedGameContext {
 
 // ─── Board State ──────────────────────────────────────────────────────────────
 
+/**
+ * Describes the structural layout of a single time slot (whether it exists and what type it is).
+ * Card occupancy is tracked by the traffic card actor's position state, not here.
+ */
+export interface TimeSlotLayout {
+  readonly period: Period;
+  readonly index: number;
+  readonly slotType: SlotType;
+}
+
+/**
+ * Derived view of a time slot that includes the occupying card, reconstructed
+ * from TimeSlotLayout + actor state by getFilledTimeSlots().
+ * Kept for backward compatibility with rendering code.
+ */
 export interface TimeSlot {
   readonly period: Period;
   readonly index: number;
   card: TrafficCard | null;
-  /** True if this slot was added temporarily by a BoostSlotCapacity action card; stripped at every round reset */
   readonly temporary?: boolean;
-  /** True if this slot was added by an AddPeriodSlots (Data Center Expansion) card; stripped on Monday */
   readonly weeklyTemporary?: boolean;
-  /** True if this slot was created because a period was full when a traffic card arrived.
-   * Overload slots are swept at the end of Resolution, adding their cards to trafficDiscard
-   * and incrementing slaCount by 1 per slot. Can be converted to a normal slot by
-   * Bandwidth Upgrade or Data Center Expansion. */
   readonly overloaded?: boolean;
 }
 
+/** Derived view of a track row; reconstructed from ticketOrders + cardInstances. */
 export interface TrackSlot {
   readonly track: Track;
   tickets: EventCard[];
@@ -201,46 +259,60 @@ export interface GameContext {
   budget: number;
   round: number;
   slaCount: number;
-  /** Cards in the player's hand (Action cards only) */
-  hand: ActionCard[];
-  /** Cards played this round (for end-phase discard logic; Actions are NOT discarded, Traffic/Events are) */
-  playedThisRound: ActionCard[];
-  /** Time slots grouped by period */
-  timeSlots: TimeSlot[];
-  /** Track rows for tickets */
-  tracks: TrackSlot[];
-  /** Vendor placeholder slots — TODO-0004: populate with vendor-mechanics effects once Vendor cards are implemented */
+
+  // ── Card instances (all cards ever created, keyed by instanceId) ────────────
+  cardInstances: Record<string, Card>;
+
+  // ── Per-card position actors (keyed by instanceId) ──────────────────────────
+  trafficCardActors: TrafficCardActorRegistry;
+  actionCardActors: ActionCardActorRegistry;
+  eventCardActors: EventCardActorRegistry;
+
+  // ── Slot layout (structure without card refs) ────────────────────────────────
+  /** Ordered list of all time slots; slot presence / type is the source of truth here. */
+  slotLayout: TimeSlotLayout[];
+
+  // ── Ticket order per track ────────────────────────────────────────────────────
+  /** Ordered instanceIds of event cards currently issued as tickets on each track. */
+  ticketOrders: Record<Track, string[]>;
+
+  // ── Ordering arrays (IDs only, insertion order = sequence) ───────────────────
+  trafficDeckOrder: string[];
+  trafficDiscardOrder: string[];
+  actionDeckOrder: string[];
+  actionDiscardOrder: string[];
+  eventDeckOrder: string[];
+  eventDiscardOrder: string[];
+  /** IDs of action cards currently in the player's hand, in display order. */
+  handOrder: string[];
+  /** IDs of action cards played this round (pending discard at end). */
+  playedThisRoundOrder: string[];
+  /** IDs of event cards drawn this round, pending Crisis phase. */
+  pendingEventsOrder: string[];
+  /** IDs of traffic cards spawned by events, queued for board placement. */
+  spawnedQueueOrder: string[];
+
+  // ── Vendor placeholder slots ─────────────────────────────────────────────────
+  /** TODO-0004: populate with vendor-mechanics effects once Vendor cards are implemented */
   vendorSlots: VendorSlot[];
-  /** Event cards drawn this round, pending Crisis phase */
-  pendingEvents: EventCard[];
+
   /** Action cards that successfully mitigated a DDoS event this round */
   mitigatedEventIds: string[];
   /** Current phase */
   activePhase: PhaseId;
-  /** Decks */
-  trafficDeck: TrafficCard[];
-  trafficDiscard: TrafficCard[];
-  eventDeck: EventCard[];
-  eventDiscard: EventCard[];
-  /** Traffic cards queued by SpawnTraffic events during crisis; placed on the board in resolution */
-  spawnedTrafficQueue: TrafficCard[];
-  actionDeck: ActionCard[];
-  actionDiscard: ActionCard[];
   /** Round summary populated during Resolution phase */
   lastRoundSummary: RoundSummary | null;
   /** Cause of game loss */
   loseReason: LoseReason | null;
-  /** Revenue collected by traffic card removals during the current round.
-   * Set by playActionCard (RemoveTrafficCard), consumed by resolveRound to populate
-   * RoundSummary.budgetDelta, then reset to 0. */
+  /** Revenue collected by traffic card removals during the current round. */
   pendingRevenue: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
   skipNextTrafficDraw: boolean;
-  /** Revenue multiplier applied to all traffic-card removals. Set by beneficial events (e.g. Tier-1 Peering Agreement); resets to 1 on Monday. */
+  /** Revenue multiplier applied to all traffic-card removals. */
   revenueBoostMultiplier: number;
-  /** Animation draw log — runtime only, not persisted — describes cards drawn this phase. */
+  /** Animation draw log — runtime only, not persisted. */
   drawLog: DrawLog | null;
 }
 

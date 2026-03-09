@@ -56,6 +56,6 @@ describe('FalseAlarmCard — onCrisis', () => {
     const card = new FalseAlarmCard();
     const ctx = createInitialContext();
     const result = card.onCrisis(ctx, false);
-    expect(result.spawnedTrafficQueue).toHaveLength(0);
+    expect(result.spawnedQueueOrder).toHaveLength(0);
   });
 });

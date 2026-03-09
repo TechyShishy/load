@@ -2,25 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { AWSOutageCard } from '../data/events/index.js';
-import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { type TrafficCard } from '../types.js';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** safeContext: traffic-only deck, no events, so rounds complete cleanly. */
-function safeContext() {
-  const trafficDeck: TrafficCard[] = Array.from({ length: 24 }, (_, i) =>
-    TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!,
-  );
-  return {
-    ...createInitialContext('aws-test-seed'),
-    trafficDeck,
-    trafficDiscard: [] as TrafficCard[],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [] as TrafficCard[],
-  };
-}
+import { getFilledTimeSlots } from '../cardPositionViews.js';
+import { safeContext } from './testHelpers.js';
 
 function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
   actor.send({ type: 'ADVANCE' }); // scheduling → crisis
@@ -61,7 +44,7 @@ describe('AWSOutageCard — onCrisis unmitigated', () => {
     const card = new AWSOutageCard();
     const ctx = createInitialContext();
     const result = card.onCrisis(ctx, false);
-    expect(result.spawnedTrafficQueue).toHaveLength(0);
+    expect(result.spawnedQueueOrder).toHaveLength(0);
   });
 });
 
@@ -85,7 +68,7 @@ describe('AWSOutageCard — integration: skipped draw round', () => {
   it('skipNextTrafficDraw flag clears after the following draw phase', () => {
     const actor = createActor(gameMachine, {
       input: {
-        ...safeContext(),
+        ...safeContext('aws-test-seed'),
         skipNextTrafficDraw: true,
       },
     });
@@ -98,20 +81,20 @@ describe('AWSOutageCard — integration: skipped draw round', () => {
   it('board has no traffic cards on the skipped round', () => {
     const actor = createActor(gameMachine, {
       input: {
-        ...safeContext(),
+        ...safeContext('aws-test-seed'),
         skipNextTrafficDraw: true,
       },
     });
     actor.start();
     actor.send({ type: 'DRAW_COMPLETE' });
-    const filledSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.card !== null);
+    const filledSlots = getFilledTimeSlots(actor.getSnapshot().context).filter((s) => s.card !== null);
     expect(filledSlots).toHaveLength(0);
   });
 
   it('normal draw populates slots the round after the skip', () => {
     const actor = createActor(gameMachine, {
       input: {
-        ...safeContext(),
+        ...safeContext('aws-test-seed'),
         skipNextTrafficDraw: true,
       },
     });
@@ -121,7 +104,7 @@ describe('AWSOutageCard — integration: skipped draw round', () => {
     advanceRound(actor);                   // scheduling → crisis → resolution → end → draw (round 2, performDraw fires normally)
     // Round 2: normal draw
     actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling (round 2)
-    const filledSlots = actor.getSnapshot().context.timeSlots.filter((s) => s.card !== null);
+    const filledSlots = getFilledTimeSlots(actor.getSnapshot().context).filter((s) => s.card !== null);
     expect(filledSlots.length).toBeGreaterThan(0);
   });
 });

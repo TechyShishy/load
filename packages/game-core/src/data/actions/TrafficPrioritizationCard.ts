@@ -1,4 +1,5 @@
-import { ActionCard, Period, type GameContext } from '../../types.js';
+import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
+import type { TrafficCardPositionContext } from '../../cardPositionMachines.js';
 
 export class TrafficPrioritizationCard extends ActionCard {
   readonly templateId = 'action-traffic-prioritization';
@@ -20,40 +21,53 @@ export class TrafficPrioritizationCard extends ActionCard {
     targetTrafficCardId?: string,
   ): GameContext {
     let context = commit();
-    if (targetTrafficCardId) {
-      let collectedRevenue = 0;
-      let removedCard: (typeof context.trafficDiscard)[number] | undefined;
-      let sourcePeriod: Period = Period.Morning;
+    if (!targetTrafficCardId) return context;
+
+    const targetActor = context.trafficCardActors[targetTrafficCardId];
+    if (!targetActor) return context;
+    const snap = targetActor.getSnapshot();
+    if (snap.value !== 'onSlot') return context;
+
+    const { period: actorPeriod, slotIndex, slotType } =
+      snap.context as TrafficCardPositionContext;
+    const removedCard = context.cardInstances[targetTrafficCardId];
+    if (!removedCard || actorPeriod === undefined) return context;
+
+    // Transition actor: onSlot → inDiscard.
+    targetActor.send({ type: 'REMOVE' });
+
+    // Remove the overload slot from layout if that's what it was.
+    let slotLayout = context.slotLayout;
+    if (slotType === SlotType.Overloaded) {
+      slotLayout = slotLayout.filter(
+        (s) => !(s.period === actorPeriod && s.index === slotIndex),
+      );
+    }
+
+    context = {
+      ...context,
+      slotLayout,
+      trafficDiscardOrder: [...context.trafficDiscardOrder, targetTrafficCardId],
+    };
+
+    // Call onPickUp hook (e.g. ViralTrafficSpike spawns a copy).
+    if ('onPickUp' in removedCard && typeof (removedCard as { onPickUp?: unknown }).onPickUp === 'function') {
+      context = (removedCard as { onPickUp: (ctx: GameContext, period: Period) => GameContext }).onPickUp(
+        context,
+        actorPeriod,
+      );
+    }
+
+    const revenue = (removedCard as { revenue?: number }).revenue ?? 0;
+    if (revenue > 0) {
+      const boostedRevenue = Math.round(revenue * context.revenueBoostMultiplier);
       context = {
         ...context,
-        timeSlots: context.timeSlots
-          .map((slot) => {
-            if (slot.card?.id === targetTrafficCardId) {
-              collectedRevenue += slot.card.revenue;
-              removedCard = slot.card;
-              sourcePeriod = slot.period;
-              return { ...slot, card: null };
-            }
-            return slot;
-          })
-          // If the overload slot is now empty, remove it entirely.
-          .filter((slot) => !(slot.overloaded === true && slot.card === null)),
+        budget: context.budget + boostedRevenue,
+        pendingRevenue: context.pendingRevenue + boostedRevenue,
       };
-      if (removedCard !== undefined) {
-        context = { ...context, trafficDiscard: [...context.trafficDiscard, removedCard] };
-        if (removedCard.onPickUp) {
-          context = removedCard.onPickUp(context, sourcePeriod);
-        }
-      }
-      if (collectedRevenue > 0) {
-        const boostedRevenue = Math.round(collectedRevenue * context.revenueBoostMultiplier);
-        context = {
-          ...context,
-          budget: context.budget + boostedRevenue,
-          pendingRevenue: context.pendingRevenue + boostedRevenue,
-        };
-      }
     }
+
     return context;
   }
 }

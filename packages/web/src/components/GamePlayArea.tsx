@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@
 import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
 import { useDrawAnimationState } from '../hooks/useDrawAnimationState.js';
-import { Period, Track } from '@load/game-core';
+import { Period, Track, getFilledTimeSlots, getHand, getPendingEvents } from '@load/game-core';
 import type { ActionCard } from '@load/game-core';
 import { GameCanvas } from './canvas/GameCanvas.js';
 import { BoardDropZones } from './canvas/BoardDropZones.js';
@@ -35,6 +35,9 @@ const snapFlyoutToCursor: Modifier = ({ transform, activatorEvent, draggingNodeR
 
 export function GamePlayArea() {
   const { context, phase, advance, drawComplete, playAction, reset, isWon, isLost } = useGame();
+  const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
+  const hand = useMemo(() => getHand(context), [context]);
+  const pendingEvents = useMemo(() => getPendingEvents(context), [context]);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<ActionCard | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,7 +104,7 @@ export function GamePlayArea() {
         // id format: "slot-Morning-0"
         const [, period, idxStr] = over.id.split('-') as [string, Period, string];
         const slotIndex = parseInt(idxStr ?? '0', 10);
-        const slot = context.timeSlots.find((s) => s.period === period && s.index === slotIndex);
+        const slot = timeSlots.find((s) => s.period === period && s.index === slotIndex);
         if (!slot) return;
 
         if (zones.includes('occupied-slot')) {
@@ -142,7 +145,7 @@ export function GamePlayArea() {
         }
       }
     },
-    [playAction, context.timeSlots, showFeedback],
+    [playAction, timeSlots, showFeedback],
   );
 
   const canAdvance = phase === 'scheduling' || phase === 'crisis';
@@ -180,7 +183,7 @@ export function GamePlayArea() {
             </div>
           )}
           <HandZone
-            hand={context.hand}
+            hand={hand}
             disabled={!canPlayCard}
             isCardDisabled={(card) => card.crisisOnly === true && phase === 'scheduling'}
             suppressedCardIds={suppressedCardIds}
@@ -202,10 +205,10 @@ export function GamePlayArea() {
           ADVANCE →
         </button>
       </div>
-      {phase === 'crisis' && context.pendingEvents.length > 0 && crisisAnimsDone && (
+      {phase === 'crisis' && pendingEvents.length > 0 && crisisAnimsDone && (
         <EventModal
-          event={context.pendingEvents[0]!}
-          hand={context.hand}
+          event={pendingEvents[0]!}
+          hand={hand}
           onMitigate={(card) => playAction(card)}
           onAdvance={advance}
         />

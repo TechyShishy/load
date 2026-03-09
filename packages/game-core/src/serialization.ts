@@ -1,78 +1,61 @@
-import { type GameContext, type SerializedCard, type SerializedGameContext, type TimeSlot } from './types.js';
+import { createActor, type SnapshotFrom } from 'xstate';
+import {
+  type Card, type GameContext, type SerializedGameContext, type Track,
+  type TrafficCardActorRegistry, type ActionCardActorRegistry, type EventCardActorRegistry,
+} from './types.js';
+import {
+  trafficCardPositionMachine,
+  actionCardPositionMachine,
+  eventCardPositionMachine,
+} from './cardPositionMachines.js';
 import { ACTION_CARD_REGISTRY } from './data/actions/index.js';
 import { EVENT_CARD_REGISTRY } from './data/events/index.js';
 import { TRAFFIC_CARD_REGISTRY } from './data/traffic/index.js';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function dehydrateCard(card: { templateId: string; id: string }): SerializedCard {
-  return { templateId: card.templateId, instanceId: card.id };
-}
-
-function hydrateTraffic(ref: SerializedCard) {
-  const Ctor = TRAFFIC_CARD_REGISTRY.get(ref.templateId);
-  if (!Ctor) return null;
-  return new Ctor(ref.instanceId);
-}
-
-function hydrateEvent(ref: SerializedCard) {
-  const Ctor = EVENT_CARD_REGISTRY.get(ref.templateId);
-  if (!Ctor) return null;
-  return new Ctor(ref.instanceId);
-}
-
-function hydrateAction(ref: SerializedCard) {
-  const Ctor = ACTION_CARD_REGISTRY.get(ref.templateId);
-  if (!Ctor) return null;
-  return new Ctor(ref.instanceId);
-}
-
-function hydrateAll<T>(refs: SerializedCard[], hydrator: (r: SerializedCard) => T | null): T[] | null {
-  const result: T[] = [];
-  for (const ref of refs) {
-    const card = hydrator(ref);
-    if (card === null) return null; // unknown templateId — save is corrupt/stale
-    result.push(card);
-  }
-  return result;
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Convert a runtime GameContext (class instances) into a plain JSON-safe object.
- * Every card becomes { templateId, instanceId }.
+ * Convert a runtime GameContext into a plain JSON-safe SerializedGameContext.
+ * Actor state is persisted using actor.getPersistedSnapshot().
  */
 export function dehydrateContext(ctx: GameContext): SerializedGameContext {
+  const trafficActorSnapshots: SerializedGameContext['trafficActorSnapshots'] = {};
+  for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
+    trafficActorSnapshots[id] = actor.getPersistedSnapshot() as unknown as SerializedGameContext['trafficActorSnapshots'][string];
+  }
+
+  const actionActorSnapshots: SerializedGameContext['actionActorSnapshots'] = {};
+  for (const [id, actor] of Object.entries(ctx.actionCardActors)) {
+    actionActorSnapshots[id] = actor.getPersistedSnapshot() as unknown as SerializedGameContext['actionActorSnapshots'][string];
+  }
+
+  const eventActorSnapshots: SerializedGameContext['eventActorSnapshots'] = {};
+  for (const [id, actor] of Object.entries(ctx.eventCardActors)) {
+    eventActorSnapshots[id] = actor.getPersistedSnapshot() as unknown as SerializedGameContext['eventActorSnapshots'][string];
+  }
+
   return {
     budget: ctx.budget,
     round: ctx.round,
     slaCount: ctx.slaCount,
-    hand: ctx.hand.map(dehydrateCard),
-    playedThisRound: ctx.playedThisRound.map(dehydrateCard),
-    timeSlots: ctx.timeSlots.map((slot) => ({
-      period: slot.period,
-      index: slot.index,
-      ...(slot.temporary !== undefined && { temporary: slot.temporary }),
-      ...(slot.weeklyTemporary !== undefined && { weeklyTemporary: slot.weeklyTemporary }),
-      ...(slot.overloaded !== undefined && { overloaded: slot.overloaded }),
-      card: slot.card ? dehydrateCard(slot.card) : null,
-    })),
-    tracks: ctx.tracks.map((t) => ({
-      track: t.track,
-      tickets: t.tickets.map(dehydrateCard),
-    })),
+    trafficActorSnapshots,
+    actionActorSnapshots,
+    eventActorSnapshots,
+    slotLayout: ctx.slotLayout,
+    ticketOrders: ctx.ticketOrders,
+    trafficDeckOrder: ctx.trafficDeckOrder,
+    trafficDiscardOrder: ctx.trafficDiscardOrder,
+    actionDeckOrder: ctx.actionDeckOrder,
+    actionDiscardOrder: ctx.actionDiscardOrder,
+    eventDeckOrder: ctx.eventDeckOrder,
+    eventDiscardOrder: ctx.eventDiscardOrder,
+    handOrder: ctx.handOrder,
+    playedThisRoundOrder: ctx.playedThisRoundOrder,
+    pendingEventsOrder: ctx.pendingEventsOrder,
+    spawnedQueueOrder: ctx.spawnedQueueOrder,
     vendorSlots: ctx.vendorSlots,
-    pendingEvents: ctx.pendingEvents.map(dehydrateCard),
     mitigatedEventIds: ctx.mitigatedEventIds,
     activePhase: ctx.activePhase,
-    trafficDeck: ctx.trafficDeck.map(dehydrateCard),
-    trafficDiscard: ctx.trafficDiscard.map(dehydrateCard),
-    eventDeck: ctx.eventDeck.map(dehydrateCard),
-    eventDiscard: ctx.eventDiscard.map(dehydrateCard),
-    spawnedTrafficQueue: ctx.spawnedTrafficQueue.map(dehydrateCard),
-    actionDeck: ctx.actionDeck.map(dehydrateCard),
-    actionDiscard: ctx.actionDiscard.map(dehydrateCard),
     lastRoundSummary: ctx.lastRoundSummary,
     loseReason: ctx.loseReason,
     pendingRevenue: ctx.pendingRevenue,
@@ -84,69 +67,79 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
 
 /**
  * Reconstruct a runtime GameContext from a serialized form.
- * Returns null if any card reference cannot be resolved (stale/corrupt save).
+ * Returns null if any card templateId cannot be resolved (stale/corrupt save).
  */
 export function hydrateContext(raw: SerializedGameContext): GameContext | null {
-  const hand = hydrateAll(raw.hand, hydrateAction);
-  const playedThisRound = hydrateAll(raw.playedThisRound, hydrateAction);
-  const pendingEvents = hydrateAll(raw.pendingEvents, hydrateEvent);
-  const trafficDeck = hydrateAll(raw.trafficDeck, hydrateTraffic);
-  const trafficDiscard = hydrateAll(raw.trafficDiscard, hydrateTraffic);
-  const eventDeck = hydrateAll(raw.eventDeck, hydrateEvent);
-  const eventDiscard = hydrateAll(raw.eventDiscard, hydrateEvent);
-  const spawnedTrafficQueue = hydrateAll(raw.spawnedTrafficQueue, hydrateTraffic);
-  const actionDeck = hydrateAll(raw.actionDeck, hydrateAction);
-  const actionDiscard = hydrateAll(raw.actionDiscard, hydrateAction);
+  const cardInstances: Record<string, Card> = {};
+  const trafficCardActors: TrafficCardActorRegistry = {};
+  const actionCardActors: ActionCardActorRegistry = {};
+  const eventCardActors: EventCardActorRegistry = {};
 
-  if (
-    !hand || !playedThisRound || !pendingEvents ||
-    !trafficDeck || !trafficDiscard || !eventDeck || !eventDiscard ||
-    !spawnedTrafficQueue || !actionDeck || !actionDiscard
-  ) {
-    return null;
-  }
-
-  const timeSlots: TimeSlot[] = [];
-  for (const slot of raw.timeSlots) {
-    const card = slot.card ? hydrateTraffic(slot.card) : null;
-    if (slot.card && !card) return null;
-    timeSlots.push({
-      period: slot.period,
-      index: slot.index,
-      ...(slot.temporary !== undefined && { temporary: slot.temporary }),
-      ...(slot.weeklyTemporary !== undefined && { weeklyTemporary: slot.weeklyTemporary }),
-      ...(slot.overloaded !== undefined && { overloaded: slot.overloaded }),
-      card,
+  // ─ traffic actors ─
+  for (const [id, snapshot] of Object.entries(raw.trafficActorSnapshots)) {
+    const templateId = (snapshot as { context: { templateId: string } }).context.templateId;
+    const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId);
+    if (!Ctor) return null; // unknown card — save is stale
+    cardInstances[id] = new Ctor(id);
+    const actor = createActor(trafficCardPositionMachine, {
+      input: { instanceId: id, templateId },
+      snapshot: snapshot as unknown as SnapshotFrom<typeof trafficCardPositionMachine>,
     });
+    actor.start();
+    trafficCardActors[id] = actor;
   }
 
-  type HydratedTrack = GameContext['tracks'][number];
-  const tracks: HydratedTrack[] = [];
-  for (const t of raw.tracks) {
-    const tickets = hydrateAll(t.tickets, hydrateEvent);
-    if (!tickets) return null;
-    tracks.push({ track: t.track, tickets });
+  // ─ action actors ─
+  for (const [id, snapshot] of Object.entries(raw.actionActorSnapshots)) {
+    const templateId = (snapshot as { context: { templateId: string } }).context.templateId;
+    const Ctor = ACTION_CARD_REGISTRY.get(templateId);
+    if (!Ctor) return null;
+    cardInstances[id] = new Ctor(id);
+    const actor = createActor(actionCardPositionMachine, {
+      input: { instanceId: id, templateId },
+      snapshot: snapshot as unknown as SnapshotFrom<typeof actionCardPositionMachine>,
+    });
+    actor.start();
+    actionCardActors[id] = actor;
+  }
+
+  // ─ event actors ─
+  for (const [id, snapshot] of Object.entries(raw.eventActorSnapshots)) {
+    const templateId = (snapshot as { context: { templateId: string } }).context.templateId;
+    const Ctor = EVENT_CARD_REGISTRY.get(templateId);
+    if (!Ctor) return null;
+    cardInstances[id] = new Ctor(id);
+    const actor = createActor(eventCardPositionMachine, {
+      input: { instanceId: id, templateId },
+      snapshot: snapshot as unknown as SnapshotFrom<typeof eventCardPositionMachine>,
+    });
+    actor.start();
+    eventCardActors[id] = actor;
   }
 
   return {
     budget: raw.budget,
     round: raw.round,
     slaCount: raw.slaCount,
-    hand,
-    playedThisRound,
-    timeSlots,
-    tracks,
+    cardInstances,
+    trafficCardActors,
+    actionCardActors,
+    eventCardActors,
+    slotLayout: raw.slotLayout as import('./types.js').TimeSlotLayout[],
+    ticketOrders: raw.ticketOrders as Record<Track, string[]>,
+    trafficDeckOrder: raw.trafficDeckOrder,
+    trafficDiscardOrder: raw.trafficDiscardOrder,
+    actionDeckOrder: raw.actionDeckOrder,
+    actionDiscardOrder: raw.actionDiscardOrder,
+    eventDeckOrder: raw.eventDeckOrder,
+    eventDiscardOrder: raw.eventDiscardOrder,
+    handOrder: raw.handOrder,
+    playedThisRoundOrder: raw.playedThisRoundOrder,
+    pendingEventsOrder: raw.pendingEventsOrder,
+    spawnedQueueOrder: raw.spawnedQueueOrder,
     vendorSlots: raw.vendorSlots,
-    pendingEvents,
     mitigatedEventIds: raw.mitigatedEventIds,
     activePhase: raw.activePhase,
-    trafficDeck,
-    trafficDiscard,
-    eventDeck,
-    eventDiscard,
-    spawnedTrafficQueue,
-    actionDeck,
-    actionDiscard,
     lastRoundSummary: raw.lastRoundSummary,
     loseReason: raw.loseReason,
     pendingRevenue: raw.pendingRevenue,
@@ -156,3 +149,4 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     drawLog: null,
   };
 }
+

@@ -1,53 +1,119 @@
 import { and, assign, setup } from 'xstate';
-import { BANKRUPT_THRESHOLD, MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW, WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, HAND_SIZE, LoseReason, MAX_SLA_FAILURES, Period, PhaseId, STARTING_BUDGET, type ActionCard, type DrawLog, type GameContext, type Track, isWeekend, isFriday, getDayOfWeek } from './types.js';
-import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, reshuffleDiscard } from './deck.js';
+import { createActor } from 'xstate';
 import {
-  createInitialTimeSlots,
-  createInitialTracks,
+  HAND_SIZE, LoseReason, Period, PhaseId, STARTING_BUDGET, Track,
+  MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
+  MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
+  WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
+  type ActionCard, type Card, type DrawLog, type DrawLogTrafficEntry, type EventCard, type GameContext, type TimeSlotLayout, type TrafficCard,
+  type TrafficCardActorRegistry, type ActionCardActorRegistry, type EventCardActorRegistry,
+  isWeekend, isFriday, getDayOfWeek,
+} from './types.js';
+import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, shuffle } from './deck.js';
+import {
+  createInitialSlotLayout,
   createVendorSlots,
-  resetSlotsForRound,
-  stripWeeklyTemporarySlots,
+  resetSlotLayout,
+  stripWeeklyTemporarySlotLayout,
 } from './boardState.js';
-import { autoFillTrafficSlots } from './autoFillTrafficSlots.js';
+import { computeTrafficPlacements } from './autoFillTrafficSlots.js';
 import { playActionCard as applyPlayActionCard, processCrisis } from './processCrisis.js';
 import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRound.js';
+import { getPendingEvents, getHand } from './cardPositionViews.js';
+import {
+  trafficCardPositionMachine, actionCardPositionMachine, eventCardPositionMachine,
+} from './cardPositionMachines.js';
 
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
 export function createInitialContext(seed?: string): GameContext {
   const resolvedSeed = seed ?? crypto.randomUUID();
   const rng = makeRng(resolvedSeed + '-init');
-  const trafficDeck = buildTrafficDeck(rng);
-  const eventDeck = buildEventDeck(rng);
-  const actionDeck = buildActionDeck(rng);
-  const [initialHand, remainingActionDeck] = drawN(actionDeck, HAND_SIZE);
+  const trafficCards = buildTrafficDeck(rng);
+  const eventCards = buildEventDeck(rng);
+  const allActionCards = buildActionDeck(rng);
+  const [initialHandCards, remainingActionCards] = drawN(allActionCards, HAND_SIZE);
+
+  // ─ card instance registry ─
+  const cardInstances: Record<string, Card> = {};
+  for (const c of [...trafficCards, ...eventCards, ...allActionCards]) {
+    cardInstances[c.id] = c;
+  }
+
+  // ─ traffic card actors (all start inDeck) ─
+  const trafficCardActors: TrafficCardActorRegistry = {};
+  for (const card of trafficCards) {
+    const actor = createActor(trafficCardPositionMachine, {
+      input: { instanceId: card.id, templateId: card.templateId },
+    });
+    actor.start();
+    trafficCardActors[card.id] = actor;
+  }
+
+  // ─ action card actors ─
+  const actionCardActors: ActionCardActorRegistry = {};
+  for (const card of remainingActionCards) {
+    const actor = createActor(actionCardPositionMachine, {
+      input: { instanceId: card.id, templateId: card.templateId },
+    });
+    actor.start();
+    actionCardActors[card.id] = actor;
+  }
+  for (const card of initialHandCards) {
+    const actor = createActor(actionCardPositionMachine, {
+      input: { instanceId: card.id, templateId: card.templateId },
+    });
+    actor.start();
+    actor.send({ type: 'DRAW' }); // inDeck → inHand
+    actionCardActors[card.id] = actor;
+  }
+
+  // ─ event card actors (all start inDeck) ─
+  const eventCardActors: EventCardActorRegistry = {};
+  for (const card of eventCards) {
+    const actor = createActor(eventCardPositionMachine, {
+      input: { instanceId: card.id, templateId: card.templateId },
+    });
+    actor.start();
+    eventCardActors[card.id] = actor;
+  }
+
+  const ticketOrders: Record<Track, string[]> = {
+    [Track.BreakFix]: [],
+    [Track.Projects]: [],
+    [Track.Maintenance]: [],
+  };
 
   return {
     budget: STARTING_BUDGET,
     round: 1,
     slaCount: 0,
-    hand: initialHand,
-    playedThisRound: [],
-    timeSlots: createInitialTimeSlots(),
-    tracks: createInitialTracks(),
+    cardInstances,
+    trafficCardActors,
+    actionCardActors,
+    eventCardActors,
+    slotLayout: createInitialSlotLayout(),
+    ticketOrders,
+    trafficDeckOrder: trafficCards.map((c) => c.id),
+    trafficDiscardOrder: [],
+    actionDeckOrder: remainingActionCards.map((c) => c.id),
+    actionDiscardOrder: [],
+    eventDeckOrder: eventCards.map((c) => c.id),
+    eventDiscardOrder: [],
+    handOrder: initialHandCards.map((c) => c.id),
+    playedThisRoundOrder: [],
+    pendingEventsOrder: [],
+    spawnedQueueOrder: [],
     vendorSlots: createVendorSlots(),
-    pendingEvents: [],
     mitigatedEventIds: [],
     activePhase: PhaseId.Draw,
-    trafficDeck,
-    trafficDiscard: [],
-    eventDeck,
-    eventDiscard: [],
-    spawnedTrafficQueue: [],
-    actionDeck: remainingActionDeck,
-    actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
     pendingRevenue: 0,
     seed: resolvedSeed,
     skipNextTrafficDraw: false,
     revenueBoostMultiplier: 1,
-    drawLog: { traffic: [], action: initialHand, events: [] },
+    drawLog: { traffic: [], action: initialHandCards, events: [] },
   };
 }
 
@@ -88,104 +154,150 @@ export const gameMachine = setup({
       if (event.type !== 'PLAY_ACTION') return true;
       const { validForEventTemplateIds } = event.card;
       if (!validForEventTemplateIds || validForEventTemplateIds.length === 0) return true;
+      const pending = getPendingEvents(context);
       const targetId =
         event.targetEventId ??
-        context.pendingEvents.find((e) => !context.mitigatedEventIds.includes(e.id))?.id;
+        pending.find((e) => !context.mitigatedEventIds.includes(e.id))?.id;
       if (!targetId) return false;
-      const targetEvent = context.pendingEvents.find((e) => e.id === targetId);
+      const targetEvent = pending.find((e) => e.id === targetId);
       if (!targetEvent) return false;
       return validForEventTemplateIds.includes(targetEvent.templateId);
     },
   },
   actions: {
     performDraw: assign(({ context }) => {
-      // Reset board slots for the new round
-      const afterReset = resetSlotsForRound(context.timeSlots);
-      const freshSlots = getDayOfWeek(context.round) === 1
-        ? stripWeeklyTemporarySlots(afterReset)
+      const afterReset = resetSlotLayout(context.slotLayout);
+      const freshLayout: TimeSlotLayout[] = getDayOfWeek(context.round) === 1
+        ? stripWeeklyTemporarySlotLayout(afterReset)
         : afterReset;
       const freshMultiplier = getDayOfWeek(context.round) === 1 ? 1 : context.revenueBoostMultiplier;
 
-      // AWS Outage carry-over: skip traffic draw this round
+      // AWS Outage carry-over: skip traffic draw this round.
       if (context.skipNextTrafficDraw) {
         return {
           ...context,
-          timeSlots: freshSlots,
-          playedThisRound: [],
+          slotLayout: freshLayout,
+          playedThisRoundOrder: [],
           mitigatedEventIds: [],
-          pendingEvents: [],
-          spawnedTrafficQueue: [],
+          pendingEventsOrder: [],
+          spawnedQueueOrder: [],
           skipNextTrafficDraw: false,
           revenueBoostMultiplier: freshMultiplier,
           activePhase: PhaseId.Scheduling,
-          drawLog: { traffic: [], action: context.drawLog?.action ?? [], events: [] },
+          drawLog: {
+            traffic: [],
+            action: getHand(context),
+            events: [],
+          },
         };
       }
 
-      // Reshuffle if exhausted, then draw traffic cards
-      // trafficDrawCount is computed first so it always consumes RNG position 0,
-      // making the count deterministic for the same (seed, round) regardless of deck exhaustion state.
+      // RNG position 0 is always the draw count (deterministic for same seed+round).
       const drawRng = makeRng(context.seed + '-tra-' + context.round);
       const trafficDrawCount = isWeekend(context.round)
         ? Math.floor(drawRng() * (MAX_WEEKEND_TRAFFIC_DRAW - MIN_WEEKEND_TRAFFIC_DRAW + 1)) + MIN_WEEKEND_TRAFFIC_DRAW
         : Math.floor(drawRng() * (MAX_WEEKDAY_TRAFFIC_DRAW - MIN_WEEKDAY_TRAFFIC_DRAW + 1)) + MIN_WEEKDAY_TRAFFIC_DRAW;
-      const [trafficDeckInit, trafficDiscard] = reshuffleDiscard(
-        context.trafficDeck,
-        context.trafficDiscard,
-        drawRng,
+
+      // Reshuffle traffic discard if deck is exhausted.
+      let trafficDeckOrder = context.trafficDeckOrder;
+      let trafficDiscardOrder = context.trafficDiscardOrder;
+      if (trafficDeckOrder.length === 0 && trafficDiscardOrder.length > 0) {
+        for (const id of trafficDiscardOrder) {
+          context.trafficCardActors[id]?.send({ type: 'RESHUFFLE' });
+        }
+        trafficDeckOrder = shuffle(trafficDiscardOrder, drawRng);
+        trafficDiscardOrder = [];
+      }
+
+      const drawnIds = trafficDeckOrder.slice(0, trafficDrawCount);
+      const remainingDeckOrder = trafficDeckOrder.slice(trafficDrawCount);
+
+      // Compute slot placements (pure, no side effects).
+      const occupiedSlots = new Set<string>();
+      for (const actor of Object.values(context.trafficCardActors)) {
+        const snap = actor.getSnapshot();
+        if (snap.value === 'onSlot') {
+          const c = snap.context;
+          if (c.period !== undefined && c.slotIndex !== undefined) {
+            occupiedSlots.add(`${c.period}:${c.slotIndex}`);
+          }
+        }
+      }
+      const { placements, newSlotLayout } = computeTrafficPlacements(
+        freshLayout,
+        occupiedSlots,
+        drawnIds,
       );
-      const [drawn, remainingTrafficDeck] = drawN(trafficDeckInit, trafficDrawCount);
 
-      const baseCtx: GameContext = {
-        ...context,
-        timeSlots: freshSlots,
-        trafficDeck: remainingTrafficDeck,
-        trafficDiscard,
-        playedThisRound: [],
-        mitigatedEventIds: [],
-        pendingEvents: [],
-        spawnedTrafficQueue: [],
-        activePhase: PhaseId.Scheduling,
-        revenueBoostMultiplier: freshMultiplier,
-      };
+      // Send PLACE events to actors (side effect — actor state updated synchronously).
+      for (const p of placements) {
+        context.trafficCardActors[p.cardId]?.send({
+          type: 'PLACE',
+          period: p.period,
+          slotIndex: p.slotIndex,
+          slotType: p.slotType,
+        });
+      }
 
-      // Auto-fill slots using round-robin period assignment
-      const { context: filled } = autoFillTrafficSlots(baseCtx, drawn);
-
-      // Build draw log: record which period/slot each drawn card landed in
-      const trafficEntries: DrawLog['traffic'] = drawn.map(card => {
-        const slot = filled.timeSlots.find(s => s.card?.id === card.id);
-        return { card, period: slot?.period ?? Period.Morning, slotIndex: slot?.index ?? 0 };
-      });
+      // Build draw log.
+      const trafficEntries: DrawLogTrafficEntry[] = placements.map((p) => ({
+        card: context.cardInstances[p.cardId] as TrafficCard,
+        period: p.period,
+        slotIndex: p.slotIndex,
+      }));
 
       return {
-        ...filled,
+        ...context,
+        slotLayout: newSlotLayout,
+        trafficDeckOrder: remainingDeckOrder,
+        trafficDiscardOrder,
+        playedThisRoundOrder: [],
+        mitigatedEventIds: [],
+        pendingEventsOrder: [],
+        spawnedQueueOrder: [],
+        revenueBoostMultiplier: freshMultiplier,
         activePhase: PhaseId.Scheduling,
-        drawLog: { traffic: trafficEntries, action: context.drawLog?.action ?? [], events: [] },
+        drawLog: { traffic: trafficEntries, action: getHand(context), events: [] },
       };
     }),
 
     performDrawCrisisEvent: assign(({ context }) => {
-      // Resume-from-save: events were already drawn and saved in context.
-      if (context.pendingEvents.length > 0) {
+      // Resume-from-save: events already in pendingEventsOrder.
+      if (context.pendingEventsOrder.length > 0) {
         return { ...context, activePhase: PhaseId.Crisis };
       }
-      // Draw event card(s) from the event deck (reshuffle if exhausted)
+
       const eventRng = makeRng(context.seed + '-ev-' + context.round);
-      const [eventDeckInit, eventDiscard] = reshuffleDiscard(
-        context.eventDeck,
-        context.eventDiscard,
-        eventRng,
-      );
+      let eventDeckOrder = context.eventDeckOrder;
+      let eventDiscardOrder = context.eventDiscardOrder;
+
+      // Reshuffle if exhausted.
+      if (eventDeckOrder.length === 0 && eventDiscardOrder.length > 0) {
+        for (const id of eventDiscardOrder) {
+          context.eventCardActors[id]?.send({ type: 'RESHUFFLE' });
+        }
+        eventDeckOrder = shuffle(eventDiscardOrder, eventRng);
+        eventDiscardOrder = [];
+      }
+
       const eventDrawCount = isWeekend(context.round) ? WEEKEND_EVENT_DRAW : WEEKDAY_EVENT_DRAW;
-      const [drawn, remainingEventDeck] = drawN(eventDeckInit, eventDrawCount);
+      const drawnIds = eventDeckOrder.slice(0, eventDrawCount);
+      const remainingDeckOrder = eventDeckOrder.slice(eventDrawCount);
+
+      // Send DRAW to each drawn event actor.
+      for (const id of drawnIds) {
+        context.eventCardActors[id]?.send({ type: 'DRAW' });
+      }
+
+      const drawnCards = drawnIds.map((id) => context.cardInstances[id] as EventCard);
+
       return {
         ...context,
-        eventDeck: remainingEventDeck,
-        eventDiscard,
-        pendingEvents: drawn,
+        eventDeckOrder: remainingDeckOrder,
+        eventDiscardOrder,
+        pendingEventsOrder: drawnIds,
         activePhase: PhaseId.Crisis,
-        drawLog: { traffic: [], action: [], events: drawn },
+        drawLog: { traffic: [], action: [], events: drawnCards },
       };
     }),
 
@@ -195,62 +307,89 @@ export const gameMachine = setup({
     }),
 
     performResolution: assign(({ context }) => {
-      // Place any SpawnTraffic-spawned cards onto the board so they are visible this round
+      // Place spawned traffic cards onto the board if any.
       let resolveCtx = context;
-      if (context.spawnedTrafficQueue.length > 0) {
-        const { context: spawned } = autoFillTrafficSlots(
-          context,
-          context.spawnedTrafficQueue,
+      const spawnCount = context.spawnedQueueOrder.length;
+      if (spawnCount > 0) {
+        const occupiedSlots = new Set<string>();
+        for (const actor of Object.values(context.trafficCardActors)) {
+          const snap = actor.getSnapshot();
+          if (snap.value === 'onSlot') {
+            const c = snap.context;
+            if (c.period !== undefined && c.slotIndex !== undefined) {
+              occupiedSlots.add(`${c.period}:${c.slotIndex}`);
+            }
+          }
+        }
+        const { placements, newSlotLayout } = computeTrafficPlacements(
+          context.slotLayout,
+          occupiedSlots,
+          context.spawnedQueueOrder,
         );
-        resolveCtx = { ...spawned, spawnedTrafficQueue: [] };
+        for (const p of placements) {
+          context.trafficCardActors[p.cardId]?.send({
+            type: 'PLACE',
+            period: p.period,
+            slotIndex: p.slotIndex,
+            slotType: p.slotType,
+          });
+        }
+        resolveCtx = { ...context, slotLayout: newSlotLayout, spawnedQueueOrder: [] };
       }
-      const { context: resolved, summary } = resolveRound(
-        resolveCtx,
-        context.spawnedTrafficQueue.length,
-      );
-      return {
-        ...resolved,
-        lastRoundSummary: { ...summary },
-        activePhase: PhaseId.Resolution,
-      };
+
+      const { context: resolved, summary } = resolveRound(resolveCtx, spawnCount);
+      return { ...resolved, lastRoundSummary: { ...summary }, activePhase: PhaseId.Resolution };
     }),
 
     performEnd: assign(({ context }) => {
-      // Return played Action cards to discard; unplayed cards carry over
-      const newActionDiscard = [...context.actionDiscard, ...context.playedThisRound];
-
-      // On Friday, discard entire hand before replenishing (fresh start for the new week)
       const friday = isFriday(context.round);
-      let actionDeck = context.actionDeck;
-      let actionDiscard = friday
-        ? [...newActionDiscard, ...context.hand]
-        : newActionDiscard;
-      const hand: ActionCard[] = friday ? [] : [...context.hand];
-      const deficit = HAND_SIZE - hand.length;
+      const actRng = makeRng(context.seed + '-act-' + context.round);
 
+      // Move played cards to discard.
+      for (const id of context.playedThisRoundOrder) {
+        context.actionCardActors[id]?.send({ type: 'DISCARD' });
+      }
+      let actionDiscardOrder = [...context.actionDiscardOrder, ...context.playedThisRoundOrder];
+
+      // On Friday, also discard the entire remaining hand.
+      let handOrder = context.handOrder;
+      if (friday) {
+        for (const id of context.handOrder) {
+          context.actionCardActors[id]?.send({ type: 'DISCARD' });
+        }
+        actionDiscardOrder = [...actionDiscardOrder, ...context.handOrder];
+        handOrder = [];
+      }
+
+      const deficit = HAND_SIZE - handOrder.length;
+      let actionDeckOrder = context.actionDeckOrder;
       let actionDrawn: ActionCard[] = [];
+
       if (deficit > 0) {
-        const [reshuffled, emptyDiscard] = reshuffleDiscard(
-          actionDeck,
-          actionDiscard,
-          makeRng(context.seed + '-act-' + context.round),
-        );
-        actionDeck = reshuffled;
-        actionDiscard = emptyDiscard;
-        const [drawn, remaining] = drawN(actionDeck, deficit);
-        actionDrawn = drawn;
-        hand.push(...drawn);
-        actionDeck = remaining;
+        // Reshuffle if exhausted.
+        if (actionDeckOrder.length === 0 && actionDiscardOrder.length > 0) {
+          for (const id of actionDiscardOrder) {
+            context.actionCardActors[id]?.send({ type: 'RESHUFFLE' });
+          }
+          actionDeckOrder = shuffle(actionDiscardOrder, actRng);
+          actionDiscardOrder = [];
+        }
+        const drawnIds = actionDeckOrder.slice(0, deficit);
+        actionDeckOrder = actionDeckOrder.slice(deficit);
+        for (const id of drawnIds) {
+          context.actionCardActors[id]?.send({ type: 'DRAW' });
+        }
+        handOrder = [...handOrder, ...drawnIds];
+        actionDrawn = drawnIds.map((id) => context.cardInstances[id] as ActionCard);
       }
 
       return {
         ...context,
         round: context.round + 1,
-        hand,
-        actionDeck,
-        actionDiscard,
-        trafficDiscard: context.trafficDiscard,
-        playedThisRound: [],
+        handOrder,
+        actionDeckOrder,
+        actionDiscardOrder,
+        playedThisRoundOrder: [],
         activePhase: PhaseId.End,
         drawLog: { traffic: [], action: actionDrawn, events: [] },
       };
@@ -258,7 +397,9 @@ export const gameMachine = setup({
 
     applyPlayAction: assign(({ context, event }) => {
       if (event.type !== 'PLAY_ACTION') return context;
-      return applyPlayActionCard(context, event.card, event.targetEventId, event.targetTrafficCardId, event.targetPeriod, event.targetTrack);
+      return applyPlayActionCard(
+        context, event.card, event.targetEventId, event.targetTrafficCardId, event.targetPeriod, event.targetTrack,
+      );
     }),
 
     markGameLost: assign(({ context }) => {
@@ -334,3 +475,5 @@ export const gameMachine = setup({
     },
   },
 });
+
+

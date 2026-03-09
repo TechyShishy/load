@@ -6,7 +6,7 @@
  * exclusively on the accessible text layer, not the canvas rendering.
  */
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act } from '@testing-library/react';
 import {
   Period,
@@ -18,6 +18,22 @@ import {
   type TrackSlot,
 } from '@load/game-core';
 import { GameCanvas } from '../GameCanvas.js';
+
+// ── Hoist mock state so vi.mock factory can access it ─────────────────────────
+const mocks = vi.hoisted(() => ({
+  getFilledTimeSlots: vi.fn<[GameContext], TimeSlot[]>(),
+  getTracks: vi.fn<[GameContext], TrackSlot[]>(),
+}));
+
+// ── Partially mock game-core to intercept view functions ──────────────────────
+vi.mock('@load/game-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@load/game-core')>();
+  return {
+    ...actual,
+    getFilledTimeSlots: mocks.getFilledTimeSlots,
+    getTracks: mocks.getTracks,
+  };
+});
 
 // ── Stub PixiJS ───────────────────────────────────────────────────────────────
 // JSDOM has no WebGL, so we replace the PixiJS module with minimal no-op
@@ -132,34 +148,48 @@ function makeTracks(overrides: Partial<TrackSlot>[] = []): TrackSlot[] {
   }));
 }
 
-function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
+/** Minimal valid GameContext stub — view functions are mocked so actor state is irrelevant. */
+function makeCtx(): GameContext {
   return {
     budget: 500_000,
     round: 1,
     slaCount: 0,
-    hand: [],
-    playedThisRound: [],
-    timeSlots: makeTimeSlots(),
-    tracks: makeTracks(),
-    vendorSlots: [],
-    pendingEvents: [],
+    cardInstances: {},
+    trafficCardActors: {},
+    actionCardActors: {},
+    eventCardActors: {},
+    slotLayout: [],
+    ticketOrders: {
+      [Track.BreakFix]: [],
+      [Track.Projects]: [],
+      [Track.Maintenance]: [],
+    },
+    trafficDeckOrder: [],
+    trafficDiscardOrder: [],
+    actionDeckOrder: [],
+    actionDiscardOrder: [],
+    eventDeckOrder: [],
+    eventDiscardOrder: [],
+    handOrder: [],
+    playedThisRoundOrder: [],
+    pendingEventsOrder: [],
+    spawnedQueueOrder: [],
+    vendorSlots: [
+      { index: 0, card: null },
+      { index: 1, card: null },
+      { index: 2, card: null },
+      { index: 3, card: null },
+    ],
     mitigatedEventIds: [],
     activePhase: PhaseId.Scheduling,
-    trafficDeck: [],
-    trafficDiscard: [],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [],
-    actionDeck: [],
-    actionDiscard: [],
     lastRoundSummary: null,
     loseReason: null,
     pendingRevenue: 0,
     seed: 'test-seed',
     skipNextTrafficDraw: false,
+    revenueBoostMultiplier: 1,
     drawLog: null,
-    ...overrides,
-  };
+  } as unknown as GameContext; // actor maps are empty; view fns are mocked
 }
 
 function getLiveRegion(container: HTMLElement): HTMLElement {
@@ -170,6 +200,11 @@ function getLiveRegion(container: HTMLElement): HTMLElement {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 describe('GameCanvas accessibility (aria-live board summary)', () => {
+  beforeEach(() => {
+    mocks.getFilledTimeSlots.mockReturnValue(makeTimeSlots());
+    mocks.getTracks.mockReturnValue(makeTracks());
+  });
+
   it('renders a visually-hidden aria-live="polite" region', () => {
     const { container } = render(<GameCanvas context={makeCtx()} phase="scheduling" />);
     const liveRegion = getLiveRegion(container);
@@ -194,9 +229,10 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
 
   it('lists card names when a slot has cards', () => {
     const slots = makeTimeSlots();
-    // Inject a card into Evening slot 0
-    slots[8] = {
-      ...slots[8]!,
+    // Inject a card into Evening slot 0 (robust: find by period+index, not positional offset)
+    const eveningSlot0Idx = slots.findIndex((s) => s.period === Period.Evening && s.index === 0);
+    slots[eveningSlot0Idx] = {
+      ...slots[eveningSlot0Idx]!,
       card: {
         id: 'c1',
         templateId: 'WebSurge',
@@ -206,9 +242,8 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
         description: '',
       },
     };
-    const { container } = render(
-      <GameCanvas context={makeCtx({ timeSlots: slots })} phase="scheduling" />,
-    );
+    mocks.getFilledTimeSlots.mockReturnValue(slots);
+    const { container } = render(<GameCanvas context={makeCtx()} phase="scheduling" />);
     const text = getLiveRegion(container).textContent ?? '';
     expect(text).toMatch(/Evening slot 1 \(slot\): 1 of 1 cards — WebSurge/);
   });
@@ -222,24 +257,24 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
   });
 
   it('reports open ticket count for a track with tickets', () => {
-    const ctx = makeCtx({
-      tracks: makeTracks([
+    mocks.getTracks.mockReturnValue(
+      makeTracks([
         {
           track: Track.BreakFix,
           tickets: [{ id: 't1' } as never, { id: 't2' } as never],
         },
       ]),
-    });
-    const { container } = render(<GameCanvas context={ctx} phase="scheduling" />);
+    );
+    const { container } = render(<GameCanvas context={makeCtx()} phase="scheduling" />);
     const text = getLiveRegion(container).textContent ?? '';
     expect(text).toContain('BreakFix track: 2 open tickets');
   });
 
   it('uses singular "ticket" for exactly one ticket', () => {
-    const ctx = makeCtx({
-      tracks: makeTracks([{ track: Track.Maintenance, tickets: [{ id: 't1' } as never] }]),
-    });
-    const { container } = render(<GameCanvas context={ctx} phase="scheduling" />);
+    mocks.getTracks.mockReturnValue(
+      makeTracks([{ track: Track.Maintenance, tickets: [{ id: 't1' } as never] }]),
+    );
+    const { container } = render(<GameCanvas context={makeCtx()} phase="scheduling" />);
     const text = getLiveRegion(container).textContent ?? '';
     expect(text).toContain('Maintenance track: 1 open ticket');
     expect(text).not.toContain('1 open tickets');
@@ -260,13 +295,15 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     };
 
     const ctx1 = makeCtx(); // no cards
-    const ctx2 = makeCtx({ timeSlots: baseSlotsWithCard }); // Morning slot 1 has APIBlast
+    const ctx2 = makeCtx(); // will see slots with APIBlast
 
     const { container, rerender } = render(<GameCanvas context={ctx1} phase="scheduling" />);
     const liveRegion = getLiveRegion(container);
 
     expect(liveRegion.textContent).toContain('Morning slot 1: empty');
     expect(liveRegion.textContent).not.toContain('APIBlast');
+
+    mocks.getFilledTimeSlots.mockReturnValue(baseSlotsWithCard);
 
     act(() => {
       rerender(<GameCanvas context={ctx2} phase="scheduling" />);

@@ -13,27 +13,45 @@ export const TrackSchema = z.nativeEnum(Track);
 export const PhaseIdSchema = z.nativeEnum(PhaseId);
 export const LoseReasonSchema = z.nativeEnum(LoseReason);
 
-// ─── Serialized Card Reference ────────────────────────────────────────────────
+// ─── Actor Snapshot Schemas ───────────────────────────────────────────────────
 
-export const SerializedCardSchema = z.object({
-  templateId: z.string(),
-  instanceId: z.string(),
-});
+export const SerializedTrafficActorSnapshotSchema = z.object({
+  status: z.literal('active'),
+  value: z.string(),
+  context: z.object({
+    instanceId: z.string(),
+    templateId: z.string(),
+    period: z.string().optional(),
+    slotIndex: z.number().optional(),
+    slotType: z.string().optional(),
+  }).passthrough(),
+}).passthrough();
+
+export const SerializedActionActorSnapshotSchema = z.object({
+  status: z.literal('active'),
+  value: z.string(),
+  context: z.object({
+    instanceId: z.string(),
+    templateId: z.string(),
+  }).passthrough(),
+}).passthrough();
+
+export const SerializedEventActorSnapshotSchema = z.object({
+  status: z.literal('active'),
+  value: z.string(),
+  context: z.object({
+    instanceId: z.string(),
+    templateId: z.string(),
+    track: z.string().optional(),
+  }).passthrough(),
+}).passthrough();
 
 // ─── Board State Schemas ──────────────────────────────────────────────────────
 
-export const SerializedTimeSlotSchema = z.object({
-  period: PeriodSchema,
+export const SlotLayoutEntrySchema = z.object({
+  period: z.string(),
   index: z.number(),
-  card: SerializedCardSchema.nullable(),
-  temporary: z.boolean().optional(),
-  weeklyTemporary: z.boolean().optional(),
-  overloaded: z.boolean().optional(),
-});
-
-export const SerializedTrackSlotSchema = z.object({
-  track: TrackSchema,
-  tickets: z.array(SerializedCardSchema),
+  slotType: z.string(),
 });
 
 export const VendorSlotSchema = z.object({
@@ -56,21 +74,24 @@ export const GameContextSchema = z.object({
   budget: z.number(),
   round: z.number(),
   slaCount: z.number(),
-  hand: z.array(SerializedCardSchema),
-  playedThisRound: z.array(SerializedCardSchema),
-  timeSlots: z.array(SerializedTimeSlotSchema),
-  tracks: z.array(SerializedTrackSlotSchema),
+  trafficActorSnapshots: z.record(z.string(), SerializedTrafficActorSnapshotSchema),
+  actionActorSnapshots: z.record(z.string(), SerializedActionActorSnapshotSchema),
+  eventActorSnapshots: z.record(z.string(), SerializedEventActorSnapshotSchema),
+  slotLayout: z.array(SlotLayoutEntrySchema),
+  ticketOrders: z.record(z.string(), z.array(z.string())),
+  trafficDeckOrder: z.array(z.string()),
+  trafficDiscardOrder: z.array(z.string()),
+  actionDeckOrder: z.array(z.string()),
+  actionDiscardOrder: z.array(z.string()),
+  eventDeckOrder: z.array(z.string()),
+  eventDiscardOrder: z.array(z.string()),
+  handOrder: z.array(z.string()),
+  playedThisRoundOrder: z.array(z.string()),
+  pendingEventsOrder: z.array(z.string()),
+  spawnedQueueOrder: z.array(z.string()),
   vendorSlots: z.array(VendorSlotSchema),
-  pendingEvents: z.array(SerializedCardSchema),
   mitigatedEventIds: z.array(z.string()),
   activePhase: PhaseIdSchema,
-  trafficDeck: z.array(SerializedCardSchema),
-  trafficDiscard: z.array(SerializedCardSchema),
-  eventDeck: z.array(SerializedCardSchema),
-  eventDiscard: z.array(SerializedCardSchema),
-  spawnedTrafficQueue: z.array(SerializedCardSchema),
-  actionDeck: z.array(SerializedCardSchema),
-  actionDiscard: z.array(SerializedCardSchema),
   lastRoundSummary: RoundSummarySchema.nullable(),
   loseReason: LoseReasonSchema.nullable(),
   pendingRevenue: z.number(),
@@ -78,3 +99,4 @@ export const GameContextSchema = z.object({
   skipNextTrafficDraw: z.boolean().default(false),
   revenueBoostMultiplier: z.number().default(1),
 });
+

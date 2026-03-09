@@ -1,4 +1,5 @@
-import { ActionCard, Period, type GameContext, type TimeSlot } from '../../types.js';
+import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
+import { getActorAtSlot } from '../../cardPositionViews.js';
 
 export class DataCenterExpansionCard extends ActionCard {
   readonly templateId = 'action-datacenter-expansion';
@@ -24,36 +25,36 @@ export class DataCenterExpansionCard extends ActionCard {
     const context = commit();
     const resolvedPeriod = targetPeriod ?? Period.Overnight;
 
-    // Convert overload slots in the target period first (up to 2),
-    // then add any remaining new empty weekly-temporary slots.
-    const overloadSlotsInPeriod = context.timeSlots.filter(
-      (s) => s.period === resolvedPeriod && s.overloaded === true,
+    const overloadedInPeriod = context.slotLayout.filter(
+      (s) => s.period === resolvedPeriod && s.slotType === SlotType.Overloaded,
     );
-    const slotsToConvert = Math.min(overloadSlotsInPeriod.length, 2);
+    const slotsToConvert = Math.min(overloadedInPeriod.length, 2);
     const slotsToAdd = 2 - slotsToConvert;
 
-    let convertedCount = 0;
-    const updatedTimeSlots = context.timeSlots.map((s): TimeSlot => {
-      if (s.period === resolvedPeriod && s.overloaded === true && convertedCount < slotsToConvert) {
-        convertedCount++;
-        return {
-          period: s.period,
-          index: s.index,
-          card: s.card,
-          weeklyTemporary: true,
-        };
+    let updatedSlotLayout = context.slotLayout;
+    let converted = 0;
+    updatedSlotLayout = updatedSlotLayout.map((s) => {
+      if (
+        s.period === resolvedPeriod &&
+        s.slotType === SlotType.Overloaded &&
+        converted < slotsToConvert
+      ) {
+        converted++;
+        const occupant = getActorAtSlot(context, s.period, s.index);
+        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.WeeklyTemporary });
+        return { ...s, slotType: SlotType.WeeklyTemporary };
       }
       return s;
     });
 
-    const newSlotBase = updatedTimeSlots.filter((s) => s.period === resolvedPeriod).length;
-    const newSlots: TimeSlot[] = Array.from({ length: slotsToAdd }, (_, i) => ({
-      period: resolvedPeriod,
-      index: newSlotBase + i,
-      card: null,
-      weeklyTemporary: true as const,
-    }));
+    const newSlotBase = updatedSlotLayout.filter((s) => s.period === resolvedPeriod).length;
+    for (let i = 0; i < slotsToAdd; i++) {
+      updatedSlotLayout = [
+        ...updatedSlotLayout,
+        { period: resolvedPeriod, index: newSlotBase + i, slotType: SlotType.WeeklyTemporary },
+      ];
+    }
 
-    return { ...context, timeSlots: [...updatedTimeSlots, ...newSlots] };
+    return { ...context, slotLayout: updatedSlotLayout };
   }
 }

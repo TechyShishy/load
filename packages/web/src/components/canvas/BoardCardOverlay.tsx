@@ -1,6 +1,6 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CardType, Period } from '@load/game-core';
+import { CardType, Period, getFilledTimeSlots, getTracks, getTrafficDiscard, getEventDiscard, getActionDiscard } from '@load/game-core';
 import type { ActionCard, EventCard, GameContext, TrafficCard } from '@load/game-core';
 import {
   PILES_ROW_Y,
@@ -272,6 +272,11 @@ export interface BoardCardOverlayProps {
 export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCardOverlayProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [flyoutState, setFlyoutState] = useState<FlyoutState | null>(null);
+  const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
+  const tracks = useMemo(() => getTracks(context), [context]);
+  const trafficDiscard = useMemo(() => getTrafficDiscard(context), [context]);
+  const eventDiscard = useMemo(() => getEventDiscard(context), [context]);
+  const actionDiscard = useMemo(() => getActionDiscard(context), [context]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -290,26 +295,26 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
     if (fromDiscard !== undefined) {
       // Discard-pile flyout: dismiss when the top card changes.
       const discardMap = {
-        traffic: context.trafficDiscard,
-        event: context.eventDiscard,
-        action: context.actionDiscard,
+        traffic: trafficDiscard,
+        event: eventDiscard,
+        action: actionDiscard,
       } as const;
       const top = discardMap[fromDiscard].at(-1);
       if (top?.id !== card.id) setFlyoutState(null);
       return;
     }
     if (card.type === CardType.Traffic) {
-      const stillPresent = context.timeSlots.some((s) =>
+      const stillPresent = timeSlots.some((s) =>
         s.card?.id === card.id,
       );
       if (!stillPresent) setFlyoutState(null);
     } else {
-      const stillPresent = context.tracks.some((t) =>
+      const stillPresent = tracks.some((t) =>
         t.tickets.some((c) => c.id === card.id),
       );
       if (!stillPresent) setFlyoutState(null);
     }
-  }, [context.timeSlots, context.tracks, context.trafficDiscard, context.eventDiscard, context.actionDiscard, flyoutState]);
+  }, [timeSlots, tracks, trafficDiscard, eventDiscard, actionDiscard, flyoutState]);
 
   if (containerWidth === 0) return null;
 
@@ -324,13 +329,13 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
         }}
       >
         {/* Slot hit zones — one per occupied time slot */}
-        {context.timeSlots
+        {timeSlots
           .filter((slot) => slot.card !== null)
           .map((slot) => {
             const topCard = slot.card;
             if (topCard === null) return null;
             const periodIndex = PERIOD_ORDER.indexOf(slot.period);
-            const periodSlotCount = context.timeSlots.filter(
+            const periodSlotCount = timeSlots.filter(
               (s) => s.period === slot.period,
             ).length;
             const rect = computeSlotRect(
@@ -351,9 +356,9 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
 
         {/* Discard pile hit zones — one per non-empty discard pile */}
         {([
-          { deckType: 'traffic' as const, top: context.trafficDiscard.at(-1), deckIndex: 0, label: 'Traffic' },
-          { deckType: 'event'   as const, top: context.eventDiscard.at(-1),   deckIndex: 1, label: 'Event'   },
-          { deckType: 'action'  as const, top: context.actionDiscard.at(-1),  deckIndex: 2, label: 'Action'  },
+          { deckType: 'traffic' as const, top: trafficDiscard.at(-1), deckIndex: 0, label: 'Traffic' },
+          { deckType: 'event'   as const, top: eventDiscard.at(-1),   deckIndex: 1, label: 'Event'   },
+          { deckType: 'action'  as const, top: actionDiscard.at(-1),  deckIndex: 2, label: 'Action'  },
         ]).flatMap(({ deckType, top, deckIndex, label }) => {
           if (top == null) return [];
           const pileRect = computeDeckPileRect(deckIndex, 'discard', containerWidth);
@@ -371,7 +376,7 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
         })}
 
         {/* Ticket hit zones — one per event ticket in tracks */}
-        {context.tracks.flatMap((track, ti) =>
+        {tracks.flatMap((track, ti) =>
           track.tickets.map((ticket, ki) => {
             const trackRect = computeTrackRect(ti, containerWidth, 4);
             const ticketRect = {

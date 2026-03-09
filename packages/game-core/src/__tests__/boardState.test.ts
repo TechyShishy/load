@@ -1,40 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createInitialTimeSlots,
-  createInitialTracks,
+  createInitialSlotLayout,
   createVendorSlots,
-  getAvailableSlots,
-  resetSlotsForRound,
-  stripWeeklyTemporarySlots,
+  getAvailableSlotLayouts,
+  resetSlotLayout,
+  stripWeeklyTemporarySlotLayout,
 } from '../boardState.js';
-import { Period, Track } from '../types.js';
+import { Period, SlotType } from '../types.js';
 
-describe('createInitialTimeSlots', () => {
+describe('createInitialSlotLayout', () => {
   it('creates 16 total slots (4+4+4+4)', () => {
-    expect(createInitialTimeSlots()).toHaveLength(16);
+    expect(createInitialSlotLayout()).toHaveLength(16);
   });
 
-  it('all slots start with null card', () => {
-    const slots = createInitialTimeSlots();
-    expect(slots.every((s) => s.card === null)).toBe(true);
+  it('all slots start as Normal type', () => {
+    const slots = createInitialSlotLayout();
+    expect(slots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
   });
 
   it('overnight period has 4 slots', () => {
-    const slots = createInitialTimeSlots();
+    const slots = createInitialSlotLayout();
     expect(slots.filter((s) => s.period === Period.Overnight)).toHaveLength(4);
-  });
-});
-
-describe('createInitialTracks', () => {
-  it('creates 3 tracks', () => {
-    expect(createInitialTracks()).toHaveLength(3);
-  });
-
-  it('contains all three track types', () => {
-    const tracks = createInitialTracks();
-    expect(tracks.map((t) => t.track).sort()).toEqual(
-      [Track.BreakFix, Track.Maintenance, Track.Projects].sort(),
-    );
   });
 });
 
@@ -48,64 +34,71 @@ describe('createVendorSlots', () => {
   });
 });
 
-describe('getAvailableSlots', () => {
+describe('getAvailableSlotLayouts', () => {
   it('returns only slots for the given period', () => {
-    const slots = createInitialTimeSlots();
-    const morning = getAvailableSlots(slots, Period.Morning);
+    const slots = createInitialSlotLayout();
+    const morning = getAvailableSlotLayouts(slots, Period.Morning);
     expect(morning.every((s) => s.period === Period.Morning)).toBe(true);
   });
 });
 
-describe('resetSlotsForRound', () => {
-  it('preserves card on permanent slots during round reset', () => {
-    const slots = createInitialTimeSlots();
-    // Manually add a fake card object reference
-    const withCard = slots.map((s, i) =>
-      i === 0 ? { ...s, card: { id: 'fake' } as never } : s,
-    );
-    const reset = resetSlotsForRound(withCard);
-    expect(reset[0]!.card).toEqual({ id: 'fake' });
-    // Other slots remain empty
-    expect(reset.slice(1).every((s) => s.card === null)).toBe(true);
-  });
-
-  it('strips temporary slots on reset', () => {
-    const base = createInitialTimeSlots();
+describe('resetSlotLayout', () => {
+  it('strips Temporary slots on reset', () => {
+    const base = createInitialSlotLayout();
     const withTemporary = [
       ...base,
-      { ...base[0]!, index: base.length, temporary: true as const },
+      { period: Period.Morning, index: base.length, slotType: SlotType.Temporary },
     ];
-    const reset = resetSlotsForRound(withTemporary);
-    expect(reset.every((s) => !s.temporary)).toBe(true);
+    const reset = resetSlotLayout(withTemporary);
+    expect(reset.every((s) => s.slotType !== SlotType.Temporary)).toBe(true);
     expect(reset.length).toBe(base.length);
+  });
+
+  it('preserves Normal slots on reset', () => {
+    const base = createInitialSlotLayout();
+    const reset = resetSlotLayout(base);
+    expect(reset).toHaveLength(base.length);
+    expect(reset.every((s) => s.slotType === SlotType.Normal)).toBe(true);
+  });
+
+  it('preserves WeeklyTemporary slots on non-Monday reset', () => {
+    const base = createInitialSlotLayout();
+    const withWeekly = [
+      ...base,
+      { period: Period.Morning, index: base.length, slotType: SlotType.WeeklyTemporary },
+    ];
+    const reset = resetSlotLayout(withWeekly);
+    // WeeklyTemporary is NOT stripped by resetSlotLayout (only by stripWeeklyTemporarySlotLayout)
+    expect(reset.some((s) => s.slotType === SlotType.WeeklyTemporary)).toBe(true);
   });
 });
 
-describe('stripWeeklyTemporarySlots', () => {
-  it('removes slots with weeklyTemporary: true', () => {
-    const base = createInitialTimeSlots();
+describe('stripWeeklyTemporarySlotLayout', () => {
+  it('removes WeeklyTemporary slots', () => {
+    const base = createInitialSlotLayout();
     const withWeekly = [
       ...base,
-      { ...base[0]!, index: base.length, weeklyTemporary: true as const },
+      { period: Period.Morning, index: base.length, slotType: SlotType.WeeklyTemporary },
     ];
-    const result = stripWeeklyTemporarySlots(withWeekly);
+    const result = stripWeeklyTemporarySlotLayout(withWeekly);
     expect(result).toHaveLength(base.length);
-    expect(result.every((s) => !s.weeklyTemporary)).toBe(true);
+    expect(result.every((s) => s.slotType !== SlotType.WeeklyTemporary)).toBe(true);
   });
 
-  it('does not remove temporary (BoostSlotCapacity) slots', () => {
-    const base = createInitialTimeSlots();
+  it('does not remove Temporary slots', () => {
+    const base = createInitialSlotLayout();
     const withTemporary = [
       ...base,
-      { ...base[0]!, index: base.length, temporary: true as const },
+      { period: Period.Morning, index: base.length, slotType: SlotType.Temporary },
     ];
-    const result = stripWeeklyTemporarySlots(withTemporary);
+    const result = stripWeeklyTemporarySlotLayout(withTemporary);
     expect(result).toHaveLength(base.length + 1);
   });
 
-  it('does not remove permanent slots', () => {
-    const base = createInitialTimeSlots();
-    const result = stripWeeklyTemporarySlots(base);
+  it('does not remove Normal slots', () => {
+    const base = createInitialSlotLayout();
+    const result = stripWeeklyTemporarySlotLayout(base);
     expect(result).toHaveLength(base.length);
   });
 });
+

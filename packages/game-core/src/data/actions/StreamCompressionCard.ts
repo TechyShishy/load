@@ -1,4 +1,6 @@
-import { ActionCard, type GameContext, type Period } from '../../types.js';
+import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
+import { getFilledTimeSlots } from '../../cardPositionViews.js';
+import type { TrafficCardPositionContext } from '../../cardPositionMachines.js';
 
 export class StreamCompressionCard extends ActionCard {
   readonly templateId = 'action-stream-compression';
@@ -25,19 +27,18 @@ export class StreamCompressionCard extends ActionCard {
     let context = commit();
     if (!targetPeriod) return context;
 
-    const allCardsInPeriod = context.timeSlots
+    const filledSlots = getFilledTimeSlots(context);
+    const allCardsInPeriod = filledSlots
       .filter((s) => s.period === targetPeriod)
-      .flatMap((s) => s.card ? [s.card] : []);
+      .flatMap((s) => (s.card ? [s.card] : []));
 
     if (allCardsInPeriod.length === 0) return context;
 
-    // Count occurrences of each templateId in the period
     const counts = new Map<string, number>();
     for (const card of allCardsInPeriod) {
       counts.set(card.templateId, (counts.get(card.templateId) ?? 0) + 1);
     }
 
-    // Find first templateId with a duplicate, in the order cards appear
     let typeToRemove: string | undefined;
     let removeCount = 1;
     for (const card of allCardsInPeriod) {
@@ -48,39 +49,49 @@ export class StreamCompressionCard extends ActionCard {
         break;
       }
     }
-
-    // Fallback: no duplicates — remove 1 of the first type
     if (typeToRemove === undefined) {
       typeToRemove = allCardsInPeriod[0]!.templateId;
       removeCount = 1;
     }
 
-    let collectedRevenue = 0;
     let removedCount = 0;
-    const removedCards: (typeof context.trafficDiscard) = [];
+    let collectedRevenue = 0;
+    let slotLayout = context.slotLayout;
+    let trafficDiscardOrder = context.trafficDiscardOrder;
 
-    context = {
-      ...context,
-      timeSlots: context.timeSlots.map((slot) => {
-        if (slot.period !== targetPeriod || removedCount >= removeCount) return slot;
-        if (slot.card && slot.card.templateId === typeToRemove && removedCount < removeCount) {
-          collectedRevenue += slot.card.revenue;
-          removedCards.push(slot.card);
-          removedCount++;
-          return { ...slot, card: null };
-        }
-        return slot;
-      }),
-    };
+    // Iterate actors to find matching cards on the board in this period.
+    for (const [id, actor] of Object.entries(context.trafficCardActors)) {
+      if (removedCount >= removeCount) break;
+      const snap = actor.getSnapshot();
+      if (snap.value !== 'onSlot') continue;
+      const c = snap.context as TrafficCardPositionContext;
+      if (c.period !== targetPeriod) continue;
+      const card = context.cardInstances[id];
+      if (!card || (card as { templateId: string }).templateId !== typeToRemove) continue;
 
-    if (removedCards.length > 0) {
-      context = { ...context, trafficDiscard: [...context.trafficDiscard, ...removedCards] };
-      for (const removed of removedCards) {
-        if (removed.onPickUp) {
-          context = removed.onPickUp(context, targetPeriod);
-        }
+      actor.send({ type: 'REMOVE' });
+      if (c.slotType === SlotType.Overloaded) {
+        slotLayout = slotLayout.filter(
+          (s) => !(s.period === c.period && s.index === c.slotIndex),
+        );
       }
+      trafficDiscardOrder = [...trafficDiscardOrder, id];
+      collectedRevenue += (card as { revenue?: number }).revenue ?? 0;
+
+      // onPickUp hook.
+      if ('onPickUp' in card && typeof (card as { onPickUp?: unknown }).onPickUp === 'function') {
+        context = (card as { onPickUp: (ctx: GameContext, period: Period) => GameContext }).onPickUp(
+          { ...context, slotLayout, trafficDiscardOrder },
+          targetPeriod,
+        );
+        slotLayout = context.slotLayout;
+        trafficDiscardOrder = context.trafficDiscardOrder;
+      }
+
+      removedCount++;
     }
+
+    context = { ...context, slotLayout, trafficDiscardOrder };
 
     if (collectedRevenue > 0) {
       const boostedRevenue = Math.round(collectedRevenue * context.revenueBoostMultiplier);
@@ -90,14 +101,6 @@ export class StreamCompressionCard extends ActionCard {
         pendingRevenue: context.pendingRevenue + boostedRevenue,
       };
     }
-
-    // Remove any overload slots in the period that are now empty (traffic card was cleared).
-    context = {
-      ...context,
-      timeSlots: context.timeSlots.filter(
-        (s) => !(s.period === targetPeriod && s.overloaded === true && s.card === null),
-      ),
-    };
 
     return context;
   }

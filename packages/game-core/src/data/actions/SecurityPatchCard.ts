@@ -1,4 +1,5 @@
 import { ActionCard, type GameContext } from '../../types.js';
+import { getPendingEvents } from '../../cardPositionViews.js';
 
 export class SecurityPatchCard extends ActionCard {
   readonly templateId = 'action-security-patch';
@@ -24,7 +25,7 @@ export class SecurityPatchCard extends ActionCard {
     let context = commit();
     const resolvedTarget =
       targetEventId ??
-      ctx.pendingEvents.find(
+      getPendingEvents(ctx).find(
         (e) => !ctx.mitigatedEventIds.includes(e.id) && e.templateId === 'event-ddos-attack',
       )?.id;
     if (resolvedTarget) {

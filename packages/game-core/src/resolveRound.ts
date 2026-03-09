@@ -1,4 +1,5 @@
-import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, type GameContext, type RoundSummary } from './types.js';
+import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, SlotType, type GameContext, type RoundSummary } from './types.js';
+import type { TrafficCardPositionContext } from './cardPositionMachines.js';
 
 export interface ResolutionResult {
   context: GameContext;
@@ -7,28 +8,45 @@ export interface ResolutionResult {
 
 /**
  * Resolve the Resolution phase:
- * 1. Sweep overload slots: each costs 1 SLA failure; cards go to trafficDiscard.
+ * 1. Sweep overload slots: each costs 1 SLA failure; cards moved to trafficDiscard.
  * 2. Count remaining resolved Traffic cards across all normal time slots.
  * 3. Return a RoundSummary.
  */
 export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): ResolutionResult {
-  // Sweep overload slots — each one is 1 SLA failure; cards discarded without revenue.
-  const overloadedSlots = ctx.timeSlots.filter((s) => s.overloaded);
-  const failedCount = overloadedSlots.length;
-  const newSlaCount = ctx.slaCount + failedCount;
-  const cardsFromOverload = overloadedSlots.flatMap((s) => s.card ? [s.card] : []);
-  const timeSlots = ctx.timeSlots.filter((s) => !s.overloaded);
-  const trafficDiscard = [...ctx.trafficDiscard, ...cardsFromOverload];
-
-  // Count cards remaining in normal slots (carry-over mechanic).
-  let resolvedCount = 0;
-  for (const slot of timeSlots) {
-    resolvedCount += slot.card !== null ? 1 : 0;
+  // Find all traffic card actors currently in an overloaded slot.
+  const overloadedCardIds: string[] = [];
+  for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
+    const snap = actor.getSnapshot();
+    if (snap.value === 'onSlot') {
+      const c = snap.context as TrafficCardPositionContext;
+      if (c.slotType === SlotType.Overloaded) {
+        overloadedCardIds.push(id);
+      }
+    }
   }
 
-  // Revenue was collected during the round when traffic cards were removed from the board
-  // (see processCrisis.ts RemoveTrafficCard). pendingRevenue accumulates those amounts;
-  // budget was already updated at that point, so we only report it here and reset.
+  const failedCount = overloadedCardIds.length;
+  const newSlaCount = ctx.slaCount + failedCount;
+
+  // Transition overloaded cards from onSlot → inDiscard.
+  for (const id of overloadedCardIds) {
+    ctx.trafficCardActors[id]?.send({ type: 'REMOVE' });
+  }
+
+  // Remove overloaded slot entries from layout.
+  const slotLayout = ctx.slotLayout.filter((s) => s.slotType !== SlotType.Overloaded);
+  const trafficDiscardOrder = [...ctx.trafficDiscardOrder, ...overloadedCardIds];
+
+  // Count cards remaining on board (non-overloaded slots with a card).
+  let resolvedCount = 0;
+  for (const actor of Object.values(ctx.trafficCardActors)) {
+    const snap = actor.getSnapshot();
+    if (snap.value === 'onSlot') {
+      const c = snap.context as TrafficCardPositionContext;
+      if (c.slotType !== SlotType.Overloaded) resolvedCount++;
+    }
+  }
+
   const budgetDelta = ctx.pendingRevenue;
 
   const summary: RoundSummary = {
@@ -42,8 +60,8 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
 
   const context: GameContext = {
     ...ctx,
-    timeSlots,
-    trafficDiscard,
+    slotLayout,
+    trafficDiscardOrder,
     slaCount: newSlaCount,
     mitigatedEventIds: [],
     pendingRevenue: 0,
@@ -69,3 +87,4 @@ export function checkLoseCondition(ctx: GameContext): 'Bankrupt' | 'SLAExceeded'
 export function checkWinCondition(ctx: GameContext): boolean {
   return ctx.round >= MAX_ROUNDS;
 }
+

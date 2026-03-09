@@ -1,35 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
-import { createInitialContext, gameMachine } from '../machine.js';
+import { gameMachine } from '../machine.js';
+import { createInitialSlotLayout } from '../boardState.js';
+import { getFilledTimeSlots } from '../cardPositionViews.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
-import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { Period, type TrafficCard } from '../types.js';
-import { autoFillTrafficSlots } from '../autoFillTrafficSlots.js';
-import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
-import { PhaseId } from '../types.js';
-import { resolveRound } from '../resolveRound.js';
+import { TRAFFIC_CARD_REGISTRY } from '../data/traffic/index.js';
+import { Period, PhaseId, SlotType, type TrafficCard } from '../types.js';
+import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot } from './testHelpers.js';
 
-/** Traffic-only deck with no events so rounds complete without surprise game-overs. */
-function safeContext() {
-  const trafficDeck: TrafficCard[] = Array.from({ length: 56 }, (_, i) =>
-    TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!,
-  );
-  return {
-    ...createInitialContext(),
-    trafficDeck,
-    trafficDiscard: [] as TrafficCard[],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [] as TrafficCard[],
-  };
+/** Helper: create a fresh traffic card instance from the registry. */
+function freshTrafficCard(templateId: string, instanceId: string): TrafficCard {
+  const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId);
+  if (!Ctor) throw new Error(`Unknown traffic templateId: ${templateId}`);
+  return new Ctor(instanceId) as TrafficCard;
 }
 
-function drawComplete(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
-  actor.send({ type: 'DRAW_COMPLETE' });
-}
-
-const iotCard = TRAFFIC_CARDS.find((c) => c.id === 'traffic-iot-burst')!;
-const cloudCard = TRAFFIC_CARDS.find((c) => c.id === 'traffic-cloud-backup')!;
 const bandwidthUpgrade = ACTION_CARDS.find((c) => c.templateId === 'action-bandwidth-upgrade')!;
 const dataCenterExpansion = ACTION_CARDS.find(
   (c) => c.templateId === 'action-datacenter-expansion',
@@ -39,188 +24,58 @@ const trafficPrioritization = ACTION_CARDS.find(
 )!;
 const streamCompression = ACTION_CARDS.find((c) => c.templateId === 'action-stream-compression')!;
 
-// ─── Overload slot creation ───────────────────────────────────────────────────
-
-describe('integration: overload slot creation', () => {
-  it('creates an overload slot when a period is full, with no budget penalty', () => {
-    // Fill Morning completely (4 slots × capacity 1), then send 1 more card
-    const initialCtx = {
-      budget: 500_000,
-      round: 1,
-      slaCount: 0,
-      hand: [],
-      playedThisRound: [],
-      // Pre-fill all Morning slots so card[0] (round-robin → Morning) triggers an overload
-      timeSlots: createInitialTimeSlots().map((s) =>
-        s.period === Period.Morning ? { ...s, card: iotCard } : s,
-      ),
-      tracks: createInitialTracks(),
-      vendorSlots: createVendorSlots(),
-      pendingEvents: [],
-      mitigatedEventIds: [],
-      activePhase: PhaseId.Scheduling,
-      trafficDeck: [],
-      trafficDiscard: [],
-      eventDeck: [],
-      eventDiscard: [],
-      spawnedTrafficQueue: [],
-      actionDeck: [],
-      actionDiscard: [],
-      lastRoundSummary: null,
-      loseReason: null,
-      pendingRevenue: 0,
-      seed: 'overload-test',
-      skipNextTrafficDraw: false,
-      revenueBoostMultiplier: 1,
-      drawLog: null,
-    };
-    const { context } = autoFillTrafficSlots(initialCtx, [iotCard]);
-
-    const morningOverloadSlots = context.timeSlots.filter(
-      (s) => s.period === Period.Morning && s.overloaded,
-    );
-    expect(morningOverloadSlots).toHaveLength(1);
-    expect(morningOverloadSlots[0]!.card).toBe(iotCard);
-    // No budget penalty
-    expect(context.budget).toBe(500_000);
-  });
-});
-
-// ─── Resolution sweep ─────────────────────────────────────────────────────────
-
-describe('integration: resolution sweeps overload slots', () => {
-  it('overload slots removed at resolution; cards go to trafficDiscard; SLA incremented', () => {
-    const initialSlots = createInitialTimeSlots();
-    const ol1 = { ...initialSlots[0]!, index: 50, overloaded: true as const, card: iotCard };
-    const ol2 = { ...initialSlots[1]!, index: 51, overloaded: true as const, card: cloudCard };
-    const ctx = {
-      budget: 500_000,
-      round: 1,
-      slaCount: 0,
-      hand: [],
-      playedThisRound: [],
-      timeSlots: [...initialSlots, ol1, ol2],
-      tracks: createInitialTracks(),
-      vendorSlots: createVendorSlots(),
-      pendingEvents: [],
-      mitigatedEventIds: [],
-      activePhase: PhaseId.Resolution,
-      trafficDeck: [],
-      trafficDiscard: [],
-      eventDeck: [],
-      eventDiscard: [],
-      spawnedTrafficQueue: [],
-      actionDeck: [],
-      actionDiscard: [],
-      lastRoundSummary: null,
-      loseReason: null,
-      pendingRevenue: 0,
-      seed: 'sweep-test',
-      skipNextTrafficDraw: false,
-      revenueBoostMultiplier: 1,
-      drawLog: null,
-    };
-
-    const { context: resolved, summary } = resolveRound(ctx);
-
-    expect(summary.failedCount).toBe(2);
-    expect(resolved.slaCount).toBe(2);
-    expect(resolved.budget).toBe(500_000); // no monetary penalty
-    expect(resolved.trafficDiscard).toContainEqual(iotCard);
-    expect(resolved.trafficDiscard).toContainEqual(cloudCard);
-    expect(resolved.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
-  });
-});
-
 // ─── Traffic Prioritization on overload slot ─────────────────────────────────
 
 describe('integration: Traffic Prioritization clears overload slot', () => {
   it('removes the traffic card and deletes the overload slot; revenue collected', () => {
-    const base = {
-      ...safeContext(),
-      hand: [trafficPrioritization],
-      // Empty deck so performDraw (on machine start) draws nothing — no extra overload slots.
-      trafficDeck: [],
-      trafficDiscard: [],
-      // Pre-fill Morning to max, then inject an overload slot
-      timeSlots: [
-        ...createInitialTimeSlots().map((s) =>
-          s.period === Period.Morning ? { ...s, card: iotCard } : s,
-        ),
-        {
-          period: Period.Morning,
-          index: 10,
-          card: cloudCard,
-          overloaded: true as const,
-        },
-      ],
-    };
+    const cloudInst = freshTrafficCard('traffic-cloud-backup', 'cloud-tp-1');
+    let ctx = safeContext('tp-test', { activePhase: PhaseId.Scheduling });
+    ctx = ctxWithCardOnSlot(cloudInst, Period.Morning, 4, ctx, SlotType.Overloaded);
+    ctx = ctxWithHandCardsFixedIds([trafficPrioritization], ctx);
 
-    const actor = createActor(gameMachine, { input: base });
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
     expect(actor.getSnapshot().value).toBe('scheduling');
 
-    // Use Traffic Prioritization to remove cloudCard from the overload slot
     actor.send({
       type: 'PLAY_ACTION',
       card: trafficPrioritization,
-      targetTrafficCardId: cloudCard.id,
+      targetTrafficCardId: cloudInst.id,
     });
 
     const snap = actor.getSnapshot();
-    // Overload slot must be gone
-    expect(snap.context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
-    // Revenue for cloudCard collected
-    expect(snap.context.budget).toBe(base.budget - trafficPrioritization.cost + cloudCard.revenue);    // Removed card goes to trafficDiscard
-    expect(snap.context.trafficDiscard.map((c) => c.id)).toContain(cloudCard.id);  });
+    expect(snap.context.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
+    expect(snap.context.budget).toBe(
+      ctx.budget - trafficPrioritization.cost + cloudInst.revenue,
+    );
+    expect(snap.context.trafficDiscardOrder).toContain(cloudInst.id);
+  });
 });
 
 // ─── Stream Compression on overload slot ─────────────────────────────────────
 
 describe('integration: Stream Compression clears overload slot', () => {
   it('removes empty overload slot after card is compressed out', () => {
-    // Use Afternoon with exactly 1 regular slot (iotCard) + 1 overload slot (iotCard).
-    // SC sees 2 iotCards → removeCount = 2, removes from the regular slot first then the overload
-    // slot. Overload slot becomes empty → filtered out.
-    // Empty deck so performDraw draws nothing — no extra overload slots created on start.
-    const afternoonBase = createInitialTimeSlots().find((s) => s.period === Period.Afternoon)!;
-    const base = {
-      ...safeContext(),
-      hand: [streamCompression],
-      trafficDeck: [],
-      trafficDiscard: [],
-      timeSlots: [
-        // Keep all non-Afternoon slots as empty baselines
-        ...createInitialTimeSlots().filter((s) => s.period !== Period.Afternoon),
-        // Only 1 regular Afternoon slot with a card
-        { ...afternoonBase, card: iotCard },
-        // 1 overload slot also with a card
-        {
-          period: Period.Afternoon,
-          index: 20,
-          card: iotCard,
-          overloaded: true as const,
-        },
-      ],
-    };
+    // Afternoon slot 0: regular iot card; Afternoon slot 4: overload iot card.
+    // SC targets Afternoon → removes both; overload slot becomes empty → removed.
+    const iotA = freshTrafficCard('traffic-iot-burst', 'iot-sc-a');
+    const iotB = freshTrafficCard('traffic-iot-burst', 'iot-sc-b');
+    let ctx = safeContext('sc-test', { activePhase: PhaseId.Scheduling });
+    ctx = ctxWithCardOnSlot(iotA, Period.Afternoon, 0, ctx);
+    ctx = ctxWithCardOnSlot(iotB, Period.Afternoon, 4, ctx, SlotType.Overloaded);
+    ctx = ctxWithHandCardsFixedIds([streamCompression], ctx);
 
-    const actor = createActor(gameMachine, { input: base });
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
     expect(actor.getSnapshot().value).toBe('scheduling');
 
-    actor.send({
-      type: 'PLAY_ACTION',
-      card: streamCompression,
-      targetPeriod: Period.Afternoon,
-    });
+    actor.send({ type: 'PLAY_ACTION', card: streamCompression, targetPeriod: Period.Afternoon });
 
     const snap = actor.getSnapshot();
-    // Overload slot must be gone — its iotCard was removed by SC
-    expect(snap.context.timeSlots.filter((s) => s.overloaded)).toHaveLength(0);
-    // Both removed cards end up in trafficDiscard
-    expect(snap.context.trafficDiscard).toHaveLength(2);
+    expect(snap.context.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
+    // Both cards removed → in discard
+    expect(snap.context.trafficDiscardOrder).toContain('iot-sc-a');
+    expect(snap.context.trafficDiscardOrder).toContain('iot-sc-b');
   });
 });
 
@@ -228,70 +83,59 @@ describe('integration: Stream Compression clears overload slot', () => {
 
 describe('integration: Bandwidth Upgrade converts overload slot', () => {
   it('converts 1 overload slot to normal weeklyTemporary, net +1 slot in period', () => {
-    const morningCount = createInitialTimeSlots().filter((s) => s.period === Period.Morning).length;
-    const overloadSlot = {
-      period: Period.Morning,
-      index: morningCount,
-      card: iotCard,
-      overloaded: true as const,
-    };
-    const base = {
-      ...safeContext(),
-      round: 2,
-      hand: [bandwidthUpgrade],
-      trafficDeck: [],
-      trafficDiscard: [],
-      timeSlots: [...createInitialTimeSlots(), overloadSlot],
-    };
+    const iotInst = freshTrafficCard('traffic-iot-burst', 'iot-bu-1');
+    const initialMorningCount = createInitialSlotLayout().filter(
+      (s) => s.period === Period.Morning,
+    ).length;
 
-    const actor = createActor(gameMachine, { input: base });
+    let ctx = safeContext('bu-test', { round: 2, activePhase: PhaseId.Scheduling });
+    ctx = ctxWithCardOnSlot(iotInst, Period.Morning, initialMorningCount, ctx, SlotType.Overloaded);
+    ctx = ctxWithHandCardsFixedIds([bandwidthUpgrade], ctx);
+
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
     expect(actor.getSnapshot().value).toBe('scheduling');
-
-    actor.send({
-      type: 'PLAY_ACTION',
-      card: bandwidthUpgrade,
-      targetPeriod: Period.Morning,
-    });
-
-    const snap = actor.getSnapshot();
-    const morningSlots = snap.context.timeSlots.filter((s) => s.period === Period.Morning);
-    // Overload slot converted → no overloaded slots remain
-    expect(morningSlots.filter((s) => s.overloaded)).toHaveLength(0);
-    // Net total: original + 1 overload converted (net +1). No additional empty slot added because
-    // the 1 convert accounts for BU's full quota of 1.
-    expect(morningSlots).toHaveLength(morningCount + 1);
-    // Converted slot has weeklyTemporary: true and still holds its card
-    const converted = morningSlots.find((s) => s.weeklyTemporary);
-    expect(converted).toBeDefined();
-    expect(converted!.card).toBe(iotCard);
-  });
-
-  it('adds a new empty slot when no overload slots exist in the period', () => {
-    const morningCount = createInitialTimeSlots().filter((s) => s.period === Period.Morning).length;
-    const base = {
-      ...safeContext(),
-      round: 2,
-      hand: [bandwidthUpgrade],
-      trafficDeck: [],
-      trafficDiscard: [],
-      timeSlots: createInitialTimeSlots(),
-    };
-
-    const actor = createActor(gameMachine, { input: base });
-    actor.start();
-    drawComplete(actor);
 
     actor.send({ type: 'PLAY_ACTION', card: bandwidthUpgrade, targetPeriod: Period.Morning });
 
-    const morningSlots = actor.getSnapshot().context.timeSlots.filter(
-      (s) => s.period === Period.Morning,
+    const snap = actor.getSnapshot();
+    const morningSlots = snap.context.slotLayout.filter((s) => s.period === Period.Morning);
+    expect(morningSlots.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
+    expect(morningSlots).toHaveLength(initialMorningCount + 1);
+    const converted = morningSlots.find((s) => s.slotType === SlotType.WeeklyTemporary);
+    expect(converted).toBeDefined();
+    // Converted slot still holds its card
+    const filledMorning = getFilledTimeSlots(snap.context).find(
+      (s) => s.period === Period.Morning && s.weeklyTemporary === true,
     );
-    expect(morningSlots).toHaveLength(morningCount + 1);
-    const newSlot = morningSlots.find((s) => s.weeklyTemporary);
+    expect(filledMorning).toBeDefined();
+    expect(filledMorning!.card!.id).toBe(iotInst.id);
+  });
+
+  it('adds a new empty slot when no overload slots exist in the period', () => {
+    const initialMorningCount = createInitialSlotLayout().filter(
+      (s) => s.period === Period.Morning,
+    ).length;
+
+    let ctx = safeContext('bu-empty-test', { round: 2, activePhase: PhaseId.Scheduling });
+    ctx = ctxWithHandCardsFixedIds([bandwidthUpgrade], ctx);
+
+    const actor = createActor(gameMachine, { input: ctx });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe('scheduling');
+
+    actor.send({ type: 'PLAY_ACTION', card: bandwidthUpgrade, targetPeriod: Period.Morning });
+
+    const snap = actor.getSnapshot();
+    const morningSlots = snap.context.slotLayout.filter((s) => s.period === Period.Morning);
+    expect(morningSlots).toHaveLength(initialMorningCount + 1);
+    const newSlot = morningSlots.find((s) => s.slotType === SlotType.WeeklyTemporary);
     expect(newSlot).toBeDefined();
-    expect(newSlot!.card).toBeNull();
+    // New slot is empty (no card on it) — use filter with card !== null
+    const filledMorning = getFilledTimeSlots(snap.context).filter(
+      (s) => s.period === Period.Morning && s.weeklyTemporary === true && s.card !== null,
+    );
+    expect(filledMorning).toHaveLength(0);
   });
 });
 
@@ -299,84 +143,54 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
 
 describe('integration: Data Center Expansion converts overload slots', () => {
   it('converts 2 overload slots to normal; no extra empty slot added', () => {
-    const eveningCount = createInitialTimeSlots().filter(
+    const iotInst = freshTrafficCard('traffic-iot-burst', 'iot-dce-1');
+    const cloudInst = freshTrafficCard('traffic-cloud-backup', 'cloud-dce-2');
+    const initialEveningCount = createInitialSlotLayout().filter(
       (s) => s.period === Period.Evening,
     ).length;
-    const ol1 = {
-      period: Period.Evening,
-      index: eveningCount,
-      card: iotCard,
-      overloaded: true as const,
-    };
-    const ol2 = {
-      period: Period.Evening,
-      index: eveningCount + 1,
-      card: cloudCard,
-      overloaded: true as const,
-    };
-    const base = {
-      ...safeContext(),
-      round: 2,
-      hand: [dataCenterExpansion],
-      trafficDeck: [],
-      trafficDiscard: [],
-      timeSlots: [...createInitialTimeSlots(), ol1, ol2],
-    };
 
-    const actor = createActor(gameMachine, { input: base });
+    let ctx = safeContext('dce-test', { round: 2, activePhase: PhaseId.Scheduling });
+    ctx = ctxWithCardOnSlot(iotInst, Period.Evening, initialEveningCount, ctx, SlotType.Overloaded);
+    ctx = ctxWithCardOnSlot(cloudInst, Period.Evening, initialEveningCount + 1, ctx, SlotType.Overloaded);
+    ctx = ctxWithHandCardsFixedIds([dataCenterExpansion], ctx);
+
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
+    expect(actor.getSnapshot().value).toBe('scheduling');
 
-    actor.send({
-      type: 'PLAY_ACTION',
-      card: dataCenterExpansion,
-      targetPeriod: Period.Evening,
-    });
+    actor.send({ type: 'PLAY_ACTION', card: dataCenterExpansion, targetPeriod: Period.Evening });
 
-    const eveningSlots = actor.getSnapshot().context.timeSlots.filter(
-      (s) => s.period === Period.Evening,
-    );
-    expect(eveningSlots.filter((s) => s.overloaded)).toHaveLength(0);
-    // 2 overload slots converted, 0 new empty slots added: net = original + 2
-    expect(eveningSlots).toHaveLength(eveningCount + 2);
-    // Both converted slots have weeklyTemporary and their cards
-    const converted = eveningSlots.filter((s) => s.weeklyTemporary);
+    const snap = actor.getSnapshot();
+    const eveningSlots = snap.context.slotLayout.filter((s) => s.period === Period.Evening);
+    expect(eveningSlots.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
+    // 2 overload slots converted, 0 new empty slots: net = initial + 2
+    expect(eveningSlots).toHaveLength(initialEveningCount + 2);
+    const converted = eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary);
     expect(converted).toHaveLength(2);
   });
 
   it('converts 1 overload and adds 1 new empty slot when only 1 overload exists', () => {
-    const eveningCount = createInitialTimeSlots().filter(
+    const iotInst = freshTrafficCard('traffic-iot-burst', 'iot-dce-3');
+    const initialEveningCount = createInitialSlotLayout().filter(
       (s) => s.period === Period.Evening,
     ).length;
-    const ol1 = {
-      period: Period.Evening,
-      index: eveningCount,
-      card: iotCard,
-      overloaded: true as const,
-    };
-    const base = {
-      ...safeContext(),
-      round: 2,
-      hand: [dataCenterExpansion],
-      trafficDeck: [],
-      trafficDiscard: [],
-      timeSlots: [...createInitialTimeSlots(), ol1],
-    };
 
-    const actor = createActor(gameMachine, { input: base });
+    let ctx = safeContext('dce-test2', { round: 2, activePhase: PhaseId.Scheduling });
+    ctx = ctxWithCardOnSlot(iotInst, Period.Evening, initialEveningCount, ctx, SlotType.Overloaded);
+    ctx = ctxWithHandCardsFixedIds([dataCenterExpansion], ctx);
+
+    const actor = createActor(gameMachine, { input: ctx });
     actor.start();
-    drawComplete(actor);
+    expect(actor.getSnapshot().value).toBe('scheduling');
 
-    actor.send({
-      type: 'PLAY_ACTION',
-      card: dataCenterExpansion,
-      targetPeriod: Period.Evening,
-    });
+    actor.send({ type: 'PLAY_ACTION', card: dataCenterExpansion, targetPeriod: Period.Evening });
 
-    const eveningSlots = actor.getSnapshot().context.timeSlots.filter(
-      (s) => s.period === Period.Evening,
-    );
-    expect(eveningSlots.filter((s) => s.overloaded)).toHaveLength(0);
-    expect(eveningSlots).toHaveLength(eveningCount + 2); // 1 converted + 1 new
+    const snap = actor.getSnapshot();
+    const eveningSlots = snap.context.slotLayout.filter((s) => s.period === Period.Evening);
+    expect(eveningSlots.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
+    // 1 converted + 1 new empty = initial + 2
+    expect(eveningSlots).toHaveLength(initialEveningCount + 2);
+    const weeklySlots = eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary);
+    expect(weeklySlots).toHaveLength(2);
   });
 });

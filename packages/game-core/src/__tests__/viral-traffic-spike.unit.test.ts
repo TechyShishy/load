@@ -1,45 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { playActionCard } from '../processCrisis.js';
-import { createInitialTimeSlots, createInitialTracks, createVendorSlots } from '../boardState.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY } from '../data/traffic/index.js';
 import { ViralTrafficSpikeCard } from '../data/traffic/ViralTrafficSpikeCard.js';
 import { DEFAULT_TRAFFIC_DECK } from '../deck.js';
-import { Period, PhaseId, type GameContext } from '../types.js';
+import { getFilledTimeSlots } from '../cardPositionViews.js';
+import { Period, PhaseId, SlotType } from '../types.js';
+import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot } from './testHelpers.js';
 
-const trafficPrio = ACTION_CARDS.find((c) => c.id === 'action-traffic-prioritization')!;
-const streamComp = ACTION_CARDS.find((c) => c.id === 'action-stream-compression')!;
-
-function makeCtx(overrides: Partial<GameContext> = {}): GameContext {
-  return {
-    budget: 500_000,
-    round: 1,
-    slaCount: 0,
-    hand: [trafficPrio, streamComp],
-    playedThisRound: [],
-    timeSlots: createInitialTimeSlots(),
-    tracks: createInitialTracks(),
-    vendorSlots: createVendorSlots(),
-    pendingEvents: [],
-    mitigatedEventIds: [],
-    activePhase: PhaseId.Scheduling,
-    trafficDeck: [],
-    trafficDiscard: [],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [],
-    actionDeck: ACTION_CARDS,
-    actionDiscard: [],
-    lastRoundSummary: null,
-    loseReason: null,
-    pendingRevenue: 0,
-    seed: 'test-seed',
-    skipNextTrafficDraw: false,
-    revenueBoostMultiplier: 1,
-    drawLog: null,
-    ...overrides,
-  };
-}
+const trafficPrio = ACTION_CARDS.find((c) => c.templateId === 'action-traffic-prioritization')!;
+const streamComp = ACTION_CARDS.find((c) => c.templateId === 'action-stream-compression')!;
 
 describe('ViralTrafficSpikeCard — fields', () => {
   it('has the expected templateId', () => {
@@ -86,18 +56,15 @@ describe('ViralTrafficSpikeCard — fields', () => {
 describe('ViralTrafficSpikeCard — onPickUp', () => {
   it('spawns a copy immediately in the next period via Traffic Prioritization', () => {
     const viral = new ViralTrafficSpikeCard('viral-1');
-    const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: viral };
-      return slot;
-    });
-    const ctx = makeCtx({ timeSlots, hand: [trafficPrio] });
+    let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral, Period.Morning, 0, ctx);
 
     const updated = playActionCard(ctx, trafficPrio, undefined, viral.id);
 
     // No deferred queue — copy lands immediately
-    expect(updated.spawnedTrafficQueue).toHaveLength(0);
+    expect(updated.spawnedQueueOrder).toHaveLength(0);
     // Copy is in Afternoon (next period after Morning)
-    const afternoonSpike = updated.timeSlots.find(
+    const afternoonSpike = getFilledTimeSlots(updated).find(
       (s) => s.period === Period.Afternoon && s.card?.templateId === 'traffic-viral-spike',
     );
     expect(afternoonSpike).toBeDefined();
@@ -106,11 +73,8 @@ describe('ViralTrafficSpikeCard — onPickUp', () => {
 
   it('revenue is still collected when picked up', () => {
     const viral = new ViralTrafficSpikeCard('viral-1');
-    const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: viral };
-      return slot;
-    });
-    const ctx = makeCtx({ timeSlots, hand: [trafficPrio] });
+    let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral, Period.Morning, 0, ctx);
 
     const updated = playActionCard(ctx, trafficPrio, undefined, viral.id);
     expect(updated.budget).toBe(500_000 + viral.revenue);
@@ -119,16 +83,13 @@ describe('ViralTrafficSpikeCard — onPickUp', () => {
 
   it('spawns a copy immediately in the next period via Stream Compression', () => {
     const viral = new ViralTrafficSpikeCard('viral-1');
-    const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: viral };
-      return slot;
-    });
-    const ctx = makeCtx({ timeSlots, hand: [streamComp] });
+    let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral, Period.Morning, 0, ctx);
 
     const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
 
-    expect(updated.spawnedTrafficQueue).toHaveLength(0);
-    const afternoonSpike = updated.timeSlots.find(
+    expect(updated.spawnedQueueOrder).toHaveLength(0);
+    const afternoonSpike = getFilledTimeSlots(updated).find(
       (s) => s.period === Period.Afternoon && s.card?.templateId === 'traffic-viral-spike',
     );
     expect(afternoonSpike).toBeDefined();
@@ -136,36 +97,32 @@ describe('ViralTrafficSpikeCard — onPickUp', () => {
 
   it('does not spawn when removed from Overnight (terminal period)', () => {
     const viral = new ViralTrafficSpikeCard('viral-1');
-    const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Overnight && slot.index === 0) return { ...slot, card: viral };
-      return slot;
-    });
-    const ctx = makeCtx({ timeSlots, hand: [trafficPrio] });
+    let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral, Period.Overnight, 0, ctx);
 
     const updated = playActionCard(ctx, trafficPrio, undefined, viral.id);
 
-    const anyNewSpike = updated.timeSlots.find(
+    const anyNewSpike = getFilledTimeSlots(updated).find(
       (s) => s.card?.templateId === 'traffic-viral-spike' && s.card.id !== viral.id,
     );
     expect(anyNewSpike).toBeUndefined();
-    expect(updated.spawnedTrafficQueue).toHaveLength(0);
+    expect(updated.spawnedQueueOrder).toHaveLength(0);
   });
 
-  it('creates an overload slot in the next period when all slots are full', () => {
+  it('defers copy to spawned queue when next period is full', () => {
     const viral = new ViralTrafficSpikeCard('viral-1');
-    // Fill all Afternoon slots
-    const timeSlots = createInitialTimeSlots().map((slot) => {
-      if (slot.period === Period.Morning && slot.index === 0) return { ...slot, card: viral };
-      if (slot.period === Period.Afternoon) return { ...slot, card: new ViralTrafficSpikeCard(`fill-${slot.index}`) };
-      return slot;
-    });
-    const ctx = makeCtx({ timeSlots, hand: [trafficPrio] });
+    // Fill all Afternoon slots (indexes 0-3)
+    let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral, Period.Morning, 0, ctx);
+    for (let i = 0; i < 4; i++) {
+      ctx = ctxWithCardOnSlot(new ViralTrafficSpikeCard(`fill-${i}`), Period.Afternoon, i, ctx);
+    }
 
     const updated = playActionCard(ctx, trafficPrio, undefined, viral.id);
 
-    const overload = updated.timeSlots.find(
-      (s) => s.period === Period.Afternoon && s.overloaded === true && s.card?.templateId === 'traffic-viral-spike',
-    );
-    expect(overload).toBeDefined();
+    // When Afternoon is full, the copy is deferred to spawnedQueueOrder
+    // (overload slot created lazily during resolution, not immediately).
+    expect(updated.spawnedQueueOrder).toHaveLength(1);
+    expect(updated.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
   });
 });

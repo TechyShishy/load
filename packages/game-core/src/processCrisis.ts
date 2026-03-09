@@ -1,4 +1,5 @@
 import { type ActionCard, type GameContext, type Period, type Track } from './types.js';
+import { getPendingEvents } from './cardPositionViews.js';
 
 export interface CrisisResult {
   context: GameContext;
@@ -15,51 +16,57 @@ export function playActionCard(
   card: ActionCard,
   /** Optional: ID of the event to target (for MitigateDDoS) */
   targetEventId?: string,
-  /** Optional: ID of the Traffic card to remove (for RemoveTrafficCard; overrides card.targetTrafficCardId) */
+  /** Optional: ID of the Traffic card to remove (for RemoveTrafficCard) */
   targetTrafficCardId?: string,
-  /** Optional: Period to target (for BoostSlotCapacity, AddPeriodSlots; overrides card.targetPeriod) */
+  /** Optional: Period to target (for BoostSlotCapacity, AddPeriodSlots) */
   targetPeriod?: Period,
-  /** Optional: Track to target (for ClearTicket; overrides card.targetTrack) */
+  /** Optional: Track to target (for ClearTicket) */
   targetTrack?: Track,
 ): GameContext {
-  if (!ctx.hand.find((c) => c.id === card.id)) {
+  if (!ctx.handOrder.includes(card.id)) {
     // Card not in hand — no-op
     return ctx;
   }
 
-  const commit = (): GameContext => ({
-    ...ctx,
-    budget: ctx.budget - card.cost,
-    hand: ctx.hand.filter((c) => c.id !== card.id),
-    playedThisRound: [...ctx.playedThisRound, card],
-  });
+  const commit = (): GameContext => {
+    // Move actor: inHand → played
+    ctx.actionCardActors[card.id]?.send({ type: 'PLAY' });
+    return {
+      ...ctx,
+      budget: ctx.budget - card.cost,
+      handOrder: ctx.handOrder.filter((id) => id !== card.id),
+      playedThisRoundOrder: [...ctx.playedThisRoundOrder, card.id],
+    };
+  };
 
   return card.apply(ctx, commit, targetEventId, targetTrafficCardId, targetPeriod, targetTrack);
 }
 
 /**
  * Resolve all pending Event cards at the end of the Crisis phase.
- * IssueTicket events add to the relevant track.
- * Unmitigated events apply their penalty.
- * SpawnVendor events are silently no-oped.
  */
 export function processCrisis(ctx: GameContext): CrisisResult {
   let context = { ...ctx };
   let penaltiesApplied = 0;
 
-  for (const event of ctx.pendingEvents) {
+  for (const event of getPendingEvents(ctx)) {
     const isMitigated = ctx.mitigatedEventIds.includes(event.id);
     const budgetBefore = context.budget;
     context = event.onCrisis(context, isMitigated);
     penaltiesApplied += budgetBefore - context.budget;
   }
 
-  // Return consumed event cards to the event discard pile, then clear
+  // Transition each pending event actor to inDiscard.
+  for (const id of ctx.pendingEventsOrder) {
+    context.eventCardActors[id]?.send({ type: 'RESOLVE' });
+  }
+
   context = {
     ...context,
-    eventDiscard: [...context.eventDiscard, ...context.pendingEvents],
-    pendingEvents: [],
+    eventDiscardOrder: [...context.eventDiscardOrder, ...ctx.pendingEventsOrder],
+    pendingEventsOrder: [],
   };
 
   return { context, penaltiesApplied };
 }
+

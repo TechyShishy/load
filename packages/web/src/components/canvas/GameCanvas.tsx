@@ -2,6 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Application, Assets, Container, Graphics, Mesh, MeshGeometry, RenderTexture, Sprite, type Texture, Text, Ticker, TextStyle } from 'pixi.js';
 import {
   Period,
+  getFilledTimeSlots,
+  getTracks,
+  getTrafficDeck,
+  getTrafficDiscard,
+  getEventDeck,
+  getEventDiscard,
+  getActionDeck,
+  getActionDiscard,
   type DrawLog,
   type ActionCard,
   type EventCard,
@@ -358,12 +366,13 @@ function spawnDrawAnimations(
   const srcRect = computeDeckPileRect(0, 'draw', cw);
   const srcCx = srcRect.x + srcRect.w / 2;
   const srcCy = srcRect.y + srcRect.h / 2;
+  const timeSlots = getFilledTimeSlots(ctx);
 
   log.traffic.forEach((entry, idx) => {
     const periodIndex = periods.indexOf(entry.period);
     if (periodIndex < 0) return;
 
-    const periodSlots = ctx.timeSlots.filter((s) => s.period === entry.period);
+    const periodSlots = timeSlots.filter((s) => s.period === entry.period);
     const dstRect = computeSlotRect(periodIndex, entry.slotIndex, cw, periodSlots.length);
     const dstCx = dstRect.x + dstRect.w / 2;
     const dstCy = dstRect.y + dstRect.h / 2;
@@ -541,13 +550,15 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
   const periodCols = Object.values(Period) as Period[];
   const availableW = app.screen.width - 40;
   const colW = availableW / BOARD_COLUMN_COUNT;
+  const timeSlots = getFilledTimeSlots(ctx);
+  const tracks = getTracks(ctx);
 
   for (let pi = 0; pi < periodCols.length; pi++) {
     const period = periodCols[pi] as Period;
     const periodX = 20 + pi * colW;
 
     // Slots for this period — collected first so column height responds to temporary extra slots.
-    const periodSlots = ctx.timeSlots.filter((s) => s.period === period);
+    const periodSlots = timeSlots.filter((s) => s.period === period);
 
     // Period column background — sized to actual slot count, including any temporary slots.
     // Width is capped at the equal-share max but shrinks to fit the actual sub-column count (min 3).
@@ -652,8 +663,8 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
 
   // Tracks — static row backgrounds with dynamic ticket containers.
   // Rendered to the right of the deck cluster in the same top band as the piles.
-  for (let ti = 0; ti < ctx.tracks.length; ti++) {
-    const track = ctx.tracks[ti]!;
+  for (let ti = 0; ti < tracks.length; ti++) {
+    const track = tracks[ti]!;
     const { x: trackX, y: trackY, w: trackW } = computeTrackRect(ti, app.screen.width);
     const tColor = TRACK_COLORS[track.track] ?? 0x555555;
 
@@ -897,32 +908,38 @@ function buildDeckPiles(
     action: 'ACTION',
   };
 
+  const trafficDeck = getTrafficDeck(ctx);
+  const trafficDiscard = getTrafficDiscard(ctx);
+  const eventDeck = getEventDeck(ctx);
+  const eventDiscard = getEventDiscard(ctx);
+  const actionDeck = getActionDeck(ctx);
+  const actionDiscard = getActionDiscard(ctx);
   const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined; topDiscardTemplateId: string | undefined; topDiscardDescription?: string | undefined; topDiscardCost?: number | undefined }> = [
     {
       key: 'traffic',
-      drawCount: ctx.trafficDeck.length,
-      discardCount: ctx.trafficDiscard.length,
-      topDiscardName: ctx.trafficDiscard.at(-1)?.name,
-      topDiscardTemplateId: ctx.trafficDiscard.at(-1)?.templateId,
-      topDiscardDescription: ctx.trafficDiscard.at(-1)?.description,
-      topDiscardCost: ctx.trafficDiscard.at(-1)?.revenue,
+      drawCount: trafficDeck.length,
+      discardCount: trafficDiscard.length,
+      topDiscardName: trafficDiscard.at(-1)?.name,
+      topDiscardTemplateId: trafficDiscard.at(-1)?.templateId,
+      topDiscardDescription: trafficDiscard.at(-1)?.description,
+      topDiscardCost: trafficDiscard.at(-1)?.revenue,
     },
     {
       key: 'event',
-      drawCount: ctx.eventDeck.length,
-      discardCount: ctx.eventDiscard.length,
-      topDiscardName: ctx.eventDiscard.at(-1)?.name,
-      topDiscardTemplateId: ctx.eventDiscard.at(-1)?.templateId,
-      topDiscardDescription: ctx.eventDiscard.at(-1)?.description,
+      drawCount: eventDeck.length,
+      discardCount: eventDiscard.length,
+      topDiscardName: eventDiscard.at(-1)?.name,
+      topDiscardTemplateId: eventDiscard.at(-1)?.templateId,
+      topDiscardDescription: eventDiscard.at(-1)?.description,
     },
     {
       key: 'action',
-      drawCount: ctx.actionDeck.length,
-      discardCount: ctx.actionDiscard.length,
-      topDiscardName: ctx.actionDiscard.at(-1)?.name,
-      topDiscardTemplateId: ctx.actionDiscard.at(-1)?.templateId,
-      topDiscardDescription: ctx.actionDiscard.at(-1)?.description,
-      topDiscardCost: ctx.actionDiscard.at(-1)?.cost,
+      drawCount: actionDeck.length,
+      discardCount: actionDiscard.length,
+      topDiscardName: actionDiscard.at(-1)?.name,
+      topDiscardTemplateId: actionDiscard.at(-1)?.templateId,
+      topDiscardDescription: actionDiscard.at(-1)?.description,
+      topDiscardCost: actionDiscard.at(-1)?.cost,
     },
   ];
 
@@ -1011,16 +1028,16 @@ function patchTrack(refs: TrackRefs, oldTrack: TrackSlot, newTrack: TrackSlot): 
 function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContext): void {
   const getInfo = (ctx: GameContext) => {
     if (pile.deckType === 'traffic') {
-      const arr = pile.pileType === 'draw' ? ctx.trafficDeck : ctx.trafficDiscard;
+      const arr = pile.pileType === 'draw' ? getTrafficDeck(ctx) : getTrafficDiscard(ctx);
       const top = arr.at(-1);
       const topDesc = top?.description;
       return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc, topCost: top?.revenue };
     } else if (pile.deckType === 'event') {
-      const arr = pile.pileType === 'draw' ? ctx.eventDeck : ctx.eventDiscard;
+      const arr = pile.pileType === 'draw' ? getEventDeck(ctx) : getEventDiscard(ctx);
       const top = arr.at(-1);
       return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: undefined as number | undefined };
     } else {
-      const arr = pile.pileType === 'draw' ? ctx.actionDeck : ctx.actionDiscard;
+      const arr = pile.pileType === 'draw' ? getActionDeck(ctx) : getActionDiscard(ctx);
       const top = arr.at(-1);
       return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: top?.cost };
     }
@@ -1058,36 +1075,42 @@ function patchPiles(refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext)
 }
 
 function patchBoard(
-  refs: SceneRefs, prevCtx: GameContext, nextCtx: GameContext,
+  refs: SceneRefs,
+  prevSlots: TimeSlot[],
+  prevTracks: TrackSlot[],
+  prevCtx: GameContext,
+  nextCtx: GameContext,
   suppressedCardIds?: ReadonlySet<string>,
 ): void {
   const decksChanged =
-    prevCtx.trafficDeck !== nextCtx.trafficDeck ||
-    prevCtx.trafficDiscard !== nextCtx.trafficDiscard ||
-    prevCtx.eventDeck !== nextCtx.eventDeck ||
-    prevCtx.eventDiscard !== nextCtx.eventDiscard ||
-    prevCtx.actionDeck !== nextCtx.actionDeck ||
-    prevCtx.actionDiscard !== nextCtx.actionDiscard;
+    prevCtx.trafficDeckOrder !== nextCtx.trafficDeckOrder ||
+    prevCtx.trafficDiscardOrder !== nextCtx.trafficDiscardOrder ||
+    prevCtx.eventDeckOrder !== nextCtx.eventDeckOrder ||
+    prevCtx.eventDiscardOrder !== nextCtx.eventDiscardOrder ||
+    prevCtx.actionDeckOrder !== nextCtx.actionDeckOrder ||
+    prevCtx.actionDiscardOrder !== nextCtx.actionDiscardOrder;
 
-  // Short-circuit if nothing board-relevant has changed.
-  if (prevCtx.timeSlots === nextCtx.timeSlots && prevCtx.tracks === nextCtx.tracks && !decksChanged) return;
+  const nextTimeSlots = getFilledTimeSlots(nextCtx);
+  const nextTracks = getTracks(nextCtx);
 
   const periods = Object.values(Period) as Period[];
   for (const period of periods) {
-    const oldPeriodSlots = prevCtx.timeSlots.filter((s) => s.period === period);
-    const newPeriodSlots = nextCtx.timeSlots.filter((s) => s.period === period);
+    const oldPeriodSlots = prevSlots.filter((s) => s.period === period);
+    const newPeriodSlots = nextTimeSlots.filter((s) => s.period === period);
     for (let si = 0; si < newPeriodSlots.length; si++) {
       const oldSlot = oldPeriodSlots[si];
       const newSlot = newPeriodSlots[si];
-      if (!oldSlot || !newSlot || (oldSlot === newSlot && oldSlot.overloaded === newSlot.overloaded)) continue;
+      // patchBoard is only called when slotLayout.length is unchanged between contexts,
+      // so slot counts per period should match; guard covers any edge case.
+      if (!oldSlot || !newSlot) continue;
       const slotRefs = refs.slots.get(`${period}-${si}`);
       if (slotRefs) patchSlot(slotRefs, oldSlot, newSlot, suppressedCardIds);
     }
   }
 
-  for (const newTrack of nextCtx.tracks) {
-    const oldTrack = prevCtx.tracks.find((t) => t.track === newTrack.track);
-    if (!oldTrack || oldTrack === newTrack) continue;
+  for (const newTrack of nextTracks) {
+    const oldTrack = prevTracks.find((t) => t.track === newTrack.track);
+    if (!oldTrack) continue;
     const trackRefs = refs.tracks.get(newTrack.track);
     if (trackRefs) patchTrack(trackRefs, oldTrack, newTrack);
   }
@@ -1106,9 +1129,17 @@ function patchBoard(
 function buildBoardSummary(ctx: GameContext): string {
   const periods = Object.values(Period) as Period[];
   const parts: string[] = [];
+  const timeSlots = getFilledTimeSlots(ctx);
+  const tracks = getTracks(ctx);
+  const trafficDeck = getTrafficDeck(ctx);
+  const trafficDiscard = getTrafficDiscard(ctx);
+  const eventDeck = getEventDeck(ctx);
+  const eventDiscard = getEventDiscard(ctx);
+  const actionDeck = getActionDeck(ctx);
+  const actionDiscard = getActionDiscard(ctx);
 
   for (const period of periods) {
-    const slots = ctx.timeSlots.filter((s) => s.period === period);
+    const slots = timeSlots.filter((s) => s.period === period);
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i]!;
       const label = `${period} slot ${i + 1}`;
@@ -1122,7 +1153,7 @@ function buildBoardSummary(ctx: GameContext): string {
     }
   }
 
-  for (const track of ctx.tracks) {
+  for (const track of tracks) {
     const count = track.tickets.length;
     const ticketDesc =
       count === 0 ? 'no open tickets' : `${count} open ticket${count === 1 ? '' : 's'}`;
@@ -1131,12 +1162,12 @@ function buildBoardSummary(ctx: GameContext): string {
 
   // Deck pile counts and top discard card.
   const deckPileDescs: [string, number, string | undefined][] = [
-    ['Traffic draw', ctx.trafficDeck.length, undefined],
-    ['Traffic discard', ctx.trafficDiscard.length, ctx.trafficDiscard.at(-1)?.name],
-    ['Event draw', ctx.eventDeck.length, undefined],
-    ['Event discard', ctx.eventDiscard.length, ctx.eventDiscard.at(-1)?.name],
-    ['Action draw', ctx.actionDeck.length, undefined],
-    ['Action discard', ctx.actionDiscard.length, ctx.actionDiscard.at(-1)?.name],
+    ['Traffic draw', trafficDeck.length, undefined],
+    ['Traffic discard', trafficDiscard.length, trafficDiscard.at(-1)?.name],
+    ['Event draw', eventDeck.length, undefined],
+    ['Event discard', eventDiscard.length, eventDiscard.at(-1)?.name],
+    ['Action draw', actionDeck.length, undefined],
+    ['Action discard', actionDiscard.length, actionDiscard.at(-1)?.name],
   ];
   for (const [label, count, topName] of deckPileDescs) {
     if (count === 0) {
@@ -1168,6 +1199,12 @@ export function GameCanvas({
   const boardRef = useRef<Container | null>(null);
   const sceneRefsRef = useRef<SceneRefs | null>(null);
   const prevContextRef = useRef<GameContext | null>(null);
+  // Stores the slot/track state as it was when last painted. Cannot use
+  // prevContextRef for this because traffic card actors are mutated in-place
+  // (via actor.send()) before patchBoard runs, making getFilledTimeSlots on
+  // the old context return the already-updated state.
+  const prevSlotsRef = useRef<TimeSlot[]>([]);
+  const prevTracksRef = useRef<TrackSlot[]>([]);
   const [initError, setInitError] = useState<string | null>(null);
   const [boardSummary, setBoardSummary] = useState(() => buildBoardSummary(context));
 
@@ -1233,6 +1270,8 @@ export function GameCanvas({
         const refs = buildStaticScene(app, board, context, suppressedCardIdsRef.current);
         sceneRefsRef.current = refs;
         prevContextRef.current = context;
+        prevSlotsRef.current = getFilledTimeSlots(context);
+        prevTracksRef.current = getTracks(context);
 
         // Animation layer sits above the board so flying cards render on top.
         const animLayer = new Container();
@@ -1316,7 +1355,7 @@ export function GameCanvas({
     const prev = prevContextRef.current;
     if (!app || !prev) return;
 
-    if (context.timeSlots.length !== prev.timeSlots.length) {
+    if (context.slotLayout.length !== prev.slotLayout.length) {
       // Slot count changed — destroy old board Container and rebuild from scratch.
       const oldBoard = boardRef.current;
       if (oldBoard) {
@@ -1328,8 +1367,10 @@ export function GameCanvas({
       sceneRefsRef.current = buildStaticScene(app, newBoard, context, suppressedCardIdsRef.current);
     } else {
       const refs = sceneRefsRef.current;
-      if (refs) patchBoard(refs, prev, context, suppressedCardIdsRef.current);
+      if (refs) patchBoard(refs, prevSlotsRef.current, prevTracksRef.current, prev, context, suppressedCardIdsRef.current);
     }
+    prevSlotsRef.current = getFilledTimeSlots(context);
+    prevTracksRef.current = getTracks(context);
     prevContextRef.current = context;
   }, [context]);
 
@@ -1356,8 +1397,9 @@ export function GameCanvas({
     const ctx = contextRef.current;
     const suppressed = suppressedCardIds ?? (new Set() as ReadonlySet<string>);
     const periods = Object.values(Period) as Period[];
+    const ctxTimeSlots = getFilledTimeSlots(ctx);
     for (const period of periods) {
-      const periodSlots = ctx.timeSlots.filter((s) => s.period === period);
+      const periodSlots = ctxTimeSlots.filter((s) => s.period === period);
       for (let si = 0; si < periodSlots.length; si++) {
         const slot = periodSlots[si]!;
         const slotRefs = refs.slots.get(`${period}-${si}`);

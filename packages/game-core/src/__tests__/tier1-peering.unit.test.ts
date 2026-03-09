@@ -2,25 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { createInitialContext, gameMachine } from '../machine.js';
 import { TierOnePeeringCard, EVENT_CARDS, EVENT_CARD_REGISTRY } from '../data/events/index.js';
-import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { getDayOfWeek, type TrafficCard } from '../types.js';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Traffic-only deck, no events, so rounds complete cleanly. */
-function safeContext() {
-  const trafficDeck: TrafficCard[] = Array.from({ length: 56 }, (_, i) =>
-    TRAFFIC_CARDS[i % TRAFFIC_CARDS.length]!,
-  );
-  return {
-    ...createInitialContext('tier1-test-seed'),
-    trafficDeck,
-    trafficDiscard: [] as TrafficCard[],
-    eventDeck: [],
-    eventDiscard: [],
-    spawnedTrafficQueue: [] as TrafficCard[],
-  };
-}
+import { getDayOfWeek } from '../types.js';
+import { safeContext } from './testHelpers.js';
 
 function advanceRound(actor: ReturnType<typeof createActor<typeof gameMachine>>) {
   actor.send({ type: 'ADVANCE' }); // scheduling → crisis
@@ -81,7 +64,7 @@ describe('TierOnePeeringCard — onCrisis', () => {
     const result = card.onCrisis(ctx, false);
     expect(result.budget).toBe(ctx.budget);
     expect(result.slaCount).toBe(ctx.slaCount);
-    expect(result.spawnedTrafficQueue).toHaveLength(0);
+    expect(result.spawnedQueueOrder).toHaveLength(0);
   });
 });
 
@@ -92,7 +75,7 @@ describe('revenueBoostMultiplier — Monday reset', () => {
     // Start at round 7 (Sunday). actor.start() fires performDraw and lands in draw state.
     // DRAW_COMPLETE on a weekend goes to crisis (not scheduling).
     // ADVANCE from crisis goes to resolution → end (performEnd, round → 8) → draw (performDraw, Monday reset).
-    const ctx = { ...safeContext(), round: 7, revenueBoostMultiplier: 1.5 };
+    const ctx = safeContext('tier1-test-seed', { round: 7, revenueBoostMultiplier: 1.5 });
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();                               // init → draw, performDraw fires (round 7)
     actor.send({ type: 'DRAW_COMPLETE' });       // draw → crisis (weekend round)
@@ -107,7 +90,7 @@ describe('revenueBoostMultiplier — Monday reset', () => {
   it('does not reset mid-week', () => {
     // Start at round 3 (Wednesday). actor.start() → draw, DRAW_COMPLETE → scheduling.
     // advanceRound goes scheduling → crisis → resolution → end → draw (round 4) → scheduling.
-    const ctx = { ...safeContext(), round: 3, revenueBoostMultiplier: 1.5 };
+    const ctx = safeContext('tier1-test-seed', { round: 3, revenueBoostMultiplier: 1.5 });
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();                         // init → draw, performDraw fires (round 3)
     actor.send({ type: 'DRAW_COMPLETE' }); // draw → scheduling (weekday)
