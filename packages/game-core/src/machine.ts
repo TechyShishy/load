@@ -113,6 +113,7 @@ export function createInitialContext(seed?: string): GameContext {
     seed: resolvedSeed,
     skipNextTrafficDraw: false,
     revenueBoostMultiplier: 1,
+    slaForgivenessThisRound: 0,
     drawLog: { traffic: [], action: initialHandCards, events: [] },
   };
 }

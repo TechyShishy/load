@@ -65,6 +65,7 @@ export const RoundSummarySchema = z.object({
   newSlaCount: z.number(),
   resolvedCount: z.number(),
   failedCount: z.number(),
+  forgivenCount: z.number().default(0),
   spawnedTrafficCount: z.number(),
 });
 
@@ -98,5 +99,6 @@ export const GameContextSchema = z.object({
   seed: z.string(),
   skipNextTrafficDraw: z.boolean().default(false),
   revenueBoostMultiplier: z.number().default(1),
+  slaForgivenessThisRound: z.number().default(0),
 });
 

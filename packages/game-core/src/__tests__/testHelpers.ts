@@ -27,7 +27,7 @@ import {
 
 type ScalarOverrides = Partial<Pick<GameContext,
   'budget' | 'round' | 'slaCount' | 'pendingRevenue' | 'seed' |
-  'skipNextTrafficDraw' | 'revenueBoostMultiplier' | 'activePhase' | 'mitigatedEventIds'
+  'skipNextTrafficDraw' | 'revenueBoostMultiplier' | 'slaForgivenessThisRound' | 'activePhase' | 'mitigatedEventIds'
 >>;
 
 /**

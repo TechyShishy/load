@@ -26,7 +26,8 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
   }
 
   const failedCount = overloadedCardIds.length;
-  const newSlaCount = ctx.slaCount + failedCount;
+  const forgivenCount = Math.min(ctx.slaForgivenessThisRound, failedCount);
+  const newSlaCount = ctx.slaCount + failedCount - forgivenCount;
 
   // Transition overloaded cards from onSlot → inDiscard.
   for (const id of overloadedCardIds) {
@@ -55,6 +56,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
     newSlaCount,
     resolvedCount,
     failedCount,
+    forgivenCount,
     spawnedTrafficCount,
   };
 
@@ -65,6 +67,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
     slaCount: newSlaCount,
     mitigatedEventIds: [],
     pendingRevenue: 0,
+    slaForgivenessThisRound: 0,
     lastRoundSummary: summary,
   };
 

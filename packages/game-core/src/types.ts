@@ -193,6 +193,8 @@ export interface SerializedGameContext {
   skipNextTrafficDraw: boolean;
   /** Revenue multiplier applied to all traffic-card removals. Set by beneficial events; resets to 1 on Monday. */
   revenueBoostMultiplier: number;
+  /** Number of SLA failures to forgive during this round's resolution phase. Consumed and reset to 0 by resolveRound. */
+  slaForgivenessThisRound: number;
 
 }
 
@@ -312,6 +314,8 @@ export interface GameContext {
   skipNextTrafficDraw: boolean;
   /** Revenue multiplier applied to all traffic-card removals. */
   revenueBoostMultiplier: number;
+  /** Number of SLA failures to forgive during this round's resolution phase. Consumed and reset to 0 by resolveRound. */
+  slaForgivenessThisRound: number;
   /** Animation draw log — runtime only, not persisted. */
   drawLog: DrawLog | null;
 }
@@ -322,6 +326,8 @@ export interface RoundSummary {
   newSlaCount: number;
   resolvedCount: number;
   failedCount: number;
+  /** Number of SLA failures forgiven by Redundant Link (or similar) this round. */
+  forgivenCount: number;
   /** Number of traffic cards placed on the board from SpawnTraffic events this round */
   spawnedTrafficCount: number;
 }

@@ -172,6 +172,7 @@ const CARD_ART: Partial<Record<string, string>> = {
   'traffic-ai-inference': './cards/traffic-ai-inference.svg',
   'traffic-viral-spike': './cards/traffic-viral-spike.svg',
   'event-tier1-peering': './cards/event-tier1-peering.svg',
+  'action-redundant-link': './cards/action-redundant-link.svg',
 };
 
 /**

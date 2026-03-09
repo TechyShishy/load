@@ -62,6 +62,7 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
     seed: ctx.seed,
     skipNextTrafficDraw: ctx.skipNextTrafficDraw,
     revenueBoostMultiplier: ctx.revenueBoostMultiplier,
+    slaForgivenessThisRound: ctx.slaForgivenessThisRound,
   };
 }
 
@@ -146,6 +147,7 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     seed: raw.seed,
     skipNextTrafficDraw: raw.skipNextTrafficDraw,
     revenueBoostMultiplier: raw.revenueBoostMultiplier,
+    slaForgivenessThisRound: raw.slaForgivenessThisRound,
     drawLog: null,
   };
 }
