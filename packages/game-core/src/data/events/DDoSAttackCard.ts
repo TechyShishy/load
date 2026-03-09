@@ -8,7 +8,7 @@ export class DDoSAttackCard extends EventCard {
   readonly name = 'DDoS Attack';
   readonly label = 'TRAFFIC SPIKE';
   readonly description =
-    'A volumetric attack floods your edge nodes with malicious traffic.';
+    'A volumetric attack floods your edge nodes with 5 malicious traffic cards. Each can be cleared for $1,500, but ties up slots that legitimate traffic could fill.';
 
   constructor(public readonly id: string = 'event-ddos-attack') {
     super();
@@ -16,7 +16,7 @@ export class DDoSAttackCard extends EventCard {
 
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
-    const spawned = Array.from({ length: 8 }, () => new DDoSTrafficCard(crypto.randomUUID()));
+    const spawned = Array.from({ length: 5 }, () => new DDoSTrafficCard(crypto.randomUUID()));
 
     const newCardInstances = { ...ctx.cardInstances };
     const newTrafficCardActors = { ...ctx.trafficCardActors };

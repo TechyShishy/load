@@ -163,10 +163,10 @@ describe('playActionCard', () => {
 });
 
 describe('processCrisis', () => {
-  it('spawns 8 DDoS traffic cards when unmitigated', () => {
+  it('spawns 5 DDoS traffic cards when unmitigated', () => {
     const ctx = ctxWithPendingEvents([ddosEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    expect(context.spawnedQueueOrder).toHaveLength(8);
+    expect(context.spawnedQueueOrder).toHaveLength(5);
     expect(context.spawnedQueueOrder.every((id) => context.cardInstances[id]?.templateId === 'traffic-ddos')).toBe(true);
   });
 
