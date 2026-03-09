@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { createActor } from 'xstate';
 import { checkLoseCondition, checkWinCondition, resolveRound } from '../resolveRound.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
+import { FiveGActivationCard } from '../data/events/FiveGActivationCard.js';
+import { eventCardPositionMachine } from '../cardPositionMachines.js';
 import {
   MAX_ROUNDS,
   MAX_SLA_FAILURES,
   Period,
   PhaseId,
   SlotType,
+  Track,
 } from '../types.js';
 import { safeContext, ctxWithCardOnSlot } from './testHelpers.js';
 
@@ -59,6 +63,100 @@ describe('resolveRound', () => {
     const { summary } = resolveRound(ctx);
     expect(summary.resolvedCount).toBe(1);
     expect(summary.budgetDelta).toBe(cloudCard.revenue);
+  });
+});
+
+// ─── Ticket expiry ─────────────────────────────────────────────────────────────
+
+/** Build a base context with a 5G Activation ticket that will have a given age at resolution. */
+function makeCtxWithAgedTicket(age: number) {
+  const issuedRound = 1;
+  const currentRound = issuedRound + age;
+  const ticket = new FiveGActivationCard('ticket-exp-test');
+  const actor = createActor(eventCardPositionMachine, {
+    input: { instanceId: ticket.id, templateId: ticket.templateId },
+  });
+  actor.start();
+  actor.send({ type: 'DRAW' });
+  actor.send({ type: 'ISSUE_TICKET', track: Track.Projects });
+
+  const base = safeContext('test-seed', { round: currentRound, activePhase: PhaseId.Resolution });
+  return {
+    ...base,
+    cardInstances: { ...base.cardInstances, [ticket.id]: ticket },
+    eventCardActors: { ...base.eventCardActors, [ticket.id]: actor },
+    ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket.id] },
+    ticketIssuedRound: { [ticket.id]: issuedRound },
+  };
+}
+
+describe('resolveRound ticket expiry', () => {
+  it('does not expire a ticket that still has positive clearRevenue', () => {
+    // age=5 → baseRevenue = 60_000 - 5*3_000 = 45_000 > 0
+    const ctx = makeCtxWithAgedTicket(5);
+    const { context, summary } = resolveRound(ctx);
+    expect(summary.expiredTicketCount).toBe(0);
+    expect(context.ticketOrders[Track.Projects]).toHaveLength(1);
+    expect(context.slaCount).toBe(0);
+  });
+
+  it('expires a ticket exactly at the decay boundary (baseRevenue = 0)', () => {
+    // age=20 → 60_000 - 20*3_000 = 0 → expiry
+    const ctx = makeCtxWithAgedTicket(20);
+    const { context, summary } = resolveRound(ctx);
+    expect(summary.expiredTicketCount).toBe(1);
+    expect(context.ticketOrders[Track.Projects]).toHaveLength(0);
+    expect(context.slaCount).toBe(1);
+  });
+
+  it('expires a ticket past the boundary (baseRevenue < 0)', () => {
+    // age=25 → negative — already expired
+    const ctx = makeCtxWithAgedTicket(25);
+    const { context, summary } = resolveRound(ctx);
+    expect(summary.expiredTicketCount).toBe(1);
+    expect(context.slaCount).toBe(1);
+  });
+
+  it('moves an expired ticket to eventDiscardOrder', () => {
+    const ctx = makeCtxWithAgedTicket(20);
+    const { context } = resolveRound(ctx);
+    expect(context.eventDiscardOrder).toContain('ticket-exp-test');
+    expect(context.ticketIssuedRound['ticket-exp-test']).toBeUndefined();
+    expect(context.ticketProgress['ticket-exp-test']).toBeUndefined();
+  });
+
+  it('expired ticket SLA combines with overload SLA in newSlaCount', () => {
+    const base = makeCtxWithAgedTicket(20);
+    const ctx = ctxWithCardOnSlot(iotCard, Period.Morning, 100, base, SlotType.Overloaded);
+    const { summary } = resolveRound(ctx);
+    // 1 overload + 1 expired → 2 SLA failures this round
+    expect(summary.failedCount).toBe(1);
+    expect(summary.expiredTicketCount).toBe(1);
+    expect(summary.newSlaCount).toBe(2);
+  });
+
+  it('does not expire a ticket whose card has no decay (revenueDecayPerRound = 0)', () => {
+    // Create a no-decay ticket by manually overriding the card
+    const ticket = new FiveGActivationCard('ticket-no-decay');
+    // Patch the card to have revenueDecayPerRound = 0 to simulate a zero-decay card
+    Object.defineProperty(ticket, 'revenueDecayPerRound', { value: 0 });
+    const actor = createActor(eventCardPositionMachine, {
+      input: { instanceId: ticket.id, templateId: ticket.templateId },
+    });
+    actor.start();
+    actor.send({ type: 'DRAW' });
+    actor.send({ type: 'ISSUE_TICKET', track: Track.Projects });
+    const base = safeContext('test-seed', { round: 99, activePhase: PhaseId.Resolution });
+    const ctx = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [ticket.id]: ticket },
+      eventCardActors: { ...base.eventCardActors, [ticket.id]: actor },
+      ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket.id] },
+      ticketIssuedRound: { [ticket.id]: 1 },
+    };
+    const { context, summary } = resolveRound(ctx);
+    expect(summary.expiredTicketCount).toBe(0);
+    expect(context.ticketOrders[Track.Projects]).toHaveLength(1);
   });
 });
 

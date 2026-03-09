@@ -67,6 +67,7 @@ export const RoundSummarySchema = z.object({
   failedCount: z.number(),
   forgivenCount: z.number().default(0),
   spawnedTrafficCount: z.number(),
+  expiredTicketCount: z.number().default(0),
 });
 
 // ─── SerializedGameContext Schema (= what lives in JSON storage) ──────────────
@@ -80,6 +81,8 @@ export const GameContextSchema = z.object({
   eventActorSnapshots: z.record(z.string(), SerializedEventActorSnapshotSchema),
   slotLayout: z.array(SlotLayoutEntrySchema),
   ticketOrders: z.record(z.string(), z.array(z.string())),
+  ticketProgress: z.record(z.string(), z.number()).default({}),
+  ticketIssuedRound: z.record(z.string(), z.number()).default({}),
   trafficDeckOrder: z.array(z.string()),
   trafficDiscardOrder: z.array(z.string()),
   actionDeckOrder: z.array(z.string()),

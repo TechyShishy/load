@@ -5,6 +5,8 @@ import { createVendorSlots } from '../boardState.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { EVENT_CARDS } from '../data/events/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
+import { EmergencyMaintenanceCard } from '../data/actions/EmergencyMaintenanceCard.js';
+import { FiveGActivationCard } from '../data/events/FiveGActivationCard.js';
 import { eventCardPositionMachine } from '../cardPositionMachines.js';
 import { getFilledTimeSlots } from '../cardPositionViews.js';
 import {
@@ -191,14 +193,17 @@ describe('processCrisis', () => {
     expect(context.pendingEventsOrder).toHaveLength(0);
   });
 
-  it('moves processed event cards into eventDiscard', () => {
+  it('moves non-ticket events into eventDiscard; ticket-issuing events stay on the track', () => {
     const ctx = ctxWithPendingEvents(
       [ddosEvent, activationEvent],
       safeContext('test-seed', { activePhase: PhaseId.Crisis }),
     );
     const { context } = processCrisis(ctx);
+    // DDoS goes to discard (no ticket issued).
     expect(context.eventDiscardOrder).toContain(ddosEvent.id);
-    expect(context.eventDiscardOrder).toContain(activationEvent.id);
+    // 5G Activation issued a Projects ticket — must NOT be in discard yet.
+    expect(context.eventDiscardOrder).not.toContain(activationEvent.id);
+    expect(context.ticketOrders[Track.Projects]).toContain(activationEvent.id);
   });
 
   it('moves FalseAlarm into eventDiscard with no other side-effects', () => {
@@ -248,3 +253,172 @@ describe('processCrisis', () => {
     expect((context.ticketOrders[Track.Projects] ?? []).length).toBe(0);
   });
 });
+
+// ─── EmergencyMaintenance multi-step ticket mechanic ──────────────────────────
+
+/** Build a base context with one FiveGActivation ticket already issued on Projects. */
+function makeCtxWithFiveGTicket() {
+  const ticket = new FiveGActivationCard('ticket-5g-test');
+  const ticketActor = createActor(eventCardPositionMachine, {
+    input: { instanceId: ticket.id, templateId: ticket.templateId },
+  });
+  ticketActor.start();
+  ticketActor.send({ type: 'DRAW' });
+  ticketActor.send({ type: 'ISSUE_TICKET', track: Track.Projects });
+
+  const base = safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis });
+  return {
+    ...base,
+    cardInstances: { ...base.cardInstances, [ticket.id]: ticket },
+    eventCardActors: { ...base.eventCardActors, [ticket.id]: ticketActor },
+    ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket.id] },
+    ticketIssuedRound: { ...base.ticketIssuedRound, [ticket.id]: 1 },
+  };
+}
+
+/** Create a fresh EmergencyMaintenanceCard instance, registered and in-hand. */
+function makeEmMaintInHand(id: string, baseCtx: ReturnType<typeof makeCtxWithFiveGTicket>) {
+  const card = new EmergencyMaintenanceCard(id);
+  return ctxWithHandCardsFixedIds([card], baseCtx);
+}
+
+describe('EmergencyMaintenance multi-step ticket mechanic', () => {
+  it('records progress on first play without clearing the ticket', () => {
+    const base = makeCtxWithFiveGTicket();
+    const ctx = makeEmMaintInHand('em-1', base);
+    const updated = playActionCard(ctx, ctx.cardInstances['em-1'] as import('../types.js').ActionCard, undefined, undefined, undefined, Track.Projects);
+    expect(updated.ticketOrders[Track.Projects]).toHaveLength(1);
+    expect(updated.ticketProgress['ticket-5g-test']).toBe(1);
+  });
+
+  it('records progress on second play without clearing the ticket', () => {
+    const base = makeCtxWithFiveGTicket();
+    const em1 = new EmergencyMaintenanceCard('em-1');
+    const em2 = new EmergencyMaintenanceCard('em-2');
+    let ctx = makeEmMaintInHand('em-1', base);
+    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-2', ctx);
+    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    expect(ctx.ticketOrders[Track.Projects]).toHaveLength(1);
+    expect(ctx.ticketProgress['ticket-5g-test']).toBe(2);
+  });
+
+  it('clears the ticket on the third (requiredClears) play', () => {
+    const base = makeCtxWithFiveGTicket();
+    const em1 = new EmergencyMaintenanceCard('em-1');
+    const em2 = new EmergencyMaintenanceCard('em-2');
+    const em3 = new EmergencyMaintenanceCard('em-3');
+    let ctx = makeEmMaintInHand('em-1', base);
+    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-2', ctx);
+    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-3', ctx);
+    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+
+    expect(ctx.ticketOrders[Track.Projects]).toHaveLength(0);
+    expect(ctx.ticketProgress['ticket-5g-test']).toBeUndefined();
+    expect(ctx.eventDiscardOrder).toContain('ticket-5g-test');
+  });
+
+  it('earns full clearRevenue ($60k) when cleared in the same round it was issued', () => {
+    // Same round: round=1, issuedRound=1 → age=0 → revenue = 60_000 - 0 = 60_000
+    const base = makeCtxWithFiveGTicket(); // issuedRound=1, ctx.round=1
+    const em1 = new EmergencyMaintenanceCard('em-1');
+    const em2 = new EmergencyMaintenanceCard('em-2');
+    const em3 = new EmergencyMaintenanceCard('em-3');
+    let ctx = makeEmMaintInHand('em-1', base);
+    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-2', ctx);
+    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-3', ctx);
+    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+
+    // Each play costs $15k; the 3rd play also adds $60k to pendingRevenue.
+    expect(ctx.pendingRevenue).toBe(60_000);
+    expect(ctx.budget).toBe(500_000 - 3 * 15_000);
+  });
+
+  it('reduces clearRevenue by $3,000 per round of age', () => {
+    // Ticket issued on round 1, cleared on round 3 → age=2 → revenue = 60_000 - 2*3_000 = 54_000
+    const base = {
+      ...makeCtxWithFiveGTicket(),
+      round: 3,                                            // current round is 3
+      ticketIssuedRound: { 'ticket-5g-test': 1 },         // issued on round 1
+    };
+    const em1 = new EmergencyMaintenanceCard('em-a');
+    const em2 = new EmergencyMaintenanceCard('em-b');
+    const em3 = new EmergencyMaintenanceCard('em-c');
+    let ctx = makeEmMaintInHand('em-a', base);
+    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-b', ctx);
+    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-c', ctx);
+    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+
+    expect(ctx.pendingRevenue).toBe(54_000);
+  });
+
+  it('clamps clearRevenue to 0 when ticket is older than clearRevenue / revenueDecayPerRound rounds', () => {
+    // clearRevenue = 60_000, revenueDecayPerRound = 3_000 → zeroed after 20 rounds of age
+    const base = {
+      ...makeCtxWithFiveGTicket(),
+      round: 25,
+      ticketIssuedRound: { 'ticket-5g-test': 1 },  // age = 24 → negative without clamp
+    };
+    const em1 = new EmergencyMaintenanceCard('em-x');
+    const em2 = new EmergencyMaintenanceCard('em-y');
+    const em3 = new EmergencyMaintenanceCard('em-z');
+    let ctx = makeEmMaintInHand('em-x', base);
+    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-y', ctx);
+    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-z', ctx);
+    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+
+    expect(ctx.pendingRevenue).toBe(0);
+  });
+
+  it('preserves a second ticket on the same track when the first is worked', () => {
+    // Two 5G tickets on Projects — working one should not affect the other.
+    const ticket1 = new FiveGActivationCard('ticket-5g-1');
+    const ticket2 = new FiveGActivationCard('ticket-5g-2');
+    const makeActor = (t: FiveGActivationCard) => {
+      const a = createActor(eventCardPositionMachine, { input: { instanceId: t.id, templateId: t.templateId } });
+      a.start();
+      a.send({ type: 'DRAW' });
+      a.send({ type: 'ISSUE_TICKET', track: Track.Projects });
+      return a;
+    };
+    const base = safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis });
+    const ctx = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [ticket1.id]: ticket1, [ticket2.id]: ticket2 },
+      eventCardActors: { ...base.eventCardActors, [ticket1.id]: makeActor(ticket1), [ticket2.id]: makeActor(ticket2) },
+      ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket1.id, ticket2.id] },
+      ticketIssuedRound: { [ticket1.id]: 1, [ticket2.id]: 1 },
+    };
+    const em = new EmergencyMaintenanceCard('em-single');
+    const updated = playActionCard(ctxWithHandCardsFixedIds([em], ctx), em, undefined, undefined, undefined, Track.Projects);
+    // First ticket should have 1 progress; second should be untouched.
+    expect(updated.ticketOrders[Track.Projects]).toHaveLength(2);
+    expect(updated.ticketProgress[ticket1.id]).toBe(1);
+    expect(updated.ticketProgress[ticket2.id]).toBeUndefined();
+  });
+
+  it('applies revenueBoostMultiplier to clearRevenue on ticket clear', () => {
+    // revenueBoostMultiplier=1.5, age=0 → base=60_000 → boosted=90_000
+    const base = { ...makeCtxWithFiveGTicket(), revenueBoostMultiplier: 1.5 };
+    const em1 = new EmergencyMaintenanceCard('em-b1');
+    const em2 = new EmergencyMaintenanceCard('em-b2');
+    const em3 = new EmergencyMaintenanceCard('em-b3');
+    let ctx = makeEmMaintInHand('em-b1', base);
+    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-b2', ctx);
+    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    ctx = makeEmMaintInHand('em-b3', ctx);
+    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+
+    expect(ctx.pendingRevenue).toBe(90_000);
+  });
+});
+

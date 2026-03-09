@@ -1,4 +1,4 @@
-import { BANKRUPT_THRESHOLD, MAX_ROUNDS, MAX_SLA_FAILURES, SlotType, type GameContext, type RoundSummary } from './types.js';
+import { BANKRUPT_THRESHOLD, CardType, MAX_ROUNDS, MAX_SLA_FAILURES, SlotType, type EventCard, type GameContext, type RoundSummary } from './types.js';
 import type { TrafficCardPositionContext } from './cardPositionMachines.js';
 
 export interface ResolutionResult {
@@ -27,12 +27,37 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
   }
 
   const failedCount = overloadedCardIds.length;
-  const forgivenCount = Math.min(ctx.slaForgivenessThisRound, failedCount);
-  const newSlaCount = ctx.slaCount + failedCount - forgivenCount;
+
+  // Sweep tickets whose clearRevenue has decayed to $0. Each auto-cleared ticket
+  // incurs 1 SLA failure (the player ran out of time to service it).
+  const expiredTicketIds: string[] = [];
+  const allTicketIds = Object.values(ctx.ticketOrders).flat();
+  for (const ticketId of allTicketIds) {
+    const card = ctx.cardInstances[ticketId];
+    if (!card || card.type !== CardType.Event) continue;
+    const eventCard = card as EventCard;
+    if (eventCard.revenueDecayPerRound <= 0) continue; // no decay mechanic
+    const issuedRound = ctx.ticketIssuedRound[ticketId] ?? ctx.round;
+    const age = ctx.round - issuedRound;
+    const baseRevenue = eventCard.clearRevenue - age * eventCard.revenueDecayPerRound;
+    if (baseRevenue <= 0) {
+      expiredTicketIds.push(ticketId);
+    }
+  }
+
+  const expiredTicketCount = expiredTicketIds.length;
+  const totalFailures = failedCount + expiredTicketCount;
+  const forgivenCount = Math.min(ctx.slaForgivenessThisRound, totalFailures);
+  const newSlaCount = ctx.slaCount + totalFailures - forgivenCount;
 
   // Transition overloaded cards from onSlot → inDiscard.
   for (const id of overloadedCardIds) {
     ctx.trafficCardActors[id]?.send({ type: 'REMOVE' });
+  }
+
+  // Transition expired ticket actors to inDiscard.
+  for (const id of expiredTicketIds) {
+    ctx.eventCardActors[id]?.send({ type: 'CLEAR_TICKET' });
   }
 
   // Remove overloaded slot entries from layout.
@@ -52,6 +77,21 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
 
   const budgetDelta = ctx.pendingRevenue;
 
+  // Remove expired tickets from all tracking structures.
+  const expiredSet = new Set(expiredTicketIds);
+  const newTicketOrders = Object.fromEntries(
+    Object.entries(ctx.ticketOrders).map(([track, ids]) => [
+      track,
+      ids.filter((id) => !expiredSet.has(id)),
+    ]),
+  ) as typeof ctx.ticketOrders;
+  const newTicketProgress = Object.fromEntries(
+    Object.entries(ctx.ticketProgress).filter(([id]) => !expiredSet.has(id)),
+  );
+  const newTicketIssuedRound = Object.fromEntries(
+    Object.entries(ctx.ticketIssuedRound).filter(([id]) => !expiredSet.has(id)),
+  );
+
   const summary: RoundSummary = {
     round: ctx.round,
     budgetDelta,
@@ -60,12 +100,17 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
     failedCount,
     forgivenCount,
     spawnedTrafficCount,
+    expiredTicketCount,
   };
 
   const context: GameContext = {
     ...ctx,
     slotLayout,
     trafficDiscardOrder,
+    ticketOrders: newTicketOrders,
+    ticketProgress: newTicketProgress,
+    ticketIssuedRound: newTicketIssuedRound,
+    eventDiscardOrder: [...ctx.eventDiscardOrder, ...expiredTicketIds],
     slaCount: newSlaCount,
     mitigatedEventIds: [],
     pendingRevenue: 0,

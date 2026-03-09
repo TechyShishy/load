@@ -9,5 +9,9 @@ export function issueTicket(ctx: GameContext, track: Track, ticket: EventCard): 
       ...ctx.ticketOrders,
       [track]: [...(ctx.ticketOrders[track] ?? []), ticket.id],
     },
+    ticketIssuedRound: {
+      ...ctx.ticketIssuedRound,
+      [ticket.id]: ctx.round,
+    },
   };
 }

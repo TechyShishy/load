@@ -94,6 +94,8 @@ export function createInitialContext(seed?: string): GameContext {
     eventCardActors,
     slotLayout: createInitialSlotLayout(),
     ticketOrders,
+    ticketProgress: {},
+    ticketIssuedRound: {},
     trafficDeckOrder: trafficCards.map((c) => c.id),
     trafficDiscardOrder: [],
     actionDeckOrder: remainingActionCards.map((c) => c.id),

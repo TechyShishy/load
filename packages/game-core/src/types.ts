@@ -66,6 +66,24 @@ export abstract class EventCard {
   abstract readonly description: string;
   readonly type = CardType.Event as const;
 
+  /**
+   * Number of EmergencyMaintenance plays required to fully resolve this ticket.
+   * Defaults to 1 (immediate clear). Override in ticket-issuing subclasses.
+   */
+  readonly requiredClears: number = 1;
+
+  /**
+   * Maximum revenue earned when this ticket is cleared on the same round it was issued.
+   * Decays by revenueDecayPerRound for each subsequent round. Defaults to 0.
+   */
+  readonly clearRevenue: number = 0;
+
+  /**
+   * Amount deducted from clearRevenue for each round the ticket ages before being cleared.
+   * Defaults to 0 (no decay).
+   */
+  readonly revenueDecayPerRound: number = 0;
+
   /** Apply this event's effect. Called once per crisis phase. */
   abstract onCrisis(ctx: GameContext, mitigated: boolean): GameContext;
 }
@@ -171,6 +189,10 @@ export interface SerializedGameContext {
   slotLayout: Array<{ period: string; index: number; slotType: string }>;
   /** Ordered ticket instance IDs per track. */
   ticketOrders: Record<string, string[]>;
+  /** EmergencyMaintenance play count per in-progress ticket instanceId. */
+  ticketProgress: Record<string, number>;
+  /** Round number when each ticket was issued, keyed by instanceId. */
+  ticketIssuedRound: Record<string, number>;
   /** Ordering arrays — IDs only. */
   trafficDeckOrder: string[];
   trafficDiscardOrder: string[];
@@ -277,6 +299,16 @@ export interface GameContext {
   // ── Ticket order per track ────────────────────────────────────────────────────
   /** Ordered instanceIds of event cards currently issued as tickets on each track. */
   ticketOrders: Record<Track, string[]>;
+  /**
+   * Number of EmergencyMaintenance plays applied so far to each in-progress ticket,
+   * keyed by the ticket's instanceId. Entries are removed when the ticket is fully cleared.
+   */
+  ticketProgress: Record<string, number>;
+  /**
+   * The round number when each ticket was issued, keyed by the ticket's instanceId.
+   * Used to compute age-based clearRevenue decay. Entries are removed when cleared.
+   */
+  ticketIssuedRound: Record<string, number>;
 
   // ── Ordering arrays (IDs only, insertion order = sequence) ───────────────────
   trafficDeckOrder: string[];
@@ -330,6 +362,8 @@ export interface RoundSummary {
   forgivenCount: number;
   /** Number of traffic cards placed on the board from SpawnTraffic events this round */
   spawnedTrafficCount: number;
+  /** Number of tickets that expired (clearRevenue hit $0) and auto-cleared this round, each costing 1 SLA. */
+  expiredTicketCount: number;
 }
 
 export const STARTING_BUDGET = 500_000;
