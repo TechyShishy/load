@@ -49,7 +49,7 @@ export type TrafficCardActorRegistry = Record<string, TrafficCardActorRef>;
 export type ActionCardActorRegistry = Record<string, ActionCardActorRef>;
 export type EventCardActorRegistry = Record<string, EventCardActorRef>;
 
-export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'board';
+export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'ticket' | 'board';
 
 // ─── Card Definitions ─────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ export abstract class EventCard {
   readonly type = CardType.Event as const;
 
   /**
-   * Number of EmergencyMaintenance plays required to fully resolve this ticket.
+   * Number of Work Order plays required to fully resolve this ticket.
    * Defaults to 1 (immediate clear). Override in ticket-issuing subclasses.
    */
   readonly requiredClears: number = 1;
@@ -201,7 +201,7 @@ export interface SerializedGameContext {
   slotLayout: Array<{ period: string; index: number; slotType: string }>;
   /** Ordered ticket instance IDs per track. */
   ticketOrders: Record<string, string[]>;
-  /** EmergencyMaintenance play count per in-progress ticket instanceId. */
+  /** Work Order play count per in-progress ticket instanceId. */
   ticketProgress: Record<string, number>;
   /** Round number when each ticket was issued, keyed by instanceId. */
   ticketIssuedRound: Record<string, number>;
@@ -312,7 +312,7 @@ export interface GameContext {
   /** Ordered instanceIds of event cards currently issued as tickets on each track. */
   ticketOrders: Record<Track, string[]>;
   /**
-   * Number of EmergencyMaintenance plays applied so far to each in-progress ticket,
+   * Number of Work Order plays applied so far to each in-progress ticket,
    * keyed by the ticket's instanceId. Entries are removed when the ticket is fully cleared.
    */
   ticketProgress: Record<string, number>;

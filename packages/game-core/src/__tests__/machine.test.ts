@@ -5,10 +5,11 @@ import { getFilledTimeSlots } from '../cardPositionViews.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import {
   MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW,
-  MAX_SLA_FAILURES, HAND_SIZE, PhaseId, Period, SlotType, type TrafficCard,
+  MAX_SLA_FAILURES, HAND_SIZE, PhaseId, Period, SlotType, Track, type TrafficCard,
 } from '../types.js';
+import { eventCardPositionMachine } from '../cardPositionMachines.js';
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
-import { EmergencyMaintenanceCard } from '../data/actions/index.js';
+import { WorkOrderCard } from '../data/actions/index.js';
 import { AWSOutageCard, DDoSAttackCard, FiveGActivationCard } from '../data/events/index.js';
 import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot, ctxWithPendingEvents } from './testHelpers.js';
 
@@ -451,19 +452,33 @@ describe('gameMachine weekend mechanics', () => {
     expect(actor.getSnapshot().context.budget).toBe(100_000);
   });
 
-  it('allows Emergency Maintenance (ClearTicket) during weekend crisis', () => {
-    const emergencyMaint = ACTION_CARDS.find(c => c.templateId === 'action-emergency-maintenance')!;
-    const ctx = ctxWithHandCardsFixedIds(
-      [emergencyMaint],
+  it('allows Work Order (ClearTicket) during weekend crisis', () => {
+    const workOrder = ACTION_CARDS.find(c => c.templateId === 'action-work-order')!;
+    const ticketTarget = new DDoSAttackCard('ev-weekend-ticket');
+    const ticketActor = createActor(eventCardPositionMachine, {
+      input: { instanceId: ticketTarget.id, templateId: ticketTarget.templateId },
+    });
+    ticketActor.start();
+    ticketActor.send({ type: 'DRAW' });
+    ticketActor.send({ type: 'ISSUE_TICKET', track: Track.BreakFix });
+    const base = ctxWithHandCardsFixedIds(
+      [workOrder],
       safeContext('test-seed', { round: 6, activePhase: PhaseId.Crisis }),
     );
+    const ctx = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [ticketTarget.id]: ticketTarget },
+      eventCardActors: { ...base.eventCardActors, [ticketTarget.id]: ticketActor },
+      ticketOrders: { ...base.ticketOrders, [Track.BreakFix]: [ticketTarget.id] },
+    };
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
     expect(actor.getSnapshot().value).toBe('crisis');
 
-    // Should accept Emergency Maintenance (even if no tickets, the action is allowed)
-    actor.send({ type: 'PLAY_ACTION', card: emergencyMaint });
+    // Work Order plays during weekend crisis and clears the open ticket
+    actor.send({ type: 'PLAY_ACTION', card: workOrder });
     expect(actor.getSnapshot().context.playedThisRoundOrder).toHaveLength(1);
+    expect(actor.getSnapshot().context.ticketOrders[Track.BreakFix]).toHaveLength(0);
   });
 
   it('rejects non-weekend action cards during weekend crisis', () => {
@@ -485,7 +500,7 @@ describe('gameMachine weekend mechanics', () => {
 
   it('Friday discards hand and redraws fresh', () => {
     const ctx = ctxWithHandCardsFixedIds(
-      [new EmergencyMaintenanceCard('keep-1'), new EmergencyMaintenanceCard('keep-2')],
+      [new WorkOrderCard('keep-1'), new WorkOrderCard('keep-2')],
       safeContext('test-seed', { round: 5 }),
     );
     const actor = createActor(gameMachine, { input: ctx });
@@ -510,7 +525,7 @@ describe('gameMachine weekend mechanics', () => {
 
   it('non-Friday workday keeps unplayed hand cards', () => {
     const ctx = ctxWithHandCardsFixedIds(
-      [new EmergencyMaintenanceCard('carry-1'), new EmergencyMaintenanceCard('carry-2')],
+      [new WorkOrderCard('carry-1'), new WorkOrderCard('carry-2')],
       safeContext('test-seed', { round: 3 }),
     );
     const actor = createActor(gameMachine, { input: ctx });

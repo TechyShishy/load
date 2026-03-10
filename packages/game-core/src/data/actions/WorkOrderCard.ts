@@ -1,37 +1,59 @@
 import { ActionCard, CardType, EventCard, Period, Track, type GameContext } from '../../types.js';
 
-export class EmergencyMaintenanceCard extends ActionCard {
-  readonly templateId = 'action-emergency-maintenance';
-  readonly name = 'Emergency Maintenance';
-  readonly cost = 15_000;
+export class WorkOrderCard extends ActionCard {
+  readonly templateId = 'action-work-order';
+  readonly name = 'Work Order';
+  readonly cost = 5_000;
   readonly description =
-    'Work 1 ticket on any track. Once all required work cycles are complete the ticket closes ' +
-    'and pays out up to the card\'s full clearRevenue — reduced by $3,000 for every round it aged.';
+    'Assign 1 work cycle to a specific open ticket. Once all required cycles are ' +
+    'complete the ticket closes and pays out up to the full clearRevenue — reduced ' +
+    'by $3,000 for every round it aged.';
   readonly allowedOnWeekend = true;
-  readonly validDropZones = ['track'] as const;
-  override readonly invalidZoneFeedback = 'Drop on a track row to work a ticket.';
+  readonly validDropZones = ['ticket'] as const;
+  override readonly invalidZoneFeedback = 'Drop on an open ticket to assign a work cycle.';
 
-  constructor(public readonly id: string = 'action-emergency-maintenance') {
+  constructor(public readonly id: string = 'action-work-order') {
     super();
   }
 
   apply(
-    _ctx: GameContext,
+    ctx: GameContext,
     commit: () => GameContext,
-    _targetEventId?: string,
+    targetEventId?: string,
     _targetTrafficCardId?: string,
     _targetPeriod?: Period,
-    targetTrack?: Track,
+    _targetTrack?: Track,
   ): GameContext {
-    let context = commit();
-    const resolvedTrack = targetTrack ?? Track.BreakFix;
-    const ticketIds = context.ticketOrders[resolvedTrack] ?? [];
-    if (ticketIds.length === 0) return context;
+    // Validate target against pre-commit context so the $5k cost is only
+    // deducted when there is actually a ticket to work on.
+    let targetId: string | undefined;
+    let resolvedTrack: Track | undefined;
+    if (targetEventId !== undefined) {
+      for (const track of Object.values(Track)) {
+        if ((ctx.ticketOrders[track] ?? []).includes(targetEventId)) {
+          targetId = targetEventId;
+          resolvedTrack = track;
+          break;
+        }
+      }
+    } else {
+      for (const track of Object.values(Track)) {
+        const ids = ctx.ticketOrders[track] ?? [];
+        if (ids.length > 0) {
+          targetId = ids[0]!;
+          resolvedTrack = track;
+          break;
+        }
+      }
+    }
 
-    const targetId = ticketIds[0]!;
+    if (targetId === undefined || resolvedTrack === undefined) return ctx;
+
+    let context = commit();
+
     const rawCard = context.cardInstances[targetId];
-    if (!rawCard || rawCard.type !== CardType.Event) return context;
-    const eventCard = rawCard as EventCard;
+    if (!rawCard || rawCard.type !== CardType.Event) return ctx;
+    const eventCard = rawCard;
 
     const currentProgress = (context.ticketProgress[targetId] ?? 0) + 1;
 
@@ -55,7 +77,7 @@ export class EmergencyMaintenanceCard extends ActionCard {
         ...context,
         ticketOrders: {
           ...context.ticketOrders,
-          [resolvedTrack]: ticketIds.slice(1),
+          [resolvedTrack]: (context.ticketOrders[resolvedTrack] ?? []).filter((id) => id !== targetId),
         },
         eventDiscardOrder: [...context.eventDiscardOrder, targetId],
         pendingRevenue: context.pendingRevenue + revenue,

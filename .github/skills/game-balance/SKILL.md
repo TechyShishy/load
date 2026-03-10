@@ -93,7 +93,7 @@ When the traffic draw for a round exceeds available slots, overflow cards become
 
 ## Tracks
 
-Three tracks hold issued event tickets: `BreakFix`, `Projects`, `Maintenance` (defined in `Track` enum, `types.ts`). Tickets persist until cleared by an action card or other mechanism. Clearing tickets is the primary function of `EmergencyMaintenanceCard`.
+Three tracks hold issued event tickets: `BreakFix`, `Projects`, `Maintenance` (defined in `Track` enum, `types.ts`). Tickets persist until cleared by an action card or other mechanism. Clearing tickets is the primary function of `WorkOrderCard`.
 
 ---
 

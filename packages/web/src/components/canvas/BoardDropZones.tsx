@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Period, getFilledTimeSlots, getTracks, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
-import { computePeriodRect, computeSlotRect, computeTrackRect, rowsForPeriod } from './canvasLayout.js';
+import { computePeriodRect, computeSlotRect, computeTicketRect, computeTrackRect, rowsForPeriod } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
@@ -86,8 +86,44 @@ function PeriodDropZone({ period, periodIndex, slotCount, containerWidth, varian
   );
 }
 
-// ── Track drop zone ───────────────────────────────────────────────────────────
+// ── Ticket drop zone ─────────────────────────────────────────────────────────
 
+interface TicketDropZoneProps {
+  ticketId: string;
+  trackIndex: number;
+  ticketIndex: number;
+  containerWidth: number;
+}
+
+function TicketDropZone({ ticketId, trackIndex, ticketIndex, containerWidth }: TicketDropZoneProps) {
+  const id = `ticket-${ticketId}`;
+  const { isOver, setNodeRef } = useDroppable({ id, data: { type: 'ticket', ticketId } });
+  const rect = computeTicketRect(trackIndex, ticketIndex, containerWidth);
+
+  return (
+    <div
+      id={id}
+      ref={setNodeRef}
+      style={{
+        position: 'absolute',
+        left: rect.x,
+        top: rect.y - 8,
+        width: rect.w,
+        height: rect.h + 16,
+        borderRadius: 6,
+        pointerEvents: 'auto',
+        zIndex: 2,
+      }}
+      className={
+        isOver
+          ? 'border-2 border-cyan-400 bg-cyan-900/40 ring-1 ring-cyan-400/60'
+          : 'border-2 border-transparent'
+      }
+    />
+  );
+}
+
+// ── Track drop zone ───────────────────────────────────────────────────────────
 interface TrackDropZoneProps {
   track: TrackSlot;
   trackIndex: number;
@@ -166,6 +202,7 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
   const showPeriodZones = zones.includes('period');
   const showSlotZones = zones.some((z) => z === 'slot' || z === 'occupied-slot');
   const showTrackZones = zones.includes('track');
+  const showTicketZones = zones.includes('ticket');
   const showBoardArea = zones.includes('board');
   const periodZoneVariant: 'remove' | 'add' = activeCard?.periodZoneVariant ?? 'remove';
   const maxRows = Math.max(
@@ -212,6 +249,17 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           maxSlotCount={maxRows}
         />
       ))}
+      {showTicketZones && tracks.flatMap((track, ti) =>
+        track.tickets.map((ticket, ki) => (
+          <TicketDropZone
+            key={`ticket-${ticket.id}`}
+            ticketId={ticket.id}
+            trackIndex={ti}
+            ticketIndex={ki}
+            containerWidth={containerWidth}
+          />
+        ))
+      )}
     </div>
   );
 }

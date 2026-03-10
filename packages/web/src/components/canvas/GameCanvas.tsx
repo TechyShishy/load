@@ -168,7 +168,7 @@ const CARD_ART: Partial<Record<string, string>> = {
   'action-stream-compression': './cards/action-stream-compression.svg',
   'action-bandwidth-upgrade': './cards/action-bandwidth-upgrade.svg',
   'action-datacenter-expansion': './cards/action-datacenter-expansion.svg',
-  'action-emergency-maintenance': './cards/action-emergency-maintenance.svg',
+  'action-work-order': './cards/action-work-order.svg',
   'traffic-ai-inference': './cards/traffic-ai-inference.svg',
   'traffic-viral-spike': './cards/traffic-viral-spike.svg',
   'event-tier1-peering': './cards/event-tier1-peering.svg',

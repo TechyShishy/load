@@ -1,5 +1,5 @@
 import { type ActionCard } from '../../types.js';
-import { EmergencyMaintenanceCard } from './EmergencyMaintenanceCard.js';
+import { WorkOrderCard } from './WorkOrderCard.js';
 import { TrafficPrioritizationCard } from './TrafficPrioritizationCard.js';
 import { BandwidthUpgradeCard } from './BandwidthUpgradeCard.js';
 import { SecurityPatchCard } from './SecurityPatchCard.js';
@@ -7,7 +7,7 @@ import { DataCenterExpansionCard } from './DataCenterExpansionCard.js';
 import { StreamCompressionCard } from './StreamCompressionCard.js';
 import { RedundantLinkCard } from './RedundantLinkCard.js';
 
-export { EmergencyMaintenanceCard } from './EmergencyMaintenanceCard.js';
+export { WorkOrderCard } from './WorkOrderCard.js';
 export { TrafficPrioritizationCard } from './TrafficPrioritizationCard.js';
 export { BandwidthUpgradeCard } from './BandwidthUpgradeCard.js';
 export { SecurityPatchCard } from './SecurityPatchCard.js';
@@ -17,7 +17,7 @@ export { RedundantLinkCard } from './RedundantLinkCard.js';
 
 /** Registry mapping templateId → constructor for deserialization. */
 export const ACTION_CARD_REGISTRY = new Map<string, new (instanceId: string) => ActionCard>([
-  ['action-emergency-maintenance', EmergencyMaintenanceCard],
+  ['action-work-order', WorkOrderCard],
   ['action-traffic-prioritization', TrafficPrioritizationCard],
   ['action-bandwidth-upgrade', BandwidthUpgradeCard],
   ['action-security-patch', SecurityPatchCard],
@@ -28,7 +28,7 @@ export const ACTION_CARD_REGISTRY = new Map<string, new (instanceId: string) => 
 
 /** Singleton template instances (id === templateId). Used by deck builder. */
 export const ACTION_CARDS: ActionCard[] = [
-  new EmergencyMaintenanceCard(),
+  new WorkOrderCard(),
   new TrafficPrioritizationCard(),
   new BandwidthUpgradeCard(),
   new SecurityPatchCard(),

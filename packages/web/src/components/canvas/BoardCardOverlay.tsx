@@ -3,10 +3,9 @@ import { createPortal } from 'react-dom';
 import { CardType, Period, getFilledTimeSlots, getTracks, getTrafficDiscard, getEventDiscard, getActionDiscard } from '@load/game-core';
 import type { ActionCard, EventCard, GameContext, TrafficCard } from '@load/game-core';
 import {
-  PILES_ROW_Y,
-  TRACK_ROW_GAP,
   computeDeckPileRect,
   computeSlotRect,
+  computeTicketRect,
   computeTrackRect,
 } from './canvasLayout.js';
 
@@ -378,13 +377,7 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
         {/* Ticket hit zones — one per event ticket in tracks */}
         {tracks.flatMap((track, ti) =>
           track.tickets.map((ticket, ki) => {
-            const trackRect = computeTrackRect(ti, containerWidth, 4);
-            const ticketRect = {
-              x: trackRect.x + 100 + ki * 80,
-              y: PILES_ROW_Y + ti * TRACK_ROW_GAP + 4,
-              w: 70,
-              h: 20,
-            };
+            const ticketRect = computeTicketRect(ti, ki, containerWidth);
             return (
               <TicketHitZone
                 key={`ticket-hit-${track.track}-${ticket.id}`}

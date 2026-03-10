@@ -58,7 +58,7 @@ export function processCrisis(ctx: GameContext): CrisisResult {
 
   // Events that issued a ticket during onCrisis are now in ticketOrders; their
   // actor is already in 'asTicket' state (sent by issueTicket). Skip RESOLVE
-  // and discard for those — EmergencyMaintenanceCard handles the move to discard
+  // and discard for those — WorkOrderCard handles the move to discard
   // when the ticket is fully cleared.
   const allTicketIds = new Set(Object.values(context.ticketOrders).flat());
   const eventsToDiscard = ctx.pendingEventsOrder.filter((id) => !allTicketIds.has(id));

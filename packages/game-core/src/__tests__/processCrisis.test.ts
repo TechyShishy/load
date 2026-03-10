@@ -5,7 +5,7 @@ import { createVendorSlots } from '../boardState.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { EVENT_CARDS } from '../data/events/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { EmergencyMaintenanceCard } from '../data/actions/EmergencyMaintenanceCard.js';
+import { WorkOrderCard } from '../data/actions/WorkOrderCard.js';
 import { FiveGActivationCard } from '../data/events/FiveGActivationCard.js';
 import { eventCardPositionMachine } from '../cardPositionMachines.js';
 import { getFilledTimeSlots } from '../cardPositionViews.js';
@@ -22,7 +22,7 @@ import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot, ctxWithPendin
 const ddosEvent = EVENT_CARDS.find((c) => c.id === 'event-ddos-attack')!;
 const activationEvent = EVENT_CARDS.find((c) => c.id === 'event-5g-activation')!;
 const falseAlarmEvent = EVENT_CARDS.find((c) => c.id === 'event-false-alarm')!;
-const emMaint = ACTION_CARDS.find((c) => c.id === 'action-emergency-maintenance')!;
+const emMaint = ACTION_CARDS.find((c) => c.id === 'action-work-order')!;
 const secPatch = ACTION_CARDS.find((c) => c.id === 'action-security-patch')!;
 const trafficPrio = ACTION_CARDS.find((c) => c.id === 'action-traffic-prioritization')!;
 const bwUpgrade = ACTION_CARDS.find((c) => c.id === 'action-bandwidth-upgrade')!;
@@ -38,20 +38,20 @@ function makeCtx() {
 describe('playActionCard', () => {
   it('deducts cost from budget', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, emMaint);
-    expect(updated.budget).toBe(500_000 - emMaint.cost);
+    const updated = playActionCard(ctx, secPatch);
+    expect(updated.budget).toBe(500_000 - secPatch.cost);
   });
 
   it('removes the card from hand', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, emMaint);
-    expect(updated.handOrder).not.toContain(emMaint.id);
+    const updated = playActionCard(ctx, secPatch);
+    expect(updated.handOrder).not.toContain(secPatch.id);
   });
 
   it('adds card to playedThisRound', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, emMaint);
-    expect(updated.playedThisRoundOrder).toContain(emMaint.id);
+    const updated = playActionCard(ctx, secPatch);
+    expect(updated.playedThisRoundOrder).toContain(secPatch.id);
   });
 
   it('ClearTicket removes first ticket from the target track', () => {
@@ -118,7 +118,7 @@ describe('playActionCard', () => {
     expect(afternoonSlots.length).toBe(beforeAfternoon);
   });
 
-  it('ClearTicket runtime targetTrack overrides card.targetTrack', () => {
+  it('ClearTicket targets ticket by eventId', () => {
     const base = makeCtx();
     const maintActor = createActor(eventCardPositionMachine, {
       input: { instanceId: ddosEvent.id, templateId: ddosEvent.templateId },
@@ -132,8 +132,8 @@ describe('playActionCard', () => {
       eventCardActors: { ...base.eventCardActors, [ddosEvent.id]: maintActor },
       ticketOrders: { ...base.ticketOrders, [Track.Maintenance]: [ddosEvent.id] },
     };
-    // emMaint targets BreakFix by default; override to Maintenance
-    const updated = playActionCard(ctx, emMaint, undefined, undefined, undefined, Track.Maintenance);
+    // Target the specific ticket by its event instanceId
+    const updated = playActionCard(ctx, emMaint, ddosEvent.id);
     expect(updated.ticketOrders[Track.Maintenance]).toHaveLength(0);
     expect(updated.ticketOrders[Track.BreakFix]).toHaveLength(0);
   });
@@ -260,7 +260,7 @@ describe('processCrisis', () => {
   });
 });
 
-// ─── EmergencyMaintenance multi-step ticket mechanic ──────────────────────────
+// ─── Work Order multi-step ticket mechanic ──────────────────────────────────
 
 /** Build a base context with one FiveGActivation ticket already issued on Projects. */
 function makeCtxWithFiveGTicket() {
@@ -282,44 +282,44 @@ function makeCtxWithFiveGTicket() {
   };
 }
 
-/** Create a fresh EmergencyMaintenanceCard instance, registered and in-hand. */
-function makeEmMaintInHand(id: string, baseCtx: ReturnType<typeof makeCtxWithFiveGTicket>) {
-  const card = new EmergencyMaintenanceCard(id);
+/** Create a fresh WorkOrderCard instance, registered and in-hand. */
+function makeWorkOrderInHand(id: string, baseCtx: ReturnType<typeof makeCtxWithFiveGTicket>) {
+  const card = new WorkOrderCard(id);
   return ctxWithHandCardsFixedIds([card], baseCtx);
 }
 
-describe('EmergencyMaintenance multi-step ticket mechanic', () => {
+describe('Work Order multi-step ticket mechanic', () => {
   it('records progress on first play without clearing the ticket', () => {
     const base = makeCtxWithFiveGTicket();
-    const ctx = makeEmMaintInHand('em-1', base);
-    const updated = playActionCard(ctx, ctx.cardInstances['em-1'] as import('../types.js').ActionCard, undefined, undefined, undefined, Track.Projects);
+    const ctx = makeWorkOrderInHand('em-1', base);
+    const updated = playActionCard(ctx, ctx.cardInstances['em-1'] as import('../types.js').ActionCard, 'ticket-5g-test');
     expect(updated.ticketOrders[Track.Projects]).toHaveLength(1);
     expect(updated.ticketProgress['ticket-5g-test']).toBe(1);
   });
 
   it('records progress on second play without clearing the ticket', () => {
     const base = makeCtxWithFiveGTicket();
-    const em1 = new EmergencyMaintenanceCard('em-1');
-    const em2 = new EmergencyMaintenanceCard('em-2');
-    let ctx = makeEmMaintInHand('em-1', base);
-    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-2', ctx);
-    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
+    const em1 = new WorkOrderCard('em-1');
+    const em2 = new WorkOrderCard('em-2');
+    let ctx = makeWorkOrderInHand('em-1', base);
+    ctx = playActionCard(ctx, em1, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-2', ctx);
+    ctx = playActionCard(ctx, em2, 'ticket-5g-test');
     expect(ctx.ticketOrders[Track.Projects]).toHaveLength(1);
     expect(ctx.ticketProgress['ticket-5g-test']).toBe(2);
   });
 
   it('clears the ticket on the third (requiredClears) play', () => {
     const base = makeCtxWithFiveGTicket();
-    const em1 = new EmergencyMaintenanceCard('em-1');
-    const em2 = new EmergencyMaintenanceCard('em-2');
-    const em3 = new EmergencyMaintenanceCard('em-3');
-    let ctx = makeEmMaintInHand('em-1', base);
-    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-2', ctx);
-    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-3', ctx);
-    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+    const em1 = new WorkOrderCard('em-1');
+    const em2 = new WorkOrderCard('em-2');
+    const em3 = new WorkOrderCard('em-3');
+    let ctx = makeWorkOrderInHand('em-1', base);
+    ctx = playActionCard(ctx, em1, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-2', ctx);
+    ctx = playActionCard(ctx, em2, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-3', ctx);
+    ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
     expect(ctx.ticketOrders[Track.Projects]).toHaveLength(0);
     expect(ctx.ticketProgress['ticket-5g-test']).toBeUndefined();
@@ -329,19 +329,19 @@ describe('EmergencyMaintenance multi-step ticket mechanic', () => {
   it('earns full clearRevenue ($60k) when cleared in the same round it was issued', () => {
     // Same round: round=1, issuedRound=1 → age=0 → revenue = 60_000 - 0 = 60_000
     const base = makeCtxWithFiveGTicket(); // issuedRound=1, ctx.round=1
-    const em1 = new EmergencyMaintenanceCard('em-1');
-    const em2 = new EmergencyMaintenanceCard('em-2');
-    const em3 = new EmergencyMaintenanceCard('em-3');
-    let ctx = makeEmMaintInHand('em-1', base);
-    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-2', ctx);
-    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-3', ctx);
-    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+    const em1 = new WorkOrderCard('em-1');
+    const em2 = new WorkOrderCard('em-2');
+    const em3 = new WorkOrderCard('em-3');
+    let ctx = makeWorkOrderInHand('em-1', base);
+    ctx = playActionCard(ctx, em1, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-2', ctx);
+    ctx = playActionCard(ctx, em2, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-3', ctx);
+    ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
-    // Each play costs $15k; the 3rd play also adds $60k to pendingRevenue.
+    // Each play costs $5k; the 3rd play also adds $60k to pendingRevenue.
     expect(ctx.pendingRevenue).toBe(60_000);
-    expect(ctx.budget).toBe(500_000 - 3 * 15_000);
+    expect(ctx.budget).toBe(500_000 - 3 * 5_000);
   });
 
   it('reduces clearRevenue by $3,000 per round of age', () => {
@@ -351,15 +351,15 @@ describe('EmergencyMaintenance multi-step ticket mechanic', () => {
       round: 3,                                            // current round is 3
       ticketIssuedRound: { 'ticket-5g-test': 1 },         // issued on round 1
     };
-    const em1 = new EmergencyMaintenanceCard('em-a');
-    const em2 = new EmergencyMaintenanceCard('em-b');
-    const em3 = new EmergencyMaintenanceCard('em-c');
-    let ctx = makeEmMaintInHand('em-a', base);
-    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-b', ctx);
-    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-c', ctx);
-    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+    const em1 = new WorkOrderCard('em-a');
+    const em2 = new WorkOrderCard('em-b');
+    const em3 = new WorkOrderCard('em-c');
+    let ctx = makeWorkOrderInHand('em-a', base);
+    ctx = playActionCard(ctx, em1, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-b', ctx);
+    ctx = playActionCard(ctx, em2, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-c', ctx);
+    ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
     expect(ctx.pendingRevenue).toBe(54_000);
   });
@@ -371,15 +371,15 @@ describe('EmergencyMaintenance multi-step ticket mechanic', () => {
       round: 25,
       ticketIssuedRound: { 'ticket-5g-test': 1 },  // age = 24 → negative without clamp
     };
-    const em1 = new EmergencyMaintenanceCard('em-x');
-    const em2 = new EmergencyMaintenanceCard('em-y');
-    const em3 = new EmergencyMaintenanceCard('em-z');
-    let ctx = makeEmMaintInHand('em-x', base);
-    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-y', ctx);
-    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-z', ctx);
-    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+    const em1 = new WorkOrderCard('em-x');
+    const em2 = new WorkOrderCard('em-y');
+    const em3 = new WorkOrderCard('em-z');
+    let ctx = makeWorkOrderInHand('em-x', base);
+    ctx = playActionCard(ctx, em1, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-y', ctx);
+    ctx = playActionCard(ctx, em2, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-z', ctx);
+    ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
     expect(ctx.pendingRevenue).toBe(0);
   });
@@ -403,8 +403,8 @@ describe('EmergencyMaintenance multi-step ticket mechanic', () => {
       ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket1.id, ticket2.id] },
       ticketIssuedRound: { [ticket1.id]: 1, [ticket2.id]: 1 },
     };
-    const em = new EmergencyMaintenanceCard('em-single');
-    const updated = playActionCard(ctxWithHandCardsFixedIds([em], ctx), em, undefined, undefined, undefined, Track.Projects);
+    const em = new WorkOrderCard('em-single');
+    const updated = playActionCard(ctxWithHandCardsFixedIds([em], ctx), em, ticket1.id);
     // First ticket should have 1 progress; second should be untouched.
     expect(updated.ticketOrders[Track.Projects]).toHaveLength(2);
     expect(updated.ticketProgress[ticket1.id]).toBe(1);
@@ -414,17 +414,53 @@ describe('EmergencyMaintenance multi-step ticket mechanic', () => {
   it('applies revenueBoostMultiplier to clearRevenue on ticket clear', () => {
     // revenueBoostMultiplier=1.5, age=0 → base=60_000 → boosted=90_000
     const base = { ...makeCtxWithFiveGTicket(), revenueBoostMultiplier: 1.5 };
-    const em1 = new EmergencyMaintenanceCard('em-b1');
-    const em2 = new EmergencyMaintenanceCard('em-b2');
-    const em3 = new EmergencyMaintenanceCard('em-b3');
-    let ctx = makeEmMaintInHand('em-b1', base);
-    ctx = playActionCard(ctx, em1, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-b2', ctx);
-    ctx = playActionCard(ctx, em2, undefined, undefined, undefined, Track.Projects);
-    ctx = makeEmMaintInHand('em-b3', ctx);
-    ctx = playActionCard(ctx, em3, undefined, undefined, undefined, Track.Projects);
+    const em1 = new WorkOrderCard('em-b1');
+    const em2 = new WorkOrderCard('em-b2');
+    const em3 = new WorkOrderCard('em-b3');
+    let ctx = makeWorkOrderInHand('em-b1', base);
+    ctx = playActionCard(ctx, em1, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-b2', ctx);
+    ctx = playActionCard(ctx, em2, 'ticket-5g-test');
+    ctx = makeWorkOrderInHand('em-b3', ctx);
+    ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
     expect(ctx.pendingRevenue).toBe(90_000);
+  });
+
+  it('fallback (no targetEventId) picks the first ticket on BreakFix when both BreakFix and Projects have tickets', () => {
+    // Two tickets: one on BreakFix, one on Projects. Without a targetEventId the
+    // card should fall through the Object.values(Track) iteration order and work
+    // BreakFix first (BreakFix is declared first in the Track enum).
+    const bfTicket = new FiveGActivationCard('ticket-bf');
+    const projTicket = new FiveGActivationCard('ticket-proj');
+    const makeActor = (t: FiveGActivationCard, track: Track) => {
+      const a = createActor(eventCardPositionMachine, { input: { instanceId: t.id, templateId: t.templateId } });
+      a.start();
+      a.send({ type: 'DRAW' });
+      a.send({ type: 'ISSUE_TICKET', track });
+      return a;
+    };
+    const base = safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis });
+    const ctx = {
+      ...base,
+      cardInstances: { ...base.cardInstances, [bfTicket.id]: bfTicket, [projTicket.id]: projTicket },
+      eventCardActors: {
+        ...base.eventCardActors,
+        [bfTicket.id]: makeActor(bfTicket, Track.BreakFix),
+        [projTicket.id]: makeActor(projTicket, Track.Projects),
+      },
+      ticketOrders: {
+        ...base.ticketOrders,
+        [Track.BreakFix]: [bfTicket.id],
+        [Track.Projects]: [projTicket.id],
+      },
+      ticketIssuedRound: { [bfTicket.id]: 1, [projTicket.id]: 1 },
+    };
+    const wo = new WorkOrderCard('wo-fallback');
+    const updated = playActionCard(ctxWithHandCardsFixedIds([wo], ctx), wo);
+    // BreakFix ticket should have 1 progress; Projects ticket untouched.
+    expect(updated.ticketProgress[bfTicket.id]).toBe(1);
+    expect(updated.ticketProgress[projTicket.id]).toBeUndefined();
   });
 });
 

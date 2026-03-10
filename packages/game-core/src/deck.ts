@@ -88,13 +88,13 @@ export function buildEventDeck(rng: Rng = Math.random): EventCard[] {
 /**
  * Canonical action-deck composition.
  * Each entry specifies how many copies of a given template to include.
- * Total: 29 cards (Emergency×3, TrafficPrioritization×12, Bandwidth×3, SecurityPatch×3, DataCenter×3, StreamCompression×3, RedundantLink×2).
+ * Total: 29 cards (WorkOrder×3, TrafficPrioritization×12, Bandwidth×3, SecurityPatch×3, DataCenter×3, StreamCompression×3, RedundantLink×2).
  */
 export const DEFAULT_ACTION_DECK: ReadonlyArray<{
   readonly templateId: string;
   readonly count: number;
 }> = [
-  { templateId: 'action-emergency-maintenance',   count: 3 },
+  { templateId: 'action-work-order',              count: 3 },
   { templateId: 'action-traffic-prioritization',  count: 12 },
   { templateId: 'action-bandwidth-upgrade',       count: 3 },
   { templateId: 'action-security-patch',          count: 3 },

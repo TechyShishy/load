@@ -121,12 +121,21 @@ export function GamePlayArea() {
         } else {
           showFeedback(`${card.name}: ${card.invalidZoneFeedback}`);
         }
+      } else if (typeof over.id === 'string' && over.id.startsWith('ticket-')) {
+        const ticketId = over.id.slice('ticket-'.length);
+        if (zones.includes('ticket')) {
+          playAction(card, ticketId);
+          showFeedback(`${card.name}: Working ticket (-$${card.cost.toLocaleString()})`);
+        } else {
+          showFeedback(`${card.name}: ${card.invalidZoneFeedback}`);
+        }
       } else if (typeof over.id === 'string' && over.id.startsWith('track-')) {
         const trackName = over.id.slice('track-'.length) as Track;
         if (zones.includes('track')) {
           playAction(card, undefined, undefined, undefined, trackName);
-          // Cards that target only tracks (e.g. EmergencyMaintenance) get track-specific feedback;
-          // cards that accept multiple zone types (e.g. SecurityPatch) treat the track as a fire trigger.
+          // Cards that target only tracks (e.g. a hypothetical future TrackClear card)
+          // get track-specific feedback; cards that accept multiple zone types
+          // treat the track as a fire trigger.
           if (zones.length === 1) {
             showFeedback(`${card.name}: Clearing a ticket from the ${trackName} track (-$${card.cost.toLocaleString()})`);
           } else {

@@ -150,6 +150,27 @@ export function computeTrackRect(trackIndex: number, containerWidth: number, max
 }
 
 /**
+ * Compute the pixel rect of an individual ticket pill within a track row.
+ * Mirrors the tickX / tickY arithmetic in paintTrackTickets() in GameCanvas.tsx.
+ * @param trackIndex   0-based track index (same order as getTracks() returns)
+ * @param ticketIndex  0-based position of the ticket within the track
+ * @param containerWidth  clientWidth of the canvas container div
+ */
+export function computeTicketRect(
+  trackIndex: number,
+  ticketIndex: number,
+  containerWidth: number,
+): SlotRect {
+  const { x: trackX, y: trackY } = computeTrackRect(trackIndex, containerWidth);
+  return {
+    x: trackX + 100 + ticketIndex * 80,
+    y: trackY + 4,
+    w: 70,
+    h: 20,
+  };
+}
+
+/**
  * Compute the pixel rect of a deck pile sprite.
  * The three deck groups are clustered compactly to the LEFT of the top band.
  * @param deckIndex   0=traffic, 1=event, 2=action

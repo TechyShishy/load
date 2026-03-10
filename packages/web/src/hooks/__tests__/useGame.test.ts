@@ -45,7 +45,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) =>
   React.createElement(AudioCtx.Provider, { value: mockAudio }, children);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fakeCard: ActionCard = ACTION_CARDS.find((c) => c.id === 'action-emergency-maintenance')!;
+const fakeCard: ActionCard = ACTION_CARDS.find((c) => c.id === 'action-work-order')!;
 
 function mockPhase(phase: string) {
   vi.mocked(useMachine).mockReturnValue([

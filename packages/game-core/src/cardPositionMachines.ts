@@ -162,7 +162,7 @@ export const eventCardPositionMachine = setup({
     },
     asTicket: {
       on: {
-        // Cleared by EmergencyMaintenance; card moves to discard and becomes available for reshuffle.
+        // Cleared by WorkOrder; card moves to discard and becomes available for reshuffle.
         CLEAR_TICKET: { target: 'inDiscard', actions: 'clearTrack' },
       },
     },
