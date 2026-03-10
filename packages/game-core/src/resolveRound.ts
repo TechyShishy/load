@@ -12,17 +12,21 @@ export interface ResolutionResult {
  * 2. Count remaining resolved Traffic cards across all normal time slots.
  * 3. Return a RoundSummary.
  */
-export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): ResolutionResult {
+export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedCardIds: ReadonlySet<string> = new Set()): ResolutionResult {
   // Find all traffic card actors currently in an overloaded slot.
+  // Collect overloaded slot positions occupied by spawned cards (to preserve them).
+  const spawnedOverloadSlotKeys = new Set<string>();
   const overloadedCardIds: string[] = [];
   for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
     if (!actor) continue;
     const snap = actor.getSnapshot();
-    if (snap.value === 'onSlot') {
-      const c = snap.context as TrafficCardPositionContext;
-      if (c.slotType === SlotType.Overloaded) {
-        overloadedCardIds.push(id);
-      }
+    if (snap.value !== 'onSlot') continue;
+    const c = snap.context as TrafficCardPositionContext;
+    if (c.slotType !== SlotType.Overloaded) continue;
+    if (spawnedCardIds.has(id)) {
+      spawnedOverloadSlotKeys.add(`${c.period}:${c.slotIndex}`);
+    } else {
+      overloadedCardIds.push(id);
     }
   }
 
@@ -60,8 +64,11 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0): Resolut
     ctx.eventCardActors[id]?.send({ type: 'CLEAR_TICKET' });
   }
 
-  // Remove overloaded slot entries from layout.
-  const slotLayout = ctx.slotLayout.filter((s) => s.slotType !== SlotType.Overloaded);
+  // Remove overloaded slot entries from layout, preserving slots occupied by
+  // just-spawned cards (the player needs a scheduling turn to address them).
+  const slotLayout = ctx.slotLayout.filter(
+    (s) => s.slotType !== SlotType.Overloaded || spawnedOverloadSlotKeys.has(`${s.period}:${s.index}`),
+  );
   const trafficDiscardOrder = [...ctx.trafficDiscardOrder, ...overloadedCardIds];
 
   // Count cards remaining on board (non-overloaded slots with a card).

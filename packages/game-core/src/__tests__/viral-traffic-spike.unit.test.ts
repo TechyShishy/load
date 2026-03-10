@@ -109,7 +109,7 @@ describe('ViralTrafficSpikeCard — onPickUp', () => {
     expect(updated.spawnedQueueOrder).toHaveLength(0);
   });
 
-  it('defers copy to spawned queue when next period is full', () => {
+  it('creates an overload slot immediately when next period is full', () => {
     const viral = new ViralTrafficSpikeCard('viral-1');
     // Fill all Afternoon slots (indexes 0-3)
     let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
@@ -120,9 +120,77 @@ describe('ViralTrafficSpikeCard — onPickUp', () => {
 
     const updated = playActionCard(ctx, trafficPrio, undefined, viral.id);
 
-    // When Afternoon is full, the copy is deferred to spawnedQueueOrder
-    // (overload slot created lazily during resolution, not immediately).
-    expect(updated.spawnedQueueOrder).toHaveLength(1);
-    expect(updated.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
+    // Copy is placed directly on an overload slot, visible during scheduling.
+    expect(updated.spawnedQueueOrder).toHaveLength(0);
+    const overloadSlots = updated.slotLayout.filter((s) => s.slotType === SlotType.Overloaded);
+    expect(overloadSlots).toHaveLength(1);
+    expect(overloadSlots[0]!.period).toBe(Period.Afternoon);
+
+    const afternoonSpike = getFilledTimeSlots(updated).find(
+      (s) =>
+        s.period === Period.Afternoon &&
+        s.card?.templateId === 'traffic-viral-spike' &&
+        s.card.id !== viral.id &&
+        !['fill-0', 'fill-1', 'fill-2', 'fill-3'].includes(s.card.id),
+    );
+    expect(afternoonSpike).toBeDefined();
+    expect(afternoonSpike!.overloaded).toBe(true);
+  });
+
+  it('SC on two VTS with only one free slot creates one normal + one overloaded copy', () => {
+    const viral1 = new ViralTrafficSpikeCard('viral-1');
+    const viral2 = new ViralTrafficSpikeCard('viral-2');
+    let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral1, Period.Morning, 0, ctx);
+    ctx = ctxWithCardOnSlot(viral2, Period.Morning, 1, ctx);
+    // Fill Afternoon slots 0-2, leave only slot 3 free
+    for (let i = 0; i < 3; i++) {
+      ctx = ctxWithCardOnSlot(new ViralTrafficSpikeCard(`fill-${i}`), Period.Afternoon, i, ctx);
+    }
+
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+
+    // Both copies should be placed (not deferred); one on normal, one on overloaded.
+    expect(updated.spawnedQueueOrder).toHaveLength(0);
+    const copies = getFilledTimeSlots(updated).filter(
+      (s) =>
+        s.period === Period.Afternoon &&
+        s.card?.templateId === 'traffic-viral-spike' &&
+        !['viral-1', 'viral-2', 'fill-0', 'fill-1', 'fill-2'].includes(s.card.id),
+    );
+    expect(copies).toHaveLength(2);
+    expect(copies.filter((c) => !c.overloaded)).toHaveLength(1);
+    expect(copies.filter((c) => c.overloaded)).toHaveLength(1);
+  });
+
+  it('SC on two VTS with a full next period creates two distinct overload slots', () => {
+    const viral1 = new ViralTrafficSpikeCard('viral-1');
+    const viral2 = new ViralTrafficSpikeCard('viral-2');
+    let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(viral1, Period.Morning, 0, ctx);
+    ctx = ctxWithCardOnSlot(viral2, Period.Morning, 1, ctx);
+    // Fill all 4 Afternoon slots — zero headroom
+    for (let i = 0; i < 4; i++) {
+      ctx = ctxWithCardOnSlot(new ViralTrafficSpikeCard(`fill-${i}`), Period.Afternoon, i, ctx);
+    }
+
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+
+    expect(updated.spawnedQueueOrder).toHaveLength(0);
+    const overloadSlots = updated.slotLayout.filter(
+      (s) => s.period === Period.Afternoon && s.slotType === SlotType.Overloaded,
+    );
+    // Must be exactly 2 distinct overload slots — not the same index twice
+    expect(overloadSlots).toHaveLength(2);
+    expect(overloadSlots[0]!.index).not.toBe(overloadSlots[1]!.index);
+    // Both copies must be visible and marked overloaded
+    const copies = getFilledTimeSlots(updated).filter(
+      (s) =>
+        s.period === Period.Afternoon &&
+        s.card?.templateId === 'traffic-viral-spike' &&
+        s.overloaded === true &&
+        !['viral-1', 'viral-2', 'fill-0', 'fill-1', 'fill-2', 'fill-3'].includes(s.card.id),
+    );
+    expect(copies).toHaveLength(2);
   });
 });

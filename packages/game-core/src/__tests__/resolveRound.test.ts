@@ -57,6 +57,25 @@ describe('resolveRound', () => {
     expect(resolved.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
   });
 
+  it('spawned cards in overload slots are preserved and not counted as SLA failures', () => {
+    const base = safeContext('test-seed', { activePhase: PhaseId.Resolution });
+    // Two overload cards: one spawned (exempt), one pre-existing (swept).
+    let ctx = ctxWithCardOnSlot(iotCard, Period.Morning, 4, base, SlotType.Overloaded);
+    ctx = ctxWithCardOnSlot(cloudCard, Period.Morning, 5, ctx, SlotType.Overloaded);
+
+    const spawnedIds = new Set([iotCard.id]);
+    const { summary, context: resolved } = resolveRound(ctx, 1, spawnedIds);
+
+    // Only the non-spawned overload card counts as a failure.
+    expect(summary.failedCount).toBe(1);
+    expect(resolved.slaCount).toBe(1);
+    // Spawned card stays on slot; non-spawned goes to discard.
+    expect(resolved.trafficDiscardOrder).toContain(cloudCard.id);
+    expect(resolved.trafficDiscardOrder).not.toContain(iotCard.id);
+    // Spawned overload slot retained; non-spawned removed.
+    expect(resolved.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(1);
+  });
+
   it('populates lastRoundSummary', () => {
     const base = safeContext('test-seed', { activePhase: PhaseId.Resolution, pendingRevenue: cloudCard.revenue });
     const ctx = ctxWithCardOnSlot(cloudCard, Period.Morning, 0, base);

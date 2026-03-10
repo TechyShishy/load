@@ -49,13 +49,23 @@ export class ViralTrafficSpikeCard extends TrafficCard {
       };
     }
 
-    // No free slot — spawn into queue (overload slot created during placement in resolution).
-    copyActor.send({ type: 'SPAWN' });
+    // No free slot — create an overload slot and place directly so the player
+    // can see and potentially address it during scheduling.
+    const overloadIndex = ctx.slotLayout.filter((s) => s.period === nextPeriod).length;
+    copyActor.send({
+      type: 'PLACE',
+      period: nextPeriod,
+      slotIndex: overloadIndex,
+      slotType: SlotType.Overloaded,
+    });
     return {
       ...ctx,
       cardInstances: newCardInstances,
       trafficCardActors: newTrafficCardActors,
-      spawnedQueueOrder: [...ctx.spawnedQueueOrder, copy.id],
+      slotLayout: [
+        ...ctx.slotLayout,
+        { period: nextPeriod, index: overloadIndex, slotType: SlotType.Overloaded },
+      ],
     };
   }
 }

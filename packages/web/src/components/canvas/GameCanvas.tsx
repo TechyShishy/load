@@ -1101,8 +1101,8 @@ function patchBoard(
     for (let si = 0; si < newPeriodSlots.length; si++) {
       const oldSlot = oldPeriodSlots[si];
       const newSlot = newPeriodSlots[si];
-      // patchBoard is only called when slotLayout.length is unchanged between contexts,
-      // so slot counts per period should match; guard covers any edge case.
+      // patchBoard is only called when per-period slot counts are unchanged,
+      // so slot counts per period match; guard covers any edge case.
       if (!oldSlot || !newSlot) continue;
       const slotRefs = refs.slots.get(`${period}-${si}`);
       if (slotRefs) patchSlot(slotRefs, oldSlot, newSlot, suppressedCardIds);
@@ -1348,16 +1348,26 @@ export function GameCanvas({
   // Patch only what changed whenever context updates.
   // `phase` is intentionally omitted — the canvas renders board state only;
   // phase-relevant UI lives in HUD overlays.
-  // When the number of time slots changes (e.g. a BoostSlotCapacity card was
-  // played), the static scene must be fully rebuilt since patchBoard only
-  // handles existing slot refs.
+  // When any period's slot count changes (e.g. a BoostSlotCapacity card was
+  // played, or an overload slot was added/removed), the static scene must be
+  // fully rebuilt since patchBoard can only update existing slot refs.
+  // Comparing total layout length is insufficient: one period can gain an
+  // overload slot in the same React-batched render that another loses one
+  // (resolveRound strips old overloads; performDraw creates new ones), keeping
+  // the total equal while leaving individual period ref-maps stale.
   useEffect(() => {
     const app = appRef.current;
     const prev = prevContextRef.current;
     if (!app || !prev) return;
 
-    if (context.slotLayout.length !== prev.slotLayout.length) {
-      // Slot count changed — destroy old board Container and rebuild from scratch.
+    const slotLayoutChanged = Object.values(Period).some(
+      (p) =>
+        context.slotLayout.filter((s) => s.period === p).length !==
+        prev.slotLayout.filter((s) => s.period === p).length,
+    );
+
+    if (slotLayoutChanged) {
+      // Per-period slot count changed — destroy old board Container and rebuild from scratch.
       const oldBoard = boardRef.current;
       if (oldBoard) {
         oldBoard.destroy({ children: true });
@@ -1404,6 +1414,10 @@ export function GameCanvas({
       for (let si = 0; si < periodSlots.length; si++) {
         const slot = periodSlots[si]!;
         const slotRefs = refs.slots.get(`${period}-${si}`);
+        // slotRefs can be undefined if suppressed-card repaint races ahead of
+        // the [context] effect that rebuilds refs (strict double-invoke in dev);
+        // in production this guard is defensive — the [context] effect always
+        // fires first (it's declared earlier) and populates refs before this runs.
         if (!slotRefs) continue;
         for (const child of slotRefs.cardContainer.children) {
           child.destroy();

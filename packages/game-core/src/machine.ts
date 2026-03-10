@@ -19,7 +19,7 @@ import {
 import { computeTrafficPlacements } from './autoFillTrafficSlots.js';
 import { playActionCard as applyPlayActionCard, processCrisis } from './processCrisis.js';
 import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRound.js';
-import { getPendingEvents, getHand } from './cardPositionViews.js';
+import { getPendingEvents } from './cardPositionViews.js';
 import {
   trafficCardPositionMachine, actionCardPositionMachine, eventCardPositionMachine,
 } from './cardPositionMachines.js';
@@ -189,7 +189,7 @@ export const gameMachine = setup({
           activePhase: PhaseId.Scheduling,
           drawLog: {
             traffic: [],
-            action: getHand(context),
+            action: context.drawLog?.action ?? [],
             events: [],
           },
         };
@@ -261,7 +261,7 @@ export const gameMachine = setup({
         spawnedQueueOrder: [],
         revenueBoostMultiplier: freshMultiplier,
         activePhase: PhaseId.Scheduling,
-        drawLog: { traffic: trafficEntries, action: getHand(context), events: [] },
+        drawLog: { traffic: trafficEntries, action: context.drawLog?.action ?? [], events: [] },
       };
     }),
 
@@ -342,7 +342,8 @@ export const gameMachine = setup({
         resolveCtx = { ...context, slotLayout: newSlotLayout, spawnedQueueOrder: [] };
       }
 
-      const { context: resolved, summary } = resolveRound(resolveCtx, spawnCount);
+      const spawnedIds = new Set(context.spawnedQueueOrder);
+      const { context: resolved, summary } = resolveRound(resolveCtx, spawnCount, spawnedIds);
       return { ...resolved, lastRoundSummary: { ...summary }, activePhase: PhaseId.Resolution };
     }),
 
