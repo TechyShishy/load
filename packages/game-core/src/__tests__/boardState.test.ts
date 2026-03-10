@@ -4,7 +4,6 @@ import {
   createVendorSlots,
   getAvailableSlotLayouts,
   resetSlotLayout,
-  stripWeeklyTemporarySlotLayout,
 } from '../boardState.js';
 import { Period, SlotType } from '../types.js';
 
@@ -61,44 +60,5 @@ describe('resetSlotLayout', () => {
     expect(reset.every((s) => s.slotType === SlotType.Normal)).toBe(true);
   });
 
-  it('preserves WeeklyTemporary slots on non-Monday reset', () => {
-    const base = createInitialSlotLayout();
-    const withWeekly = [
-      ...base,
-      { period: Period.Morning, index: base.length, slotType: SlotType.WeeklyTemporary },
-    ];
-    const reset = resetSlotLayout(withWeekly);
-    // WeeklyTemporary is NOT stripped by resetSlotLayout (only by stripWeeklyTemporarySlotLayout)
-    expect(reset.some((s) => s.slotType === SlotType.WeeklyTemporary)).toBe(true);
-  });
-});
-
-describe('stripWeeklyTemporarySlotLayout', () => {
-  it('removes WeeklyTemporary slots', () => {
-    const base = createInitialSlotLayout();
-    const withWeekly = [
-      ...base,
-      { period: Period.Morning, index: base.length, slotType: SlotType.WeeklyTemporary },
-    ];
-    const result = stripWeeklyTemporarySlotLayout(withWeekly);
-    expect(result).toHaveLength(base.length);
-    expect(result.every((s) => s.slotType !== SlotType.WeeklyTemporary)).toBe(true);
-  });
-
-  it('does not remove Temporary slots', () => {
-    const base = createInitialSlotLayout();
-    const withTemporary = [
-      ...base,
-      { period: Period.Morning, index: base.length, slotType: SlotType.Temporary },
-    ];
-    const result = stripWeeklyTemporarySlotLayout(withTemporary);
-    expect(result).toHaveLength(base.length + 1);
-  });
-
-  it('does not remove Normal slots', () => {
-    const base = createInitialSlotLayout();
-    const result = stripWeeklyTemporarySlotLayout(base);
-    expect(result).toHaveLength(base.length);
-  });
 });
 

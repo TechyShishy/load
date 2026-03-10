@@ -97,13 +97,13 @@ describe('playActionCard', () => {
     expect(getFilledTimeSlots(updated).length).toBe(before);
   });
 
-  it('BoostSlotCapacity adds new weeklyTemporary slots for target period', () => {
+  it('BoostSlotCapacity adds new permanent slots for target period', () => {
     const base = ctxWithHandCardsFixedIds([bwUpgrade], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
     const beforeCount = base.slotLayout.filter((s) => s.period === Period.Afternoon).length;
     const updated = playActionCard(base, bwUpgrade);
     const afterSlots = updated.slotLayout.filter((s) => s.period === Period.Afternoon);
     expect(afterSlots.length).toBe(beforeCount + 1);
-    expect(afterSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary).length).toBe(1);
+    expect(afterSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
   });
 
   it('BoostSlotCapacity runtime targetPeriod overrides card.targetPeriod', () => {
@@ -114,7 +114,7 @@ describe('playActionCard', () => {
     const morningSlots = updated.slotLayout.filter((s) => s.period === Period.Morning);
     const afternoonSlots = updated.slotLayout.filter((s) => s.period === Period.Afternoon);
     expect(morningSlots.length).toBe(beforeMorning + 1);
-    expect(morningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary).length).toBe(1);
+    expect(morningSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
     expect(afternoonSlots.length).toBe(beforeAfternoon);
   });
 
@@ -138,7 +138,7 @@ describe('playActionCard', () => {
     expect(updated.ticketOrders[Track.BreakFix]).toHaveLength(0);
   });
 
-  it('AddPeriodSlots adds temporary slots to the runtime targetPeriod', () => {
+  it('AddPeriodSlots adds permanent slots to the runtime targetPeriod', () => {
     const dcExpansion = ACTION_CARDS.find((c) => c.id === 'action-datacenter-expansion')!;
     const base = ctxWithHandCardsFixedIds([dcExpansion], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
     const beforeEvening = base.slotLayout.filter((s) => s.period === Period.Evening).length;
@@ -147,7 +147,7 @@ describe('playActionCard', () => {
     const eveningSlots = updated.slotLayout.filter((s) => s.period === Period.Evening);
     const overnightSlots = updated.slotLayout.filter((s) => s.period === Period.Overnight);
     expect(eveningSlots.length).toBe(beforeEvening + 2);
-    expect(eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary).length).toBe(2);
+    expect(eveningSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
     expect(overnightSlots.length).toBe(beforeOvernight);
   });
 

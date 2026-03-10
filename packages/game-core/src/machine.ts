@@ -5,7 +5,7 @@ import {
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
-  type ActionCard, type Card, type DrawLog, type DrawLogTrafficEntry, type EventCard, type GameContext, type TimeSlotLayout, type TrafficCard,
+  type ActionCard, type Card, type DrawLog, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
   type TrafficCardActorRegistry, type ActionCardActorRegistry, type EventCardActorRegistry,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';
@@ -14,7 +14,6 @@ import {
   createInitialSlotLayout,
   createVendorSlots,
   resetSlotLayout,
-  stripWeeklyTemporarySlotLayout,
 } from './boardState.js';
 import { computeTrafficPlacements } from './autoFillTrafficSlots.js';
 import { playActionCard as applyPlayActionCard, processCrisis } from './processCrisis.js';
@@ -170,10 +169,7 @@ export const gameMachine = setup({
   },
   actions: {
     performDraw: assign(({ context }) => {
-      const afterReset = resetSlotLayout(context.slotLayout);
-      const freshLayout: TimeSlotLayout[] = getDayOfWeek(context.round) === 1
-        ? stripWeeklyTemporarySlotLayout(afterReset)
-        : afterReset;
+      const freshLayout = resetSlotLayout(context.slotLayout);
       const freshMultiplier = getDayOfWeek(context.round) === 1 ? 1 : context.revenueBoostMultiplier;
 
       // AWS Outage carry-over: skip traffic draw this round.

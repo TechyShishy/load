@@ -82,7 +82,7 @@ describe('integration: Stream Compression clears overload slot', () => {
 // ─── Bandwidth Upgrade converts overload slot ─────────────────────────────────
 
 describe('integration: Bandwidth Upgrade converts overload slot', () => {
-  it('converts 1 overload slot to normal weeklyTemporary, net +1 slot in period', () => {
+  it('converts 1 overload slot to permanent Normal, net +1 slot in period', () => {
     const iotInst = freshTrafficCard('traffic-iot-burst', 'iot-bu-1');
     const initialMorningCount = createInitialSlotLayout().filter(
       (s) => s.period === Period.Morning,
@@ -102,14 +102,12 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
     const morningSlots = snap.context.slotLayout.filter((s) => s.period === Period.Morning);
     expect(morningSlots.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
     expect(morningSlots).toHaveLength(initialMorningCount + 1);
-    const converted = morningSlots.find((s) => s.slotType === SlotType.WeeklyTemporary);
-    expect(converted).toBeDefined();
+    expect(morningSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
     // Converted slot still holds its card
     const filledMorning = getFilledTimeSlots(snap.context).find(
-      (s) => s.period === Period.Morning && s.weeklyTemporary === true,
+      (s) => s.period === Period.Morning && s.card?.id === iotInst.id,
     );
     expect(filledMorning).toBeDefined();
-    expect(filledMorning!.card!.id).toBe(iotInst.id);
   });
 
   it('adds a new empty slot when no overload slots exist in the period', () => {
@@ -129,11 +127,10 @@ describe('integration: Bandwidth Upgrade converts overload slot', () => {
     const snap = actor.getSnapshot();
     const morningSlots = snap.context.slotLayout.filter((s) => s.period === Period.Morning);
     expect(morningSlots).toHaveLength(initialMorningCount + 1);
-    const newSlot = morningSlots.find((s) => s.slotType === SlotType.WeeklyTemporary);
-    expect(newSlot).toBeDefined();
-    // New slot is empty (no card on it) — use filter with card !== null
+    expect(morningSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
+    // New slot is empty (no card on it)
     const filledMorning = getFilledTimeSlots(snap.context).filter(
-      (s) => s.period === Period.Morning && s.weeklyTemporary === true && s.card !== null,
+      (s) => s.period === Period.Morning && s.card !== null,
     );
     expect(filledMorning).toHaveLength(0);
   });
@@ -165,8 +162,7 @@ describe('integration: Data Center Expansion converts overload slots', () => {
     expect(eveningSlots.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
     // 2 overload slots converted, 0 new empty slots: net = initial + 2
     expect(eveningSlots).toHaveLength(initialEveningCount + 2);
-    const converted = eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary);
-    expect(converted).toHaveLength(2);
+    expect(eveningSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
   });
 
   it('converts 1 overload and adds 1 new empty slot when only 1 overload exists', () => {
@@ -190,7 +186,6 @@ describe('integration: Data Center Expansion converts overload slots', () => {
     expect(eveningSlots.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
     // 1 converted + 1 new empty = initial + 2
     expect(eveningSlots).toHaveLength(initialEveningCount + 2);
-    const weeklySlots = eveningSlots.filter((s) => s.slotType === SlotType.WeeklyTemporary);
-    expect(weeklySlots).toHaveLength(2);
+    expect(eveningSlots.every((s) => s.slotType === SlotType.Normal)).toBe(true);
   });
 });

@@ -41,7 +41,6 @@ export enum SlotType {
   Normal = 'normal',
   Overloaded = 'overloaded',
   Temporary = 'temporary',
-  WeeklyTemporary = 'weeklyTemporary',
 }
 
 /** Registries of per-card position actors keyed by instanceId. */
@@ -256,7 +255,6 @@ export interface TimeSlot {
   readonly index: number;
   card: TrafficCard | null;
   readonly temporary?: boolean;
-  readonly weeklyTemporary?: boolean;
   readonly overloaded?: boolean;
 }
 

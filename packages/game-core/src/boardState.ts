@@ -34,16 +34,14 @@ export function getAvailableSlotLayouts(layout: TimeSlotLayout[], period: Period
 /**
  * Reset per-round transient state on slot layout.
  * Temporary slots (added by BoostSlotCapacity) are removed.
+ * Migration guard: 'weeklyTemporary' slots from saves predating the permanent-
+ * slots rework are also removed here to prevent phantom slot accumulation.
  * Overloaded slots are swept separately during resolution, not here.
  */
 export function resetSlotLayout(layout: TimeSlotLayout[]): TimeSlotLayout[] {
-  return layout.filter((s) => s.slotType !== SlotType.Temporary);
+  return layout.filter(
+    (s) => s.slotType !== SlotType.Temporary && s.slotType !== ('weeklyTemporary' as SlotType),
+  );
 }
 
-/**
- * Strip weekly-temporary slots added by BandwidthUpgrade / DataCenterExpansion.
- * Called at the start of performDraw only on Monday rounds.
- */
-export function stripWeeklyTemporarySlotLayout(layout: TimeSlotLayout[]): TimeSlotLayout[] {
-  return layout.filter((s) => s.slotType !== SlotType.WeeklyTemporary);
-}
+

@@ -41,7 +41,6 @@ export function getFilledTimeSlots(ctx: GameContext): TimeSlot[] {
       index: layout.index,
       card,
       ...(layout.slotType === SlotType.Temporary && { temporary: true as const }),
-      ...(layout.slotType === SlotType.WeeklyTemporary && { weeklyTemporary: true as const }),
       ...(layout.slotType === SlotType.Overloaded && { overloaded: true as const }),
     };
   });

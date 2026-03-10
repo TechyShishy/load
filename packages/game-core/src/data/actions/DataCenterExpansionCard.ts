@@ -5,7 +5,7 @@ export class DataCenterExpansionCard extends ActionCard {
   readonly templateId = 'action-datacenter-expansion';
   readonly name = 'Data Center Expansion';
   readonly cost = 30_000;
-  readonly description = 'Add 2 bonus slots to any period this round.';
+  readonly description = 'Add 2 permanent bonus slots to a Period.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['period'] as const;
   override readonly invalidZoneFeedback = 'Drop on a period column to add slots.';
@@ -41,8 +41,8 @@ export class DataCenterExpansionCard extends ActionCard {
       ) {
         converted++;
         const occupant = getActorAtSlot(context, s.period, s.index);
-        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.WeeklyTemporary });
-        return { ...s, slotType: SlotType.WeeklyTemporary };
+        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.Normal });
+        return { ...s, slotType: SlotType.Normal };
       }
       return s;
     });
@@ -51,7 +51,7 @@ export class DataCenterExpansionCard extends ActionCard {
     for (let i = 0; i < slotsToAdd; i++) {
       updatedSlotLayout = [
         ...updatedSlotLayout,
-        { period: resolvedPeriod, index: newSlotBase + i, slotType: SlotType.WeeklyTemporary },
+        { period: resolvedPeriod, index: newSlotBase + i, slotType: SlotType.Normal },
       ];
     }
 

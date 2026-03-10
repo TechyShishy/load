@@ -5,7 +5,7 @@ export class BandwidthUpgradeCard extends ActionCard {
   readonly templateId = 'action-bandwidth-upgrade';
   readonly name = 'Bandwidth Upgrade';
   readonly cost = 20_000;
-  readonly description = 'Add 1 bonus slot to a Period until Monday.';
+  readonly description = 'Add 1 permanent bonus slot to a Period.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['period'] as const;
   override readonly invalidZoneFeedback = 'Drop on a period column to boost its capacity.';
@@ -43,18 +43,18 @@ export class BandwidthUpgradeCard extends ActionCard {
         converted++;
         // Also update the traffic card actor occupying this slot.
         const occupant = getActorAtSlot(context, s.period, s.index);
-        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.WeeklyTemporary });
-        return { ...s, slotType: SlotType.WeeklyTemporary };
+        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.Normal });
+        return { ...s, slotType: SlotType.Normal };
       }
       return s;
     });
 
-    // Append new empty weekly-temporary slots if needed.
+    // Append new empty permanent slots if needed.
     const newSlotBase = updatedSlotLayout.filter((s) => s.period === resolvedPeriod).length;
     for (let i = 0; i < slotsToAdd; i++) {
       updatedSlotLayout = [
         ...updatedSlotLayout,
-        { period: resolvedPeriod, index: newSlotBase + i, slotType: SlotType.WeeklyTemporary },
+        { period: resolvedPeriod, index: newSlotBase + i, slotType: SlotType.Normal },
       ];
     }
 
