@@ -1,4 +1,4 @@
-import { and, assign, setup } from 'xstate';
+import { and, assign, enqueueActions, setup } from 'xstate';
 import { createActor } from 'xstate';
 import {
   HAND_SIZE, LoseReason, Period, PhaseId, STARTING_BUDGET, Track,
@@ -168,14 +168,13 @@ export const gameMachine = setup({
     },
   },
   actions: {
-    performDraw: assign(({ context }) => {
+    performDraw: enqueueActions(({ context, enqueue }) => {
       const freshLayout = resetSlotLayout(context.slotLayout);
       const freshMultiplier = getDayOfWeek(context.round) === 1 ? 1 : context.revenueBoostMultiplier;
 
       // AWS Outage carry-over: skip traffic draw this round.
       if (context.skipNextTrafficDraw) {
-        return {
-          ...context,
+        enqueue.assign({
           slotLayout: freshLayout,
           playedThisRoundOrder: [],
           mitigatedEventIds: [],
@@ -189,7 +188,8 @@ export const gameMachine = setup({
             action: context.drawLog?.action ?? [],
             events: [],
           },
-        };
+        });
+        return;
       }
 
       // RNG position 0 is always the draw count (deterministic for same seed+round).
@@ -203,7 +203,8 @@ export const gameMachine = setup({
       let trafficDiscardOrder = context.trafficDiscardOrder;
       if (trafficDeckOrder.length === 0 && trafficDiscardOrder.length > 0) {
         for (const id of trafficDiscardOrder) {
-          context.trafficCardActors[id]?.send({ type: 'RESHUFFLE' });
+          const actor = context.trafficCardActors[id];
+          if (actor) enqueue.sendTo(actor, { type: 'RESHUFFLE' });
         }
         trafficDeckOrder = shuffle(trafficDiscardOrder, drawRng);
         trafficDiscardOrder = [];
@@ -232,14 +233,10 @@ export const gameMachine = setup({
         context.round,
       );
 
-      // Send PLACE events to actors (side effect — actor state updated synchronously).
+      // Enqueue PLACE events to actors.
       for (const p of placements) {
-        context.trafficCardActors[p.cardId]?.send({
-          type: 'PLACE',
-          period: p.period,
-          slotIndex: p.slotIndex,
-          slotType: p.slotType,
-        });
+        const actor = context.trafficCardActors[p.cardId];
+        if (actor) enqueue.sendTo(actor, { type: 'PLACE', period: p.period, slotIndex: p.slotIndex, slotType: p.slotType });
       }
 
       // Build draw log.
@@ -249,8 +246,7 @@ export const gameMachine = setup({
         slotIndex: p.slotIndex,
       }));
 
-      return {
-        ...context,
+      enqueue.assign({
         slotLayout: newSlotLayout,
         trafficDeckOrder: remainingDeckOrder,
         trafficDiscardOrder,
@@ -261,13 +257,14 @@ export const gameMachine = setup({
         revenueBoostMultiplier: freshMultiplier,
         activePhase: PhaseId.Scheduling,
         drawLog: { traffic: trafficEntries, action: context.drawLog?.action ?? [], events: [] },
-      };
+      });
     }),
 
-    performDrawCrisisEvent: assign(({ context }) => {
+    performDrawCrisisEvent: enqueueActions(({ context, enqueue }) => {
       // Resume-from-save: events already in pendingEventsOrder.
       if (context.pendingEventsOrder.length > 0) {
-        return { ...context, activePhase: PhaseId.Crisis };
+        enqueue.assign({ activePhase: PhaseId.Crisis });
+        return;
       }
 
       const eventRng = makeRng(context.seed + '-ev-' + context.round);
@@ -277,7 +274,8 @@ export const gameMachine = setup({
       // Reshuffle if exhausted.
       if (eventDeckOrder.length === 0 && eventDiscardOrder.length > 0) {
         for (const id of eventDiscardOrder) {
-          context.eventCardActors[id]?.send({ type: 'RESHUFFLE' });
+          const actor = context.eventCardActors[id];
+          if (actor) enqueue.sendTo(actor, { type: 'RESHUFFLE' });
         }
         eventDeckOrder = shuffle(eventDiscardOrder, eventRng);
         eventDiscardOrder = [];
@@ -287,21 +285,21 @@ export const gameMachine = setup({
       const drawnIds = eventDeckOrder.slice(0, eventDrawCount);
       const remainingDeckOrder = eventDeckOrder.slice(eventDrawCount);
 
-      // Send DRAW to each drawn event actor.
+      // Enqueue DRAW to each drawn event actor.
       for (const id of drawnIds) {
-        context.eventCardActors[id]?.send({ type: 'DRAW' });
+        const actor = context.eventCardActors[id];
+        if (actor) enqueue.sendTo(actor, { type: 'DRAW' });
       }
 
       const drawnCards = drawnIds.map((id) => context.cardInstances[id] as EventCard);
 
-      return {
-        ...context,
+      enqueue.assign({
         eventDeckOrder: remainingDeckOrder,
         eventDiscardOrder,
         pendingEventsOrder: drawnIds,
         activePhase: PhaseId.Crisis,
         drawLog: { traffic: [], action: [], events: drawnCards },
-      };
+      });
     }),
 
     performResolveCrisisEvent: assign(({ context }) => {
@@ -309,7 +307,7 @@ export const gameMachine = setup({
       return { ...updated };
     }),
 
-    performResolution: assign(({ context }) => {
+    performResolution: enqueueActions(({ context, enqueue }) => {
       // Build the set of spawned IDs now, before the queue is cleared.
       // This includes both queue-placed spawns (e.g. Viral Spike) and
       // directly-placed spawns (e.g. DDoS cards placed during onCrisis).
@@ -345,12 +343,8 @@ export const gameMachine = setup({
             context.round,
           );
           for (const p of placements) {
-            context.trafficCardActors[p.cardId]?.send({
-              type: 'PLACE',
-              period: p.period,
-              slotIndex: p.slotIndex,
-              slotType: p.slotType,
-            });
+            const actor = context.trafficCardActors[p.cardId];
+            if (actor) enqueue.sendTo(actor, { type: 'PLACE', period: p.period, slotIndex: p.slotIndex, slotType: p.slotType });
           }
           resolveCtx = { ...context, slotLayout: newSlotLayout, spawnedQueueOrder: [] };
         } else {
@@ -361,16 +355,17 @@ export const gameMachine = setup({
       }
 
       const { context: resolved, summary } = resolveRound(resolveCtx, spawnCount, spawnedIds);
-      return { ...resolved, lastRoundSummary: { ...summary }, activePhase: PhaseId.Resolution };
+      enqueue.assign({ ...resolved, lastRoundSummary: { ...summary }, activePhase: PhaseId.Resolution });
     }),
 
-    performEnd: assign(({ context }) => {
+    performEnd: enqueueActions(({ context, enqueue }) => {
       const friday = isFriday(context.round);
       const actRng = makeRng(context.seed + '-act-' + context.round);
 
       // Move played cards to discard.
       for (const id of context.playedThisRoundOrder) {
-        context.actionCardActors[id]?.send({ type: 'DISCARD' });
+        const actor = context.actionCardActors[id];
+        if (actor) enqueue.sendTo(actor, { type: 'DISCARD' });
       }
       let actionDiscardOrder = [...context.actionDiscardOrder, ...context.playedThisRoundOrder];
 
@@ -378,7 +373,8 @@ export const gameMachine = setup({
       let handOrder = context.handOrder;
       if (friday) {
         for (const id of context.handOrder) {
-          context.actionCardActors[id]?.send({ type: 'DISCARD' });
+          const actor = context.actionCardActors[id];
+          if (actor) enqueue.sendTo(actor, { type: 'DISCARD' });
         }
         actionDiscardOrder = [...actionDiscardOrder, ...context.handOrder];
         handOrder = [];
@@ -392,7 +388,8 @@ export const gameMachine = setup({
         // Reshuffle if exhausted.
         if (actionDeckOrder.length === 0 && actionDiscardOrder.length > 0) {
           for (const id of actionDiscardOrder) {
-            context.actionCardActors[id]?.send({ type: 'RESHUFFLE' });
+            const actor = context.actionCardActors[id];
+            if (actor) enqueue.sendTo(actor, { type: 'RESHUFFLE' });
           }
           actionDeckOrder = shuffle(actionDiscardOrder, actRng);
           actionDiscardOrder = [];
@@ -400,14 +397,14 @@ export const gameMachine = setup({
         const drawnIds = actionDeckOrder.slice(0, deficit);
         actionDeckOrder = actionDeckOrder.slice(deficit);
         for (const id of drawnIds) {
-          context.actionCardActors[id]?.send({ type: 'DRAW' });
+          const actor = context.actionCardActors[id];
+          if (actor) enqueue.sendTo(actor, { type: 'DRAW' });
         }
         handOrder = [...handOrder, ...drawnIds];
         actionDrawn = drawnIds.map((id) => context.cardInstances[id] as ActionCard);
       }
 
-      return {
-        ...context,
+      enqueue.assign({
         round: context.round + 1,
         handOrder,
         actionDeckOrder,
@@ -415,7 +412,7 @@ export const gameMachine = setup({
         playedThisRoundOrder: [],
         activePhase: PhaseId.End,
         drawLog: { traffic: [], action: actionDrawn, events: [] },
-      };
+      });
     }),
 
     applyPlayAction: assign(({ context, event }) => {
