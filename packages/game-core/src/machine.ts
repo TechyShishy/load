@@ -227,10 +227,12 @@ export const gameMachine = setup({
           }
         }
       }
+      const drawnCards = drawnIds.map((id) => context.cardInstances[id] as TrafficCard);
       const { placements, newSlotLayout } = computeTrafficPlacements(
         freshLayout,
         occupiedSlots,
-        drawnIds,
+        drawnCards,
+        context.round,
       );
 
       // Send PLACE events to actors (side effect — actor state updated synchronously).
@@ -311,38 +313,56 @@ export const gameMachine = setup({
     }),
 
     performResolution: assign(({ context }) => {
-      // Place spawned traffic cards onto the board if any.
+      // Build the set of spawned IDs now, before the queue is cleared.
+      // This includes both queue-placed spawns (e.g. Viral Spike) and
+      // directly-placed spawns (e.g. DDoS cards placed during onCrisis).
+      const spawnedIds = new Set(context.spawnedQueueOrder);
+      const spawnCount = spawnedIds.size;
+
+      // Place spawned traffic cards that still need a slot (cards pre-placed
+      // during onCrisis — e.g. DDoS — are already in onSlot and are skipped).
       let resolveCtx = context;
-      const spawnCount = context.spawnedQueueOrder.length;
       if (spawnCount > 0) {
-        const occupiedSlots = new Set<string>();
-        for (const actor of Object.values(context.trafficCardActors)) {
-          if (!actor) continue;
-          const snap = actor.getSnapshot();
-          if (snap.value === 'onSlot') {
-            const c = snap.context;
-            if (c.period !== undefined && c.slotIndex !== undefined) {
-              occupiedSlots.add(`${c.period}:${c.slotIndex}`);
+        const needsPlacement = context.spawnedQueueOrder.filter((id) => {
+          const actor = context.trafficCardActors[id];
+          return !actor || actor.getSnapshot().value !== 'onSlot';
+        });
+
+        if (needsPlacement.length > 0) {
+          const occupiedSlots = new Set<string>();
+          for (const actor of Object.values(context.trafficCardActors)) {
+            if (!actor) continue;
+            const snap = actor.getSnapshot();
+            if (snap.value === 'onSlot') {
+              const c = snap.context;
+              if (c.period !== undefined && c.slotIndex !== undefined) {
+                occupiedSlots.add(`${c.period}:${c.slotIndex}`);
+              }
             }
           }
+          const spawnedCards = needsPlacement.map((id) => context.cardInstances[id] as TrafficCard);
+          const { placements, newSlotLayout } = computeTrafficPlacements(
+            context.slotLayout,
+            occupiedSlots,
+            spawnedCards,
+            context.round,
+          );
+          for (const p of placements) {
+            context.trafficCardActors[p.cardId]?.send({
+              type: 'PLACE',
+              period: p.period,
+              slotIndex: p.slotIndex,
+              slotType: p.slotType,
+            });
+          }
+          resolveCtx = { ...context, slotLayout: newSlotLayout, spawnedQueueOrder: [] };
+        } else {
+          // All spawns were pre-placed (e.g. DDoS direct placement during crisis).
+          // Clear the queue so the next round doesn't re-protect these cards.
+          resolveCtx = { ...context, spawnedQueueOrder: [] };
         }
-        const { placements, newSlotLayout } = computeTrafficPlacements(
-          context.slotLayout,
-          occupiedSlots,
-          context.spawnedQueueOrder,
-        );
-        for (const p of placements) {
-          context.trafficCardActors[p.cardId]?.send({
-            type: 'PLACE',
-            period: p.period,
-            slotIndex: p.slotIndex,
-            slotType: p.slotType,
-          });
-        }
-        resolveCtx = { ...context, slotLayout: newSlotLayout, spawnedQueueOrder: [] };
       }
 
-      const spawnedIds = new Set(context.spawnedQueueOrder);
       const { context: resolved, summary } = resolveRound(resolveCtx, spawnCount, spawnedIds);
       return { ...resolved, lastRoundSummary: { ...summary }, activePhase: PhaseId.Resolution };
     }),

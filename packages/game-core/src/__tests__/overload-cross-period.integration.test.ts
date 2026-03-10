@@ -100,14 +100,15 @@ describe('integration: cross-period overload swap preserves total length', () =>
       }
     }
 
-    // Round-robin:  card[0] → Morning (slot 3 is free → placed normally)
-    //               card[1] → Afternoon (all 4 occupied → overload at index 4)
+    // Week-table (round 1 = Monday): IoT Burst → Morning (slot 3 free → placed normally)
+    //                                 Viral Spike → Afternoon (all 4 occupied → overload at index 4)
     const newMorningCard = freshTrafficCard('traffic-iot-burst', 'iot-m-new');
-    const newAfternoonCard = freshTrafficCard('traffic-iot-burst', 'iot-a-new');
+    const newAfternoonCard = freshTrafficCard('traffic-viral-spike', 'viral-a-new');
     const { newSlotLayout } = computeTrafficPlacements(
       afterResolve.slotLayout,
       occupiedSlots,
-      [newMorningCard.id, newAfternoonCard.id],
+      [newMorningCard, newAfternoonCard],
+      1, // round 1 = Monday
     );
 
     const postTotalLength = newSlotLayout.length;
@@ -157,7 +158,8 @@ describe('integration: cross-period overload swap preserves total length', () =>
     const { newSlotLayout } = computeTrafficPlacements(
       afterResolve.slotLayout,
       occupiedSlots,
-      [newCard.id],
+      [newCard],
+      1, // round 1 = Monday; IoT Burst → Morning
     );
 
     // Same total (17) AND same per-period Morning count (5) — patchBoard path is correct here.

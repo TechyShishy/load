@@ -103,6 +103,18 @@ export abstract class TrafficCard {
   abstract readonly description: string;
   readonly type = CardType.Traffic as const;
 
+  /**
+   * Week table — the period this card targets when drawn on each day of the week.
+   * Index 0 = Monday … index 6 = Sunday.
+   * Placement looks up `weekTable[getDayOfWeek(round) - 1]`.
+   *
+   * Cards without a meaningful week pattern (e.g. spawned-only cards) omit this
+   * field. The placement algorithm falls back to Morning when it is absent.
+   */
+  readonly weekTable?: readonly [
+    Period, Period, Period, Period, Period, Period, Period
+  ];
+
   /** Optional hook called when the card is placed into a slot. */
   onPlace?(ctx: GameContext, slotIndex: number): GameContext;
 

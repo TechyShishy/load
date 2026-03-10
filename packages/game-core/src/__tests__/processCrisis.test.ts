@@ -165,11 +165,17 @@ describe('playActionCard', () => {
 });
 
 describe('processCrisis', () => {
-  it('spawns 5 DDoS traffic cards when unmitigated', () => {
+  it('places 4 DDoS traffic cards (one per period) directly when unmitigated', () => {
     const ctx = ctxWithPendingEvents([ddosEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    expect(context.spawnedQueueOrder).toHaveLength(5);
+    // DDoS now places 4 cards directly (one per period) and registers their IDs
+    // in spawnedQueueOrder so resolveRound gives the player one turn to react.
+    expect(context.spawnedQueueOrder).toHaveLength(4);
     expect(context.spawnedQueueOrder.every((id) => context.cardInstances[id]?.templateId === 'traffic-ddos')).toBe(true);
+    // All 4 cards are already on a slot (not waiting for performResolution to place them).
+    for (const id of context.spawnedQueueOrder) {
+      expect(context.trafficCardActors[id]?.getSnapshot().value).toBe('onSlot');
+    }
   });
 
   it('does not spawn traffic cards when DDoS event is mitigated', () => {
