@@ -1,12 +1,10 @@
 apply plugin: 'com.android.application'
 
 def gitCommitCount = {
-    def stdout = new ByteArrayOutputStream()
-    exec {
+    def result = providers.exec {
         commandLine 'git', 'rev-list', '--count', 'HEAD'
-        standardOutput = stdout
     }
-    return stdout.toString().trim().toInteger()
+    return result.standardOutput.asText.get().trim().toInteger()
 }
 
 android {
