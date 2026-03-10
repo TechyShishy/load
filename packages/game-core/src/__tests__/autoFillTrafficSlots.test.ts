@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeTrafficPlacements } from '../autoFillTrafficSlots.js';
 import { createInitialSlotLayout } from '../boardState.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
-import { Period, SlotType, getDayOfWeek } from '../types.js';
+import { Period, SlotType, getDayOfWeek, type TrafficCard } from '../types.js';
 
 const iotCard = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-iot-burst')!;
 // Cloud Backup: Overnight every day except Sat (Morning).
@@ -125,10 +125,10 @@ describe('computeTrafficPlacements — overload handling', () => {
     const stream = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-4k-stream')!;
     const viral = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-viral-spike')!;
     const cards = [
-      ...Array(4).fill(ai),
-      ...Array(4).fill(cloud),
-      ...Array(4).fill(stream),
-      ...Array(4).fill(viral),
+      ...Array<TrafficCard>(4).fill(ai),
+      ...Array<TrafficCard>(4).fill(cloud),
+      ...Array<TrafficCard>(4).fill(stream),
+      ...Array<TrafficCard>(4).fill(viral),
     ];
     const { placements, newSlotLayout } = computeTrafficPlacements(
       createInitialSlotLayout(), new Set(), cards, MONDAY_ROUND,

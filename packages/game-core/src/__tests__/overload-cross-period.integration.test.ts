@@ -27,7 +27,7 @@ import { safeContext, ctxWithCardOnSlot } from './testHelpers.js';
 function freshTrafficCard(templateId: string, instanceId: string): TrafficCard {
   const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId);
   if (!Ctor) throw new Error(`Unknown traffic templateId: ${templateId}`);
-  return new Ctor(instanceId) as TrafficCard;
+  return new Ctor(instanceId);
 }
 
 describe('integration: cross-period overload swap preserves total length', () => {

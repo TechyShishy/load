@@ -1,5 +1,4 @@
 import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
-import type { TrafficCardPositionContext } from '../../cardPositionMachines.js';
 
 export class TrafficPrioritizationCard extends ActionCard {
   readonly templateId = 'action-traffic-prioritization';
@@ -29,7 +28,7 @@ export class TrafficPrioritizationCard extends ActionCard {
     if (snap.value !== 'onSlot') return context;
 
     const { period: actorPeriod, slotIndex, slotType } =
-      snap.context as TrafficCardPositionContext;
+      snap.context;
     const removedCard = context.cardInstances[targetTrafficCardId];
     if (!removedCard || actorPeriod === undefined) return context;
 

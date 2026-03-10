@@ -1,5 +1,4 @@
-import { SlotType, Track, type ActionCard, type EventCard, type GameContext, type TimeSlot, type TrackSlot, type TrafficCard } from './types.js';
-import type { TrafficCardPositionContext } from './cardPositionMachines.js';
+import { Period, SlotType, Track, type ActionCard, type EventCard, type GameContext, type TimeSlot, type TrackSlot, type TrafficCard } from './types.js';
 
 // ─── Traffic views ────────────────────────────────────────────────────────────
 
@@ -26,7 +25,7 @@ export function getFilledTimeSlots(ctx: GameContext): TimeSlot[] {
     if (!actor) continue;
     const snap = actor.getSnapshot();
     if (snap.value === 'onSlot') {
-      const c = snap.context as TrafficCardPositionContext;
+      const c = snap.context;
       if (c.period !== undefined && c.slotIndex !== undefined) {
         slotMap.set(`${c.period}:${c.slotIndex}`, id);
       }
@@ -97,13 +96,13 @@ export function getTracks(ctx: GameContext): TrackSlot[] {
  */
 export function getActorAtSlot(
   ctx: GameContext,
-  period: string,
+  period: Period,
   slotIndex: number,
 ) {
   for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
     const snap = actor.getSnapshot();
     if (snap.value === 'onSlot') {
-      const c = snap.context as TrafficCardPositionContext;
+      const c = snap.context;
       if (c.period === period && c.slotIndex === slotIndex) {
         return { id, actor };
       }

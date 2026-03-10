@@ -1,5 +1,4 @@
-import { BANKRUPT_THRESHOLD, CardType, MAX_ROUNDS, MAX_SLA_FAILURES, SlotType, type EventCard, type GameContext, type RoundSummary } from './types.js';
-import type { TrafficCardPositionContext } from './cardPositionMachines.js';
+import { BANKRUPT_THRESHOLD, CardType, MAX_ROUNDS, MAX_SLA_FAILURES, SlotType, type GameContext, type RoundSummary } from './types.js';
 
 export interface ResolutionResult {
   context: GameContext;
@@ -24,7 +23,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     if (!actor) continue;
     const snap = actor.getSnapshot();
     if (snap.value !== 'onSlot') continue;
-    const c = snap.context as TrafficCardPositionContext;
+    const c = snap.context;
     if (c.slotType !== SlotType.Overloaded) continue;
     if (spawnedCardIds.has(id)) {
       spawnedOverloadSlotKeys.add(`${c.period}:${c.slotIndex}`);
@@ -42,7 +41,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
   for (const ticketId of allTicketIds) {
     const card = ctx.cardInstances[ticketId];
     if (!card || card.type !== CardType.Event) continue;
-    const eventCard = card as EventCard;
+    const eventCard = card;
     if (eventCard.revenueDecayPerRound <= 0) continue; // no decay mechanic
     const issuedRound = ctx.ticketIssuedRound[ticketId] ?? ctx.round;
     const age = ctx.round - issuedRound;
@@ -86,7 +85,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     if (!actor) continue;
     const snap = actor.getSnapshot();
     if (snap.value === 'onSlot') {
-      const c = snap.context as TrafficCardPositionContext;
+      const c = snap.context;
       if (c.slotType !== SlotType.Overloaded) resolvedCount++;
     }
   }

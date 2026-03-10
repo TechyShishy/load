@@ -5,7 +5,7 @@ import {
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
-  type ActionCard, type Card, type DrawLog, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
+  type ActionCard, type Card, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
   type TrafficCardActorRegistry, type ActionCardActorRegistry, type EventCardActorRegistry,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';

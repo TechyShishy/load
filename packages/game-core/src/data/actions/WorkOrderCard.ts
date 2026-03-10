@@ -1,4 +1,4 @@
-import { ActionCard, CardType, EventCard, Period, Track, type GameContext } from '../../types.js';
+import { ActionCard, CardType, Period, Track, type GameContext } from '../../types.js';
 
 export class WorkOrderCard extends ActionCard {
   readonly templateId = 'action-work-order';

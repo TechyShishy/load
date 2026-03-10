@@ -12,7 +12,7 @@ import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot } from './test
 function freshTrafficCard(templateId: string, instanceId: string): TrafficCard {
   const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId);
   if (!Ctor) throw new Error(`Unknown traffic templateId: ${templateId}`);
-  return new Ctor(instanceId) as TrafficCard;
+  return new Ctor(instanceId);
 }
 
 const bandwidthUpgrade = ACTION_CARDS.find((c) => c.templateId === 'action-bandwidth-upgrade')!;

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { playActionCard, processCrisis } from '../processCrisis.js';
-import { createVendorSlots } from '../boardState.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { EVENT_CARDS } from '../data/events/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';

@@ -2,7 +2,6 @@ import {
   PERIOD_SLOT_COUNTS,
   Period,
   SlotType,
-  Track,
   type TimeSlotLayout,
   type VendorSlot,
 } from './types.js';

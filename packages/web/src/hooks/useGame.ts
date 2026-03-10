@@ -6,12 +6,22 @@ import { clearSave, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
 
 export function useGame() {
+  // Allow E2E tests (and dev shortcuts) to inject a deterministic seed via ?seed=
+  // in the URL. When present the URL seed takes priority over any persisted save.
+  const urlSeed =
+    typeof window !== 'undefined'
+      ? (new URLSearchParams(window.location.search).get('seed') ?? undefined)
+      : undefined;
+
   // Lazy initializer: loadGame() runs once per hook mount, not at module import time.
   // This allows independent save-state control between test cases without module-cache tricks.
-  const [savedContext] = useState<ReturnType<typeof loadGame>>(() => loadGame());
+  // Skip loading from storage when a URL seed is provided — the seed is the source of truth.
+  const [savedContext] = useState<ReturnType<typeof loadGame>>(() =>
+    urlSeed ? null : loadGame(),
+  );
 
   const [snapshot, send] = useMachine(gameMachine, {
-    input: savedContext ?? undefined,
+    input: savedContext ?? (urlSeed ? { seed: urlSeed } : undefined),
   });
 
   const context = snapshot.context;

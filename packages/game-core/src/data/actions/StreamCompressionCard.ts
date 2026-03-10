@@ -1,6 +1,5 @@
 import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
 import { getFilledTimeSlots } from '../../cardPositionViews.js';
-import type { TrafficCardPositionContext } from '../../cardPositionMachines.js';
 
 export class StreamCompressionCard extends ActionCard {
   readonly templateId = 'action-stream-compression';
@@ -65,7 +64,7 @@ export class StreamCompressionCard extends ActionCard {
       if (removedCount >= removeCount) break;
       const snap = actor.getSnapshot();
       if (snap.value !== 'onSlot') continue;
-      const c = snap.context as TrafficCardPositionContext;
+      const c = snap.context;
       if (c.period !== targetPeriod) continue;
       const card = context.cardInstances[id];
       if (!card || (card as { templateId: string }).templateId !== typeToRemove) continue;

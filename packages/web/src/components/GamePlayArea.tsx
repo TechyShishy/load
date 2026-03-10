@@ -56,15 +56,23 @@ export function GamePlayArea() {
     onComplete: drawComplete,
   });
 
+  // When prefers-reduced-motion is active, animations are skipped and markArrived
+  // is never called, leaving arrivedCardIds empty. Treat all cards as arrived so
+  // they are not suppressed from the hand or board.
   const suppressedCardIds = useMemo(
-    () => new Set([
+    () => prefersReducedMotion ? new Set<string>() : new Set([
       ...allTrafficIds.filter((id) => !arrivedCardIds.has(id)),
       ...allActionIds.filter((id) => !arrivedCardIds.has(id)),
     ]),
-    [allTrafficIds, allActionIds, arrivedCardIds],
+    [prefersReducedMotion, allTrafficIds, allActionIds, arrivedCardIds],
   );
 
-  const crisisAnimsDone = allEventIds.length === 0 || allEventIds.every((id) => arrivedCardIds.has(id));
+  // When prefers-reduced-motion is set, card animations are skipped and
+  // markArrived is never called — treat crisis as done immediately in that case.
+  const crisisAnimsDone =
+    prefersReducedMotion ||
+    allEventIds.length === 0 ||
+    allEventIds.every((id) => arrivedCardIds.has(id));
 
   const handlePlayAgain = useCallback(() => {
     reset();

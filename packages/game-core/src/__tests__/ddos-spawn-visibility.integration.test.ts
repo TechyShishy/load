@@ -11,7 +11,7 @@ import { getFilledTimeSlots } from '../cardPositionViews.js';
 import { DDoSAttackCard } from '../data/events/DDoSAttackCard.js';
 import { DDoSTrafficCard } from '../data/traffic/DDoSTrafficCard.js';
 import { FourKStreamCard } from '../data/traffic/FourKStreamCard.js';
-import { Period, PhaseId, SlotType } from '../types.js';
+import { Period, PhaseId } from '../types.js';
 import { safeContext, ctxWithPendingEvents, ctxWithCardOnSlot } from './testHelpers.js';
 
 describe('integration: DDoS spawn visibility', () => {

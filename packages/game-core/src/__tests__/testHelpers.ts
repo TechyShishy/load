@@ -12,7 +12,6 @@ import {
   type EventCardActorRef,
 } from '../cardPositionMachines.js';
 import { ACTION_CARD_REGISTRY } from '../data/actions/index.js';
-import { EVENT_CARD_REGISTRY } from '../data/events/index.js';
 import {
   PhaseId,
   SlotType,
@@ -64,7 +63,7 @@ export function ctxWithHandCards(
     const id = `${templateId}-hand-test-${Math.random().toString(36).slice(2, 7)}`;
     const Ctor = ACTION_CARD_REGISTRY.get(templateId);
     if (!Ctor) throw new Error(`Unknown action templateId: ${templateId}`);
-    const card = new Ctor(id) as ActionCard;
+    const card = new Ctor(id);
     cards.push(card);
     extraInstances[id] = card;
 

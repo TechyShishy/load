@@ -1,28 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-async function clearSave(page: Page) {
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-}
-
-async function dismissContinueModal(page: Page) {
-  const screen = page.getByRole('dialog', { name: 'LOAD' });
-  if (await screen.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await page.getByRole('button', { name: 'NEW GAME' }).click();
-    await expect(screen).not.toBeVisible();
-  }
-}
+import { clearSave, dismissContinueModal } from './helpers.js';
 
 /**
- * Begin a drag on the element at the given coordinates by dispatching
- * native PointerEvents. Returns the pointerId used so the drag can be
- * continued or ended.
- *
- * dnd-kit's PointerSensor uses setPointerCapture, which doesn't work
- * correctly with Playwright's CDP-dispatched mouse events. Dispatching
- * PointerEvents via page.evaluate bypasses this issue.
+ * Begin a drag at the center of the given element bounding box.
+ * Uses Playwright's native mouse API (CDP) which activates dnd-kit correctly.
+ * Moves 10px horizontally to exceed dnd-kit's 5px activation distance constraint.
  */
 async function beginDrag(
   page: Page,
@@ -30,63 +12,23 @@ async function beginDrag(
 ) {
   const srcX = src.x + src.width / 2;
   const srcY = src.y + src.height / 2;
-
-  await page.evaluate(
-    ({ x, y }) => {
-      const el = document.elementFromPoint(x, y);
-      if (!el) throw new Error('no element at point for pointerdown');
-      // pointerdown on the element (React's synthetic handler catches this)
-      el.dispatchEvent(
-        new PointerEvent('pointerdown', {
-          clientX: x, clientY: y,
-          bubbles: true, cancelable: true,
-          pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1,
-        }),
-      );
-    },
-    { x: srcX, y: srcY },
-  );
-
-  // Small delay for React to process the event
+  await page.mouse.move(srcX, srcY);
+  await page.mouse.down();
   await page.waitForTimeout(50);
-
-  // Move 10px to activate dnd-kit's distance constraint (5px)
-  await page.evaluate(
-    ({ x, y }) => {
-      document.dispatchEvent(
-        new PointerEvent('pointermove', {
-          clientX: x + 10, clientY: y,
-          bubbles: true, cancelable: true,
-          pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1,
-        }),
-      );
-    },
-    { x: srcX, y: srcY },
-  );
-
+  await page.mouse.move(srcX + 10, srcY);
   await page.waitForTimeout(150);
 }
 
-/** End the current pointer drag at the given coordinates. */
+/** End the current mouse drag at the given coordinates. */
 async function endDrag(page: Page, x: number, y: number) {
-  await page.evaluate(
-    ({ x, y }) => {
-      document.dispatchEvent(
-        new PointerEvent('pointerup', {
-          clientX: x, clientY: y,
-          bubbles: true, cancelable: true,
-          pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0,
-        }),
-      );
-    },
-    { x, y },
-  );
+  await page.mouse.move(x, y);
+  await page.mouse.up();
 }
 
 /**
- * Simulate a drag-and-drop via synthetic PointerEvents.
- * DnD Kit's PointerSensor activates after the pointer moves at least 5px,
- * so we move 10px first to guarantee activation before sliding to the target.
+ * Simulate a drag-and-drop via Playwright's native mouse API.
+ * dnd-kit PointerSensor activates after the pointer moves >= 5px from the start,
+ * so we move 10px first then slide to the target.
  */
 async function dragFromTo(
   page: Page,
@@ -94,24 +36,9 @@ async function dragFromTo(
   tgt: { x: number; y: number; width: number; height: number },
 ) {
   await beginDrag(page, src);
-
   const tgtX = tgt.x + tgt.width / 2;
   const tgtY = tgt.y + tgt.height / 2;
-
-  // Move to target
-  await page.evaluate(
-    ({ x, y }) => {
-      document.dispatchEvent(
-        new PointerEvent('pointermove', {
-          clientX: x, clientY: y,
-          bubbles: true, cancelable: true,
-          pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1,
-        }),
-      );
-    },
-    { x: tgtX, y: tgtY },
-  );
-
+  await page.mouse.move(tgtX, tgtY);
   await page.waitForTimeout(50);
   await endDrag(page, tgtX, tgtY);
 }
@@ -120,10 +47,15 @@ async function dragFromTo(
 
 test.describe('Traffic Prioritization – slot-only targeting', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    // Use a deterministic seed so Traffic Prioritization cards are always in the
+    // starting hand. The seed overrides any saved game state (see useGame.ts).
+    await page.goto('/?seed=e2e-traffic-prio');
     await clearSave(page);
     await dismissContinueModal(page);
-    await expect(page.getByText('Schedule', { exact: true })).toBeVisible({ timeout: 8_000 });
+    // Wait for the game to finish its draw phase and enter scheduling.
+    // getByText('Schedule') resolves too early because the phase bar always
+    // renders all phase labels — data-phase is the authoritative gating signal.
+    await page.locator('[role="main"][data-phase="scheduling"]').waitFor({ timeout: 12_000 });
   });
 
   // ── Period zones absent during drag ───────────────────────────────────────
@@ -131,16 +63,11 @@ test.describe('Traffic Prioritization – slot-only targeting', () => {
     page,
   }) => {
     const card = page.locator('[aria-label*="Traffic Prioritization"]').first();
-    if ((await card.count()) === 0) {
-      test.skip();
-      return;
-    }
+    // Deterministic seed guarantees the TP card is in the starting hand.
+    await expect(card).toBeAttached({ timeout: 5_000 });
 
     const cardBox = await card.boundingBox();
-    if (!cardBox) {
-      test.skip();
-      return;
-    }
+    if (!cardBox) throw new Error('TP card has no bounding box');
 
     // Period zones must be absent before the drag starts (sanity)
     await expect(page.locator('[id^="period-"]')).toHaveCount(0);
@@ -163,16 +90,11 @@ test.describe('Traffic Prioritization – slot-only targeting', () => {
   // ── Slot drop plays the action ─────────────────────────────────────────────
   test('dropping Traffic Prioritization on a slot plays the action', async ({ page }) => {
     const card = page.locator('[aria-label*="Traffic Prioritization"]').first();
-    if ((await card.count()) === 0) {
-      test.skip();
-      return;
-    }
+    // Deterministic seed guarantees the TP card is in the starting hand.
+    await expect(card).toBeAttached({ timeout: 5_000 });
 
     const cardBox = await card.boundingBox();
-    if (!cardBox) {
-      test.skip();
-      return;
-    }
+    if (!cardBox) throw new Error('TP card has no bounding box');
 
     // Slot zones only appear during drag (conditional rendering), so start the
     // drag first, then locate the slot zone once it's in the DOM.
@@ -183,23 +105,11 @@ test.describe('Traffic Prioritization – slot-only targeting', () => {
     const slotBox = await firstSlot.boundingBox();
     if (!slotBox) {
       await endDrag(page, cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
-      test.skip();
-      return;
+      throw new Error('slot drop zone has no bounding box');
     }
 
     // Complete the drag to the slot
-    await page.evaluate(
-      ({ x, y }) => {
-        document.dispatchEvent(
-          new PointerEvent('pointermove', {
-            clientX: x, clientY: y,
-            bubbles: true, cancelable: true,
-            pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1,
-          }),
-        );
-      },
-      { x: slotBox.x + slotBox.width / 2, y: slotBox.y + slotBox.height / 2 },
-    );
+    await page.mouse.move(slotBox.x + slotBox.width / 2, slotBox.y + slotBox.height / 2);
     await page.waitForTimeout(50);
     await endDrag(page, slotBox.x + slotBox.width / 2, slotBox.y + slotBox.height / 2);
 
@@ -213,16 +123,11 @@ test.describe('Traffic Prioritization – slot-only targeting', () => {
   // ── Only occupied slots get drop zones ────────────────────────────────────
   test('only slots containing traffic cards get drop zones during drag', async ({ page }) => {
     const card = page.locator('[aria-label*="Traffic Prioritization"]').first();
-    if ((await card.count()) === 0) {
-      test.skip();
-      return;
-    }
+    // Deterministic seed guarantees the TP card is in the starting hand.
+    await expect(card).toBeAttached({ timeout: 5_000 });
 
     const cardBox = await card.boundingBox();
-    if (!cardBox) {
-      test.skip();
-      return;
-    }
+    if (!cardBox) throw new Error('TP card has no bounding box');
 
     // Before the drag there must be no slot zones rendered at all
     await expect(page.locator('[id^="slot-"]')).toHaveCount(0);
@@ -245,30 +150,19 @@ test.describe('Traffic Prioritization – slot-only targeting', () => {
     page,
   }) => {
     const card = page.locator('[aria-label*="Traffic Prioritization"]').first();
-    if ((await card.count()) === 0) {
-      test.skip();
-      return;
-    }
+    // Deterministic seed guarantees the TP card is in the starting hand.
+    await expect(card).toBeAttached({ timeout: 5_000 });
 
     const cardBox = await card.boundingBox();
-    if (!cardBox) {
-      test.skip();
-      return;
-    }
+    if (!cardBox) throw new Error('TP card has no bounding box');
 
     // Track zones are no longer rendered for Traffic Prioritization (its
     // validDropZones does not include 'track'), so we compute the track row
     // position from canvas layout constants and the container width.
     const canvasContainer = page.getByRole('img', { name: 'Game board' });
-    if ((await canvasContainer.count()) === 0) {
-      test.skip();
-      return;
-    }
+    await expect(canvasContainer).toBeAttached({ timeout: 3_000 });
     const containerBox = await canvasContainer.boundingBox();
-    if (!containerBox) {
-      test.skip();
-      return;
-    }
+    if (!containerBox) throw new Error('canvas container has no bounding box');
 
     // Mirror computeTrackRect(0, containerWidth, 4) from canvasLayout.ts:
     // y = BOARD_START_Y(40) + 24 + 4*(SLOT_H(60)+SLOT_GAP(8)) + 20 + 0*TRACK_ROW_GAP(36) = 356

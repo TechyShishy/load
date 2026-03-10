@@ -6,7 +6,6 @@ import {
   computeDeckPileRect,
   computeSlotRect,
   computeTicketRect,
-  computeTrackRect,
 } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];

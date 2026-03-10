@@ -1,41 +1,56 @@
 import { test, expect, type Page } from '@playwright/test';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Clear any persisted save so we always start from a fresh game.
- * Must be called after page.goto() so the page's localStorage is accessible.
- */
-async function clearSave(page: Page) {
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-}
-
-/**
- * If the Start Screen is showing, dismiss it by clicking NEW GAME.
- */
-async function dismissContinueModal(page: Page) {
-  const screen = page.getByRole('dialog', { name: 'LOAD' });
-  if (await screen.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await page.getByRole('button', { name: 'NEW GAME' }).click();
-    await expect(screen).not.toBeVisible();
-  }
-}
+import { clearSave, dismissContinueModal } from './helpers.js';
 
 const ADVANCE = (page: Page) => page.locator('button:not(#event-modal-advance-btn)', { hasText: 'ADVANCE' });
 
 /**
  * Wait for the ADVANCE button to become enabled and click it.
- * If the EventModal is covering the screen, click its own ADVANCE button instead.
+ * If the EventModal is covering the screen, dismiss it first via its own
+ * ADVANCE button, then click the main button.
+ *
+ * The event modal is shown during crisis phase for events that require
+ * acknowledgement. It overlays the page and intercepts pointer events, so
+ * attempting to click the main ADVANCE button while it is open fails. We
+ * dismiss any open event modals in a loop because a single crisis phase may
+ * spawn multiple sequential event modals.
  */
-async function clickAdvance(page: Page) {
+/**
+ * Wait for the ADVANCE button to become enabled and click it.
+ * Pass `{ expectEventModal: true }` when advancing from crisis phase, where an
+ * EventModal may appear after crisis animations complete and intercept the click.
+ *
+ * The event modal's ADVANCE button is wired to the same advance() handler as the
+ * main button — so we must click exactly ONE of them, not both.
+ *
+ * Strategy for crisis phase: the modal only appears after crisis animations
+ * complete (`crisisAnimsDone`), which can take 0-5s. We poll with a 1s window
+ * per iteration for up to 6s total. If the modal appears, we click its ADVANCE
+ * button and return. If after 6s no modal appears, we fall through to the main
+ * button (this crisis had no event cards).
+ *
+ * We do NOT break early based on button state — if we're in crisis and an
+ * event card is pending, the modal will appear even if the main button is
+ * momentarily enabled (before focus is trapped). Waiting the full window
+ * prevents the main button click racing against the modal appearance.
+ */
+async function clickAdvance(page: Page, opts: { expectEventModal?: boolean } = {}) {
   const eventModalBtn = page.locator('#event-modal-advance-btn');
   const mainBtn = ADVANCE(page);
 
-  // If the event modal is visible, its ADVANCE button is the one we need to click
-  if (await eventModalBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await eventModalBtn.click();
-    return;
+  if (opts.expectEventModal) {
+    // Single waitFor with a generous window: with reducedMotion the modal
+    // renders within one React cycle (~16ms). The 5s window covers any
+    // rendering delays or slow CI environments. If no modal after 5s the
+    // crisis had no pending events and we fall through to the main button.
+    const modalVisible = await eventModalBtn
+      .waitFor({ state: 'visible', timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (modalVisible) {
+      await eventModalBtn.click();
+      return;
+    }
+    // No modal within 5s → this crisis has no pending event cards.
   }
 
   await expect(mainBtn).toBeEnabled({ timeout: 8_000 });
@@ -47,36 +62,49 @@ async function clickAdvance(page: Page) {
  * Returns true when a win/lose end-screen is detected instead of the next round.
  */
 async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise<boolean> {
-  // ── Scheduling phase ──────────────────────────────────────────────────────
-  await expect(ADVANCE(page)).toBeEnabled({ timeout: 8_000 });
+  // ── Wait for a stable, actionable phase ───────────────────────────────────
+  // Wait until we are in either scheduling or crisis with the ADVANCE button
+  // present. The machine also passes through transient draw/resolution/end
+  // states that do not directly expose ADVANCE -- we skip past them here.
+  await page
+    .locator('[role="main"][data-phase="scheduling"],[role="main"][data-phase="crisis"]')
+    .waitFor({ timeout: 8_000 });
 
-  if (opts.playCard) {
-    // Action cards are <button> elements inside the Hand group.
-    const handGroup = page.getByRole('group', { name: 'Hand' });
-    const cards = handGroup.locator('button:not([aria-disabled="true"])');
-    const count = await cards.count();
-    if (count > 0) {
-      await cards.first().click();
-      // Wait a tick for state to update before continuing
-      await page.waitForTimeout(100);
+  // Determine the active phase using the authoritative data-phase attribute.
+  const currentPhase = await page.locator('[role="main"]').getAttribute('data-phase', { timeout: 2_000 });
+  const alreadyInCrisis = currentPhase === 'crisis';
+
+  if (!alreadyInCrisis) {
+    // We are in scheduling — optionally play a card, then advance to crisis.
+    if (opts.playCard) {
+      const handGroup = page.getByRole('group', { name: 'Hand' });
+      const cards = handGroup.locator('[role="button"]:not([aria-disabled="true"])');
+      const count = await cards.count();
+      if (count > 0) {
+        await cards.first().click();
+        // Clicking opens the card details flyout (cards are DnD, not click-to-play).
+        // Dismiss the flyout immediately so its backdrop doesn't block ADVANCE.
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(50);
+      }
     }
+    await clickAdvance(page); // scheduling → crisis
+    // Wait for crisis phase before checking end-screen or handling the modal.
+    await page.locator('[role="main"][data-phase="crisis"]').waitFor({ timeout: 5_000 });
+
+    if (await isEndScreen(page)) return true;
   }
 
-  await clickAdvance(page); // scheduling → crisis
+  // ── Crisis phase ───────────────────────────────────────────────────────────
+  await clickAdvance(page, { expectEventModal: true }); // crisis → resolution → end → draw
 
-  // ── Check for end screen after crisis entry ──────────────────────────────
   if (await isEndScreen(page)) return true;
 
-  // ── Crisis phase ──────────────────────────────────────────────────────────
-  await clickAdvance(page); // crisis → resolution (auto) → end → draw
-
-  // ── Check for end screen after resolution ────────────────────────────────
-  if (await isEndScreen(page)) return true;
-
-  // Wait for the draw phase to complete — DRAW_COMPLETE is sent automatically
-  // by useDrawAnimationState once all card animations finish (or instantly when
-  // prefers-reduced-motion is set / no traffic cards were drawn).
-  await page.locator('[role="main"][data-phase="scheduling"]').waitFor({ timeout: 15_000 });
+  // Wait for the machine to leave the draw phase. On weekdays it goes to
+  // scheduling; on weekends (next day also weekend) it goes directly to crisis.
+  await page
+    .locator('[role="main"][data-phase="scheduling"],[role="main"][data-phase="crisis"]')
+    .waitFor({ timeout: 8_000 });
   return false;
 }
 
@@ -84,8 +112,11 @@ async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise
 async function isEndScreen(page: Page): Promise<boolean> {
   const win = page.getByText('NETWORK STABLE');
   const lose = page.getByText('SYSTEM DOWN');
-  const winVis = await win.isVisible({ timeout: 1_000 }).catch(() => false);
-  const loseVis = await lose.isVisible({ timeout: 1_000 }).catch(() => false);
+  // Use a very short timeout — end screens appear synchronously when the machine
+  // transitions to gameWon/gameLost. We don't need to wait long; this is just a
+  // quick DOM check after each advance to detect game-over before polling more.
+  const winVis = await win.isVisible({ timeout: 200 }).catch(() => false);
+  const loseVis = await lose.isVisible({ timeout: 200 }).catch(() => false);
   return winVis || loseVis;
 }
 
@@ -141,12 +172,13 @@ test.describe('LOAD – Network Traffic Balancer', () => {
     await expect(page.getByText('Schedule', { exact: true })).toBeVisible();
     await expect(ADVANCE(page)).toBeEnabled();
 
-    // Advance → crisis
+    // Advance → crisis. Wait for the phase to actually change — the 'Crisis'
+    // label in the progress bar is always in the DOM so we check data-phase.
     await clickAdvance(page);
-    await expect(page.getByText('Crisis', { exact: true })).toBeVisible({ timeout: 5_000 });
+    await page.locator('[role="main"][data-phase="crisis"]').waitFor({ timeout: 5_000 });
 
     // Advance → resolution (handles EventModal if present)
-    await clickAdvance(page);
+    await clickAdvance(page, { expectEventModal: true });
 
     // The game may have ended after crisis resolution or during resolution (e.g. bankrupt)
     const endedAfterCrisis = await isEndScreen(page);
@@ -162,11 +194,13 @@ test.describe('LOAD – Network Traffic Balancer', () => {
 
   // ── Card interaction ───────────────────────────────────────────────────────
   test('can play an action card from hand during scheduling', async ({ page }) => {
-    await expect(ADVANCE(page)).toBeEnabled({ timeout: 5_000 });
+    // Wait for scheduling phase using the authoritative data-phase attribute.
+    await page.locator('[role="main"][data-phase="scheduling"]').waitFor({ timeout: 8_000 });
+    await expect(ADVANCE(page)).toBeEnabled();
 
-    // Action cards are <button> elements inside the Hand group.
+    // Action cards are <div role="button"> elements (dnd-kit) inside the Hand group.
     const handGroup = page.getByRole('group', { name: 'Hand' });
-    const cards = handGroup.locator('button:not([aria-disabled="true"])');
+    const cards = handGroup.locator('[role="button"]:not([aria-disabled="true"])');
     const count = await cards.count();
 
     if (count === 0) {

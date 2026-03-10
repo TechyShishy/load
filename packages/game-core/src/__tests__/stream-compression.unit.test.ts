@@ -5,7 +5,7 @@ import { FourKStreamCard } from '../data/traffic/FourKStreamCard.js';
 import { IoTBurstCard } from '../data/traffic/IoTBurstCard.js';
 import { CloudBackupCard } from '../data/traffic/CloudBackupCard.js';
 import { getFilledTimeSlots } from '../cardPositionViews.js';
-import { Period, PhaseId, SlotType } from '../types.js';
+import { Period, PhaseId } from '../types.js';
 import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot } from './testHelpers.js';
 
 const streamComp = ACTION_CARDS.find((c) => c.id === 'action-stream-compression')!;
