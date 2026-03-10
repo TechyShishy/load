@@ -42,7 +42,9 @@ export class ViralTrafficSpikeCard extends TrafficCard {
     // If a free slot exists the copy lands normally. If the next period is full,
     // an overload slot is created. The copy is NOT registered in spawnedQueueOrder
     // (unlike DDoS), so an overloaded copy will be swept in the same resolution
-    // as an SLA failure unless the player clears it first.
+    // as an SLA failure unless the player clears it first. However, it IS
+    // registered in spawnedTrafficIds, so when swept it does NOT recycle into
+    // trafficDiscardOrder — it simply disappears from the game.
     const freeSlot = ctx.slotLayout.find((s) => {
       if (s.period !== nextPeriod || s.slotType === SlotType.Overloaded) return false;
       return getActorAtSlot(ctx, s.period, s.index) === undefined;
@@ -50,6 +52,8 @@ export class ViralTrafficSpikeCard extends TrafficCard {
 
     const newCardInstances = { ...ctx.cardInstances, [copy.id]: copy };
     const newTrafficCardActors = { ...ctx.trafficCardActors, [copy.id]: copyActor };
+    // Track the copy permanently so it is never recycled into the discard pile.
+    const newSpawnedTrafficIds = [...ctx.spawnedTrafficIds, copy.id];
 
     if (freeSlot) {
       copyActor.send({
@@ -62,6 +66,7 @@ export class ViralTrafficSpikeCard extends TrafficCard {
         ...ctx,
         cardInstances: newCardInstances,
         trafficCardActors: newTrafficCardActors,
+        spawnedTrafficIds: newSpawnedTrafficIds,
       };
     }
 
@@ -78,6 +83,7 @@ export class ViralTrafficSpikeCard extends TrafficCard {
       ...ctx,
       cardInstances: newCardInstances,
       trafficCardActors: newTrafficCardActors,
+      spawnedTrafficIds: newSpawnedTrafficIds,
       slotLayout: [
         ...ctx.slotLayout,
         { period: nextPeriod, index: overloadIndex, slotType: SlotType.Overloaded },

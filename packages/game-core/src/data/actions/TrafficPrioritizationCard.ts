@@ -44,10 +44,14 @@ export class TrafficPrioritizationCard extends ActionCard {
       );
     }
 
+    // Spawned cards disappear on discard rather than cycling back through the deck.
+    const isSpawned = context.spawnedTrafficIds.includes(targetTrafficCardId);
     context = {
       ...context,
       slotLayout,
-      trafficDiscardOrder: [...context.trafficDiscardOrder, targetTrafficCardId],
+      trafficDiscardOrder: isSpawned
+        ? context.trafficDiscardOrder
+        : [...context.trafficDiscardOrder, targetTrafficCardId],
     };
 
     // Call onPickUp hook (e.g. ViralTrafficSpike spawns a copy).

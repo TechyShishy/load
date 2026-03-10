@@ -227,3 +227,50 @@ describe('revenueBoostMultiplier applied by TrafficPrioritizationCard', () => {
     expect(updated.pendingRevenue).toBe(expectedRevenue);
   });
 });
+
+// ─── Spawned card discard-pile exclusion ──────────────────────────────────────
+
+describe('spawned cards do not enter trafficDiscardOrder', () => {
+  const trafficPrio = ACTION_CARDS.find((c) => c.templateId === 'action-traffic-prioritization')!;
+
+  it('TrafficPrioritizationCard: spawned card cleared by player disappears, not recycled', () => {
+    const iot = new IoTBurstCard('iot-spawned');
+    let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(iot, Period.Morning, 0, ctx);
+    ctx = { ...ctx, spawnedTrafficIds: [iot.id] };
+
+    const updated = playActionCard(ctx, trafficPrio, undefined, iot.id);
+
+    expect(updated.trafficDiscardOrder).not.toContain(iot.id);
+    // Revenue still collected.
+    expect(updated.budget).toBe(500_000 + iot.revenue);
+  });
+
+  it('StreamCompressionCard: spawned card cleared by player disappears, not recycled', () => {
+    const a = new FourKStreamCard('4k-spawned-a');
+    const b = new FourKStreamCard('4k-spawned-b');
+    let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(a, Period.Morning, 0, ctx);
+    ctx = ctxWithCardOnSlot(b, Period.Morning, 1, ctx);
+    ctx = { ...ctx, spawnedTrafficIds: [a.id, b.id] };
+
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+
+    expect(updated.trafficDiscardOrder).not.toContain(a.id);
+    expect(updated.trafficDiscardOrder).not.toContain(b.id);
+    // Revenue still collected.
+    const expectedRevenue = a.revenue + b.revenue;
+    expect(updated.budget).toBe(500_000 - streamComp.cost + expectedRevenue);
+  });
+
+  it('TrafficPrioritizationCard: deck-origin card still goes to trafficDiscardOrder', () => {
+    const iot = new IoTBurstCard('iot-deck');
+    let ctx = ctxWithHandCardsFixedIds([trafficPrio], safeContext('test-seed', { activePhase: PhaseId.Scheduling }));
+    ctx = ctxWithCardOnSlot(iot, Period.Morning, 0, ctx);
+    // spawnedTrafficIds is empty — iot is a deck-origin card.
+
+    const updated = playActionCard(ctx, trafficPrio, undefined, iot.id);
+
+    expect(updated.trafficDiscardOrder).toContain(iot.id);
+  });
+});

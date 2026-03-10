@@ -93,6 +93,7 @@ export const GameContextSchema = z.object({
   playedThisRoundOrder: z.array(z.string()),
   pendingEventsOrder: z.array(z.string()),
   spawnedQueueOrder: z.array(z.string()),
+  spawnedTrafficIds: z.array(z.string()).default([]),
   vendorSlots: z.array(VendorSlotSchema),
   mitigatedEventIds: z.array(z.string()),
   activePhase: PhaseIdSchema,

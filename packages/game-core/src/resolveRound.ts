@@ -8,9 +8,12 @@ export interface ResolutionResult {
 
 /**
  * Resolve the Resolution phase:
- * 1. Sweep overload slots: each costs 1 SLA failure; cards moved to trafficDiscard.
+ * 1. Sweep overload slots: each costs 1 SLA failure; cards moved to trafficDiscardOrder
+ *    (spawned cards are swept as SLA failures but excluded from trafficDiscardOrder so they
+ *    never re-enter the shuffle pool).
  * 2. Count remaining resolved Traffic cards across all normal time slots.
- * 3. Return a RoundSummary.
+ * 3. Prune spawnedTrafficIds to only IDs that are still on the board.
+ * 4. Return a RoundSummary.
  */
 export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedCardIds: ReadonlySet<string> = new Set()): ResolutionResult {
   // Find all traffic card actors currently in an overloaded slot.
@@ -69,7 +72,13 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
   const slotLayout = ctx.slotLayout.filter(
     (s) => s.slotType !== SlotType.Overloaded || spawnedOverloadSlotKeys.has(`${s.period}:${s.index}`),
   );
-  const trafficDiscardOrder = [...ctx.trafficDiscardOrder, ...overloadedCardIds];
+  // Spawned cards are removed from the board but must NOT enter the shuffle
+  // pool — only deck-origin cards go to trafficDiscardOrder.
+  const spawnedTrafficIdSet = new Set(ctx.spawnedTrafficIds);
+  const trafficDiscardOrder = [
+    ...ctx.trafficDiscardOrder,
+    ...overloadedCardIds.filter((id) => !spawnedTrafficIdSet.has(id)),
+  ];
 
   // Count cards remaining on board (non-overloaded slots with a card).
   let resolvedCount = 0;
@@ -114,6 +123,12 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     ...ctx,
     slotLayout,
     trafficDiscardOrder,
+    // Prune stale IDs (cards that left the board this round or earlier); only keep
+    // spawned cards that are still on a slot so the set stays tightly bounded.
+    spawnedTrafficIds: ctx.spawnedTrafficIds.filter((id) => {
+      const actor = ctx.trafficCardActors[id];
+      return actor?.getSnapshot().value === 'onSlot';
+    }),
     ticketOrders: newTicketOrders,
     ticketProgress: newTicketProgress,
     ticketIssuedRound: newTicketIssuedRound,

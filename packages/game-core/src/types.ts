@@ -216,6 +216,8 @@ export interface SerializedGameContext {
   playedThisRoundOrder: string[];
   pendingEventsOrder: string[];
   spawnedQueueOrder: string[];
+  /** Permanent registry of all ever-spawned traffic card IDs (not drawn from the deck). */
+  spawnedTrafficIds: string[];
   vendorSlots: VendorSlot[];
   mitigatedEventIds: string[];
   activePhase: PhaseId;
@@ -337,6 +339,12 @@ export interface GameContext {
   pendingEventsOrder: string[];
   /** IDs of traffic cards spawned by events, queued for board placement. */
   spawnedQueueOrder: string[];
+  /**
+   * Permanent registry of all traffic card IDs that were spawned (not drawn from the deck).
+   * Spawned cards are removed from the board like normal cards but are NOT added to the
+   * discard pile — they disappear entirely rather than cycling back through the deck.
+   */
+  spawnedTrafficIds: string[];
 
   // ── Vendor placeholder slots ─────────────────────────────────────────────────
   /** TODO-0004: populate with vendor-mechanics effects once Vendor cards are implemented */

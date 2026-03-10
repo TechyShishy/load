@@ -106,6 +106,7 @@ export function createInitialContext(seed?: string): GameContext {
     playedThisRoundOrder: [],
     pendingEventsOrder: [],
     spawnedQueueOrder: [],
+    spawnedTrafficIds: [],
     vendorSlots: createVendorSlots(),
     mitigatedEventIds: [],
     activePhase: PhaseId.Draw,

@@ -76,7 +76,10 @@ export class StreamCompressionCard extends ActionCard {
           (s) => !(s.period === c.period && s.index === c.slotIndex),
         );
       }
-      trafficDiscardOrder = [...trafficDiscardOrder, id];
+      // Spawned cards disappear on discard rather than cycling back through the deck.
+      if (!context.spawnedTrafficIds.includes(id)) {
+        trafficDiscardOrder = [...trafficDiscardOrder, id];
+      }
       collectedRevenue += (card as { revenue?: number }).revenue ?? 0;
 
       // onPickUp hook.

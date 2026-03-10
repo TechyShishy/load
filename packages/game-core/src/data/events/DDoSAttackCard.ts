@@ -60,6 +60,8 @@ export class DDoSAttackCard extends EventCard {
     // Contrast with ViralTrafficSpikeCard overflows, which are NOT registered and
     // therefore swept in the same resolution as an SLA failure.
     const newSpawnedQueueOrder = [...ctx.spawnedQueueOrder, ...newIds];
+    // Track all spawned IDs permanently so they are never recycled into the discard pile.
+    const newSpawnedTrafficIds = [...ctx.spawnedTrafficIds, ...newIds];
 
     return {
       ...ctx,
@@ -67,6 +69,7 @@ export class DDoSAttackCard extends EventCard {
       trafficCardActors: newTrafficCardActors,
       slotLayout: newSlotLayout,
       spawnedQueueOrder: newSpawnedQueueOrder,
+      spawnedTrafficIds: newSpawnedTrafficIds,
     };
   }
 }

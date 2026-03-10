@@ -57,6 +57,24 @@ describe('resolveRound', () => {
     expect(resolved.slotLayout.filter((s) => s.slotType === SlotType.Overloaded)).toHaveLength(0);
   });
 
+  it('spawned cards swept from overload slots incur SLA failure but do NOT enter trafficDiscardOrder', () => {
+    // iotCard is registered as spawned (e.g. a DDoS card whose one-turn protection expired).
+    // cloudCard is a normal deck card in an overload slot.
+    const base = safeContext('test-seed', { activePhase: PhaseId.Resolution });
+    let ctx = ctxWithCardOnSlot(iotCard, Period.Morning, 4, base, SlotType.Overloaded);
+    ctx = ctxWithCardOnSlot(cloudCard, Period.Morning, 5, ctx, SlotType.Overloaded);
+    ctx = { ...ctx, spawnedTrafficIds: [iotCard.id] };
+
+    const { summary, context: resolved } = resolveRound(ctx);
+
+    // Both cards count as SLA failures.
+    expect(summary.failedCount).toBe(2);
+    expect(resolved.slaCount).toBe(2);
+    // Deck-origin card goes to the discard pile; spawned card does not.
+    expect(resolved.trafficDiscardOrder).toContain(cloudCard.id);
+    expect(resolved.trafficDiscardOrder).not.toContain(iotCard.id);
+  });
+
   it('spawned cards in overload slots are preserved and not counted as SLA failures', () => {
     const base = safeContext('test-seed', { activePhase: PhaseId.Resolution });
     // Two overload cards: one spawned (exempt), one pre-existing (swept).
