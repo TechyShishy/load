@@ -5,9 +5,9 @@ import type { TrafficCardPositionContext } from '../../cardPositionMachines.js';
 export class StreamCompressionCard extends ActionCard {
   readonly templateId = 'action-stream-compression';
   readonly name = 'Stream Compression';
-  readonly cost = 15_000;
+  readonly cost = 5_000;
   readonly description =
-    'Remove up to 2 instances of the first duplicated Traffic type in a period, collecting their revenue. If no duplicates exist, removes 1 Traffic card instead.';
+    'Remove up to 3 instances of the most-duplicated Traffic type in a period, collecting their revenue. If no duplicates exist, removes 1 Traffic card instead.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['period'] as const;
   override readonly invalidZoneFeedback = 'Drop on a period column to compress traffic.';
@@ -41,12 +41,12 @@ export class StreamCompressionCard extends ActionCard {
 
     let typeToRemove: string | undefined;
     let removeCount = 1;
-    for (const card of allCardsInPeriod) {
-      const count = counts.get(card.templateId) ?? 0;
-      if (count >= 2) {
-        typeToRemove = card.templateId;
-        removeCount = Math.min(count, 2);
-        break;
+    let maxCount = 0;
+    for (const [templateId, count] of counts) {
+      if (count >= 2 && count > maxCount) {
+        maxCount = count;
+        typeToRemove = templateId;
+        removeCount = Math.min(count, 3);
       }
     }
     if (typeToRemove === undefined) {

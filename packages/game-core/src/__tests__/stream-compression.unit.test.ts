@@ -79,14 +79,16 @@ describe('StreamCompressionCard', () => {
     expect(morningCards[0]!.id).toBe(iot.id);
   });
 
-  it('removes exactly 2 when 3 of the same type exist', () => {
+  it('removes 3 when 4 of the same type exist', () => {
     const a = new FourKStreamCard('4k-a');
     const b = new FourKStreamCard('4k-b');
     const c = new FourKStreamCard('4k-c');
+    const d = new FourKStreamCard('4k-d');
     let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     ctx = ctxWithCardOnSlot(a, Period.Morning, 0, ctx);
     ctx = ctxWithCardOnSlot(b, Period.Morning, 1, ctx);
     ctx = ctxWithCardOnSlot(c, Period.Morning, 2, ctx);
+    ctx = ctxWithCardOnSlot(d, Period.Morning, 3, ctx);
     const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
 
     const morningCards = getFilledTimeSlots(updated)
@@ -94,6 +96,28 @@ describe('StreamCompressionCard', () => {
       .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(1);
     expect(morningCards[0]!.templateId).toBe('traffic-4k-stream');
+  });
+
+  it('targets the most-duplicated type, not the first encountered', () => {
+    // IoT×2 appears before 4K×3 in slot order; card should target 4K (max count = 3)
+    const a = new IoTBurstCard('iot-a');
+    const b = new IoTBurstCard('iot-b');
+    const c = new FourKStreamCard('4k-a');
+    const d = new FourKStreamCard('4k-b');
+    const e = new FourKStreamCard('4k-c');
+    let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    ctx = ctxWithCardOnSlot(a, Period.Morning, 0, ctx);
+    ctx = ctxWithCardOnSlot(b, Period.Morning, 1, ctx);
+    ctx = ctxWithCardOnSlot(c, Period.Morning, 2, ctx);
+    ctx = ctxWithCardOnSlot(d, Period.Morning, 3, ctx);
+    ctx = ctxWithCardOnSlot(e, Period.Morning, 4, ctx);
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+
+    const morningCards = getFilledTimeSlots(updated)
+      .filter((s) => s.period === Period.Morning)
+      .flatMap((s) => (s.card ? [s.card] : []));
+    expect(morningCards).toHaveLength(2);
+    expect(morningCards.every((card) => card.templateId === 'traffic-iot-burst')).toBe(true);
   });
 
   it('skips first unique type and removes 2 of the second type when it has a duplicate', () => {
