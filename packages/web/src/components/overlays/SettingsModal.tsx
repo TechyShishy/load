@@ -79,9 +79,14 @@ export function SettingsModal({ onClose, midGame, hasSave, onClearSave }: Settin
   return (
     <FocusTrap
       focusTrapOptions={{
-        onDeactivate: onClose,
         initialFocus: '#settings-close-btn',
-        escapeDeactivates: true,
+        // escapeDeactivates and onDeactivate are intentionally omitted.
+        // Escape is handled centrally in App.tsx so it works whether or not
+        // the modal is mounted. Using onDeactivate here would let
+        // React StrictMode's cleanup-cycle deactivation call onClose and
+        // immediately unmount the modal on every open.
+        escapeDeactivates: false,
+        clickOutsideDeactivates: false,
       }}
     >
       <div

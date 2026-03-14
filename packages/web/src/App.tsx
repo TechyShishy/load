@@ -52,19 +52,20 @@ export function App() {
     setHasSave(false);
   }, []);
 
-  // Escape key opens the settings modal from anywhere (start screen or mid-game).
-  // When the modal is already open, FocusTrap handles Escape internally via
-  // its onDeactivate callback — we only need to handle the "open" direction here.
+  // Escape toggles the settings modal from anywhere (start screen or mid-game).
+  // Registered once with [] — functional updater avoids stale closure.
+  // SettingsModal's FocusTrap has escapeDeactivates: false so this is the
+  // sole Escape handler; no risk of double-firing.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !settingsOpen) {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        setSettingsOpen(true);
+        setSettingsOpen((prev) => !prev);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [settingsOpen]);
+  }, []);
 
   return (
     <div className="relative w-full h-full">
