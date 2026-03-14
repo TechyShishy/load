@@ -12,6 +12,15 @@ export function App() {
   const [selectedContract, setSelectedContract] = useState<ContractDef | null>(null);
   const audio = useAudio();
 
+  // Unlock the AudioContext on the first pointer event anywhere in the document.
+  // Browsers suspend AudioContext until a user gesture; this fires once on the
+  // first click/tap anywhere in the window rather than requiring a specific button.
+  useEffect(() => {
+    const unlock = () => audio.unlock();
+    document.addEventListener('click', unlock, { once: true });
+    return () => document.removeEventListener('click', unlock);
+  }, [audio]);
+
   // Start title music when the start screen is visible; stop it when the game begins.
   // Note: browsers suspend AudioContext until the first user interaction — the music
   // will begin playing on the first click/keypress rather than immediately on mount.
