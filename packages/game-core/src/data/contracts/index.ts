@@ -68,16 +68,8 @@ export const LOCAL_ISP_CONTRACT: ContractDef = {
     { templateId: 'event-false-alarm',   count: 7 },
     { templateId: 'event-tier1-peering', count: 3 },
   ],
-  // Security Patch (crisisOnly, DDoS-only) swapped for Work Orders so every
-  // card in the hand is playable against the threats that exist in this contract.
-  actionDeck: [
-    { templateId: 'action-work-order',              count: 6 },
-    { templateId: 'action-traffic-prioritization',  count: 12 },
-    { templateId: 'action-bandwidth-upgrade',       count: 3 },
-    { templateId: 'action-datacenter-expansion',    count: 3 },
-    { templateId: 'action-stream-compression',      count: 3 },
-    { templateId: 'action-redundant-link',          count: 2 },
-  ],
+  // TODO-0015 resolved: actionDeck removed — DEFAULT_ACTION_DECK was updated to
+  // match the tutorial composition (Work Order ×6, Security Patch removed).
   startingBudget: 700_000,
   slaLimit: 5,
 };

@@ -12,6 +12,7 @@ const defaultProps = {
   onStepChange: vi.fn(),
   onNewGame: vi.fn(),
   onContinue: vi.fn(),
+  onDeckBuilder: vi.fn(),
   onSettings: vi.fn(),
   onQuit: vi.fn(),
 };
@@ -106,5 +107,20 @@ describe('StartScreen — contract step', () => {
 
     // After going back, the contract panel becomes aria-hidden
     expect(contractPanel).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+describe('StartScreen — Deck Builder button', () => {
+  it('shows the DECK BUILDER button in the menu step', () => {
+    render(<StartScreen {...defaultProps} />);
+    expect(screen.getByRole('button', { name: 'DECK BUILDER' })).toBeInTheDocument();
+  });
+
+  it('clicking DECK BUILDER calls onDeckBuilder', async () => {
+    const user = userEvent.setup();
+    const onDeckBuilder = vi.fn();
+    render(<StartScreen {...defaultProps} onDeckBuilder={onDeckBuilder} />);
+    await user.click(screen.getByRole('button', { name: 'DECK BUILDER' }));
+    expect(onDeckBuilder).toHaveBeenCalledOnce();
   });
 });

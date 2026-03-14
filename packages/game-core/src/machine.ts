@@ -5,7 +5,7 @@ import {
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
-  type ActionCard, type Card, type ContractDef, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
+  type ActionCard, type Card, type ContractDef, type DeckSpec, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, shuffle } from './deck.js';
@@ -22,7 +22,7 @@ import { getPendingEvents } from './cardPositionViews.js';
 
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
-export function createInitialContext(seed?: string, contract?: ContractDef): GameContext {
+export function createInitialContext(seed?: string, contract?: ContractDef, deckSpec?: ReadonlyArray<DeckSpec>): GameContext {
   // Fixed-seed contracts always use their declared seed, regardless of what the
   // caller passed. createInitialContext(seed, contract) — if fixedSeed is set on
   // the contract, the seed arg is ignored.
@@ -30,7 +30,7 @@ export function createInitialContext(seed?: string, contract?: ContractDef): Gam
   const rng = makeRng(resolvedSeed + '-init');
   const trafficCards = buildTrafficDeck(rng, contract?.trafficDeck);
   const eventCards = buildEventDeck(rng, contract?.eventDeck);
-  const allActionCards = buildActionDeck(rng, contract?.actionDeck);
+  const allActionCards = buildActionDeck(rng, contract?.actionDeck ?? deckSpec);
   const [initialHandCards, remainingActionCards] = drawN(allActionCards, HAND_SIZE);
 
   // ─ card instance registry ─
@@ -354,6 +354,10 @@ export const gameMachine = setup({
     resetGame: assign(({ context }) => {
       // Re-look up the contract by id so the reset preserves the contract's
       // fixed seed, custom action deck, and other spec fields.
+      // TODO-0017: resetGame loses any custom deckSpec the player configured via
+      // the Deck Builder when the contract has no baked-in actionDeck. Store
+      // deckSpec in GameContext and thread it through here once RESET is wired
+      // to a UI "Play Again" element.
       const contract = BUILT_IN_CONTRACTS.find((c) => c.id === context.contractId);
       return createInitialContext(undefined, contract);
     }),

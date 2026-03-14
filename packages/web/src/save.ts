@@ -1,8 +1,9 @@
-import type { GameContext, SerializedGameContext, StorageAdapter } from '@load/game-core';
-import { GameContextSchema, dehydrateContext, hydrateContext } from '@load/game-core';
+import type { DeckSpec, GameContext, SerializedGameContext, StorageAdapter } from '@load/game-core';
+import { DeckSpecArraySchema, GameContextSchema, dehydrateContext, hydrateContext } from '@load/game-core';
 import { LocalStorageAdapter } from './storage/LocalStorageAdapter.js';
 
 export const SAVE_KEY = 'load-save';
+export const DECK_KEY = 'load-deck';
 
 export function saveGame(
   context: GameContext,
@@ -36,5 +37,30 @@ export function clearSave(
     storage.removeItem(SAVE_KEY);
   } catch {
     // Storage unavailable — silently ignore
+  }
+}
+
+export function saveDeckConfig(
+  spec: ReadonlyArray<DeckSpec>,
+  storage: StorageAdapter = LocalStorageAdapter,
+): void {
+  try {
+    storage.setItem(DECK_KEY, JSON.stringify(spec));
+  } catch {
+    // Storage quota exceeded or unavailable — silently ignore
+  }
+}
+
+export function loadDeckConfig(
+  storage: StorageAdapter = LocalStorageAdapter,
+): ReadonlyArray<DeckSpec> | null {
+  try {
+    const raw = storage.getItem(DECK_KEY);
+    if (!raw) return null;
+    const result = DeckSpecArraySchema.safeParse(JSON.parse(raw));
+    if (!result.success) return null;
+    return result.data as ReadonlyArray<DeckSpec>;
+  } catch {
+    return null;
   }
 }

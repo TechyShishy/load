@@ -11,11 +11,12 @@ interface StartScreenProps {
   onStepChange: (step: StartScreenStep) => void;
   onNewGame: (contract: ContractDef) => void;
   onContinue: () => void;
+  onDeckBuilder: () => void;
   onSettings: () => void;
   onQuit: () => void;
 }
 
-export function StartScreen({ hasSave, step, onStepChange, onNewGame, onContinue, onSettings, onQuit }: StartScreenProps) {
+export function StartScreen({ hasSave, step, onStepChange, onNewGame, onContinue, onDeckBuilder, onSettings, onQuit }: StartScreenProps) {
 
   // Move focus to the active panel before the browser paints so that the
   // outgoing panel's aria-hidden never covers a focused element.
@@ -64,6 +65,10 @@ export function StartScreen({ hasSave, step, onStepChange, onNewGame, onContinue
                   CONTINUE
                 </button>
               )}
+              <button onClick={onDeckBuilder}
+                className="w-full px-5 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded font-mono tracking-widest transition-colors">
+                DECK BUILDER
+              </button>
               <button onClick={onSettings}
                 className="w-full px-5 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded font-mono tracking-widest transition-colors">
                 SETTINGS

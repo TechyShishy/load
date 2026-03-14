@@ -143,19 +143,19 @@ describe('buildActionDeck', () => {
     expect(deck.every((c) => c.type === CardType.Action)).toBe(true);
   });
 
-  it('contains correct copies of each action card (by name)', () => {
+  it('contains correct copies of each action card (by templateId)', () => {
     const deck = buildActionDeck();
     const counts = new Map<string, number>();
     for (const card of deck) {
-      counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
+      counts.set(card.templateId, (counts.get(card.templateId) ?? 0) + 1);
     }
-    expect(counts.get('Traffic Prioritization')).toBe(12);
-    expect(counts.get('Redundant Link')).toBe(2);
-    for (const [name, count] of counts) {
-      if (name !== 'Traffic Prioritization' && name !== 'Redundant Link') {
-        expect(count).toBe(3);
-      }
-    }
+    expect(counts.get('action-work-order')).toBe(6);
+    expect(counts.get('action-traffic-prioritization')).toBe(12);
+    expect(counts.get('action-bandwidth-upgrade')).toBe(3);
+    expect(counts.get('action-datacenter-expansion')).toBe(3);
+    expect(counts.get('action-stream-compression')).toBe(3);
+    expect(counts.get('action-redundant-link')).toBe(2);
+    expect(counts.has('action-security-patch')).toBe(false);
   });
 
   it('all card IDs are unique', () => {

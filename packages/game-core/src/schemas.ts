@@ -13,6 +13,14 @@ export const TrackSchema = z.nativeEnum(Track);
 export const PhaseIdSchema = z.nativeEnum(PhaseId);
 export const LoseReasonSchema = z.nativeEnum(LoseReason);
 
+// ─── Deck Spec Schema ────────────────────────────────────────────────────────
+
+export const DeckSpecSchema = z.object({
+  templateId: z.string(),
+  count: z.number().int().min(0),
+});
+export const DeckSpecArraySchema = z.array(DeckSpecSchema);
+
 // ─── Board State Schemas ──────────────────────────────────────────────────────
 
 export const SlotLayoutEntrySchema = z.object({

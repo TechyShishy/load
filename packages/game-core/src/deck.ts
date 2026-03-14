@@ -80,21 +80,34 @@ export function buildEventDeck(rng: Rng = Math.random, spec?: ReadonlyArray<Deck
 }
 
 /**
+ * Minimum number of cards a custom action deck must contain.
+ * Enforced by the Deck Builder UI; save is blocked when below this threshold.
+ */
+export const MIN_DECK_SIZE = 20;
+
+/**
+ * Validate a custom deck spec. Returns the total card count and whether it
+ * meets the minimum size requirement.
+ */
+export function validateDeckSpec(spec: ReadonlyArray<DeckSpec>): { valid: boolean; total: number } {
+  const total = spec.reduce((sum, e) => sum + e.count, 0);
+  return { valid: total >= MIN_DECK_SIZE, total };
+}
+
+/**
  * Canonical action-deck composition.
  * Each entry specifies how many copies of a given template to include.
- * Total: 29 cards (WorkOrder×3, TrafficPrioritization×12, Bandwidth×3, SecurityPatch×3, DataCenter×3, StreamCompression×3, RedundantLink×2).
+ * Total: 29 cards (WorkOrder×6, TrafficPrioritization×12, Bandwidth×3, DataCenter×3, StreamCompression×3, RedundantLink×2).
+ * Security Patch is intentionally absent — it is crisisOnly and DDoS-specific;
+ * players who want it should add it via the Deck Builder.
  */
-export const DEFAULT_ACTION_DECK: ReadonlyArray<{
-  readonly templateId: string;
-  readonly count: number;
-}> = [
-  { templateId: 'action-work-order',              count: 3 },
-  { templateId: 'action-traffic-prioritization',  count: 12 },
-  { templateId: 'action-bandwidth-upgrade',       count: 3 },
-  { templateId: 'action-security-patch',          count: 3 },
-  { templateId: 'action-datacenter-expansion',    count: 3 },
-  { templateId: 'action-stream-compression',      count: 3 },
-  { templateId: 'action-redundant-link',          count: 2 },
+export const DEFAULT_ACTION_DECK: ReadonlyArray<DeckSpec> = [
+  { templateId: 'action-work-order',             count: 6 },
+  { templateId: 'action-traffic-prioritization', count: 12 },
+  { templateId: 'action-bandwidth-upgrade',      count: 3 },
+  { templateId: 'action-datacenter-expansion',   count: 3 },
+  { templateId: 'action-stream-compression',     count: 3 },
+  { templateId: 'action-redundant-link',         count: 2 },
 ];
 
 /**
@@ -102,6 +115,11 @@ export const DEFAULT_ACTION_DECK: ReadonlyArray<{
  * Composition is defined by DEFAULT_ACTION_DECK unless overridden by `spec`.
  */
 export function buildActionDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): ActionCard[] {
+  const specTotal = spec !== undefined ? spec.reduce((s, e) => s + e.count, 0) : undefined;
+  if (specTotal === 0) {
+    console.warn('buildActionDeck: spec sums to zero cards; falling back to DEFAULT_ACTION_DECK');
+    spec = undefined;
+  }
   const cards: ActionCard[] = [];
   for (const { templateId, count } of (spec ?? DEFAULT_ACTION_DECK)) {
     const Ctor = ACTION_CARD_REGISTRY.get(templateId)!;

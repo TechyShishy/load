@@ -3,6 +3,7 @@ import { GamePlayArea } from './components/GamePlayArea.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
 import type { StartScreenStep } from './components/overlays/StartScreen.js';
 import { SettingsModal } from './components/overlays/SettingsModal.js';
+import { DeckBuilderScreen } from './components/overlays/DeckBuilderScreen.js';
 import { loadGame, clearSave } from './save.js';
 import { useAudio } from './audio/AudioContext.js';
 import type { ContractDef } from '@load/game-core';
@@ -10,6 +11,7 @@ import type { ContractDef } from '@load/game-core';
 export function App() {
   const [hasSave, setHasSave] = useState(() => loadGame() !== null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [showDeckBuilder, setShowDeckBuilder] = useState(false);
   const [startStep, setStartStep] = useState<StartScreenStep>('menu');
   const [selectedContract, setSelectedContract] = useState<ContractDef | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -40,6 +42,14 @@ export function App() {
     setSelectedContract(contract);
     setGameStarted(true);
   }, []);
+  const handleOpenDeckBuilder = useCallback(() => { setShowDeckBuilder(true); }, []);
+  const handleCloseDeckBuilder = useCallback(() => { setShowDeckBuilder(false); }, []);
+  const handleDeckBuilderStart = useCallback(() => {
+    // Deck was saved inside DeckBuilderScreen before calling this.
+    // Transition to contract selection so the player can pick which contract to play.
+    setShowDeckBuilder(false);
+    setStartStep('contract');
+  }, []);
   const handleReturnToMenu = useCallback(() => {
     setGameStarted(false);
     setSelectedContract(null);
@@ -58,13 +68,16 @@ export function App() {
   // Refs let the stable Escape listener read current state without re-registering.
   const settingsOpenRef = useRef(settingsOpen);
   const gameStartedRef = useRef(gameStarted);
+  const showDeckBuilderRef = useRef(showDeckBuilder);
   const startStepRef = useRef(startStep);
   useEffect(() => { settingsOpenRef.current = settingsOpen; }, [settingsOpen]);
   useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
+  useEffect(() => { showDeckBuilderRef.current = showDeckBuilder; }, [showDeckBuilder]);
   useEffect(() => { startStepRef.current = startStep; }, [startStep]);
 
   // Escape behaviour depends on context:
   //   settings open                    → close settings
+  //   deck builder open                → close deck builder
   //   start screen, contract panel     → back to menu panel
   //   mid-game, no modal               → open settings
   //   start screen, menu panel         → quit (Electron IPC / window.close)
@@ -76,6 +89,8 @@ export function App() {
       e.preventDefault();
       if (settingsOpenRef.current) {
         setSettingsOpen(false);
+      } else if (showDeckBuilderRef.current) {
+        setShowDeckBuilder(false);
       } else if (!gameStartedRef.current && startStepRef.current === 'contract') {
         setStartStep('menu');
       } else if (gameStartedRef.current) {
@@ -104,8 +119,15 @@ export function App() {
           onStepChange={setStartStep}
           onNewGame={handleStartNewGame}
           onContinue={handleStartContinue}
+          onDeckBuilder={handleOpenDeckBuilder}
           onSettings={() => setSettingsOpen(true)}
           onQuit={handleQuit}
+        />
+      )}
+      {showDeckBuilder && (
+        <DeckBuilderScreen
+          onBack={handleCloseDeckBuilder}
+          onStart={handleDeckBuilderStart}
         />
       )}
       {settingsOpen && (

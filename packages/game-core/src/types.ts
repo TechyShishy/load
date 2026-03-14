@@ -173,7 +173,7 @@ export interface ContractDef {
   readonly trafficDeck: DeckSpec[];
   readonly eventDeck: DeckSpec[];
   /** When set, overrides the default action-deck composition for this contract.
-   * TODO-0015: merge into the Alpha deckbuilding system when that lands. */
+   * TODO-0015 resolved: merged into the deck builder system. */
   readonly actionDeck?: DeckSpec[];
   readonly startingBudget: number;
   readonly slaLimit: number;

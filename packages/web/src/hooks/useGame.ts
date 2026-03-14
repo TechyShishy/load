@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { gameMachine, createInitialContext, SlotType, BUILT_IN_CONTRACTS } from '@load/game-core';
-import type { ActionCard, ContractDef, Period, Track } from '@load/game-core';
-import { clearSave, loadGame, saveGame } from '../save.js';
+import type { ActionCard, ContractDef, DeckSpec, Period, Track } from '@load/game-core';
+import { clearSave, loadDeckConfig, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
 
 export function useGame(contract?: ContractDef) {
@@ -24,18 +24,23 @@ export function useGame(contract?: ContractDef) {
     urlSeed || isFixedSeed ? null : loadGame(),
   );
 
-  // When a contract is provided and there is no existing save, build the full initial
-  // context from the contract spec once at mount time so the deck composition is applied.
-  // NOTE: do NOT gate this on !urlSeed — a fixed-seed contract must always win over the
-  // URL seed (the URL seed is for E2E tests; the fixed seed is a product invariant).
-  const [contractInput] = useState<ReturnType<typeof createInitialContext> | undefined>(() =>
-    !savedContext && contract ? createInitialContext(undefined, contract) : undefined,
+  // Load the player's saved deck configuration. Skipped for fixed-seed contracts
+  // (their deck is baked in) and URL-seed E2E paths (no persistent state).
+  const [savedDeckSpec] = useState<ReadonlyArray<DeckSpec> | null>(() =>
+    urlSeed || isFixedSeed ? null : loadDeckConfig(),
   );
 
+  // Build the initial game context for all new-game paths in one place.
+  // Order of priority: contract.actionDeck > savedDeckSpec > DEFAULT_ACTION_DECK
+  // (priority is enforced inside createInitialContext via contract?.actionDeck ?? deckSpec).
+  const [gameInput] = useState<ReturnType<typeof createInitialContext> | undefined>(() => {
+    if (savedContext) return undefined;
+    return createInitialContext(urlSeed, contract ?? undefined, savedDeckSpec ?? undefined);
+  });
+
   const [snapshot, send] = useMachine(gameMachine, {
-    // Fixed-seed contracts take full priority. URL seeds only apply when no contract
-    // (or a non-fixed contract without an existing save) is in play.
-    input: savedContext ?? (contractInput ?? (urlSeed ? { seed: urlSeed } : undefined)),
+    // Resume from save when available; otherwise use the freshly-built context.
+    input: savedContext ?? gameInput,
   });
 
   const context = snapshot.context;

@@ -50,7 +50,7 @@ export type {
 } from './types.js';
 
 // ── Persistence schema (for save/load validation) ─────────────────────────────
-export { GameContextSchema } from './schemas.js';
+export { GameContextSchema, DeckSpecSchema, DeckSpecArraySchema } from './schemas.js';
 
 // ── Serialization (dehydrate/hydrate) ─────────────────────────────────────────
 export { dehydrateContext, hydrateContext } from './serialization.js';
@@ -65,8 +65,8 @@ export {
   EVENT_CARDS, EVENT_CARD_REGISTRY,
   ACTION_CARDS, ACTION_CARD_REGISTRY,  BUILT_IN_CONTRACTS, STANDARD_CONTRACT, LOCAL_ISP_CONTRACT,} from './data/index.js';
 
-// ── Deck constants ────────────────────────────────────────────────────────────
-export { DEFAULT_ACTION_DECK, DEFAULT_TRAFFIC_DECK, DEFAULT_EVENT_DECK } from './deck.js';
+// ── Deck constants & utilities ───────────────────────────────────────────────
+export { DEFAULT_ACTION_DECK, DEFAULT_TRAFFIC_DECK, DEFAULT_EVENT_DECK, MIN_DECK_SIZE, validateDeckSpec } from './deck.js';
 
 // ── Card position view functions ──────────────────────────────────────────────
 export {
