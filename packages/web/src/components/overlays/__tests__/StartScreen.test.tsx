@@ -1,17 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BUILT_IN_CONTRACTS, LOCAL_ISP_CONTRACT, STANDARD_CONTRACT } from '@load/game-core';
 import { StartScreen } from '../StartScreen.js';
+import type { StartScreenStep } from '../StartScreen.js';
 
 const defaultProps = {
   hasSave: false,
+  step: 'menu' as StartScreenStep,
+  onStepChange: vi.fn(),
   onNewGame: vi.fn(),
   onContinue: vi.fn(),
   onSettings: vi.fn(),
   onQuit: vi.fn(),
 };
+
+/** Wraps StartScreen with real step state so navigation tests work. */
+function ControlledStartScreen(props: Omit<typeof defaultProps, 'step' | 'onStepChange'>) {
+  const [step, setStep] = useState<StartScreenStep>('menu');
+  return <StartScreen {...props} step={step} onStepChange={setStep} />;
+}
 
 describe('StartScreen — menu step', () => {
   it('renders the LOAD heading', () => {
@@ -36,7 +45,7 @@ describe('StartScreen — menu step', () => {
 
   it('clicking NEW GAME transitions to the contract selection panel', async () => {
     const user = userEvent.setup();
-    render(<StartScreen {...defaultProps} />);
+    render(<ControlledStartScreen {...defaultProps} />);
     await user.click(screen.getByRole('button', { name: 'NEW GAME' }));
     expect(screen.getByText('Select Contract')).toBeInTheDocument();
   });
@@ -46,7 +55,7 @@ describe('StartScreen — contract step', () => {
   async function openContractStep() {
     const user = userEvent.setup();
     const onNewGame = vi.fn();
-    const utils = render(<StartScreen {...defaultProps} onNewGame={onNewGame} />);
+    const utils = render(<ControlledStartScreen {...defaultProps} onNewGame={onNewGame} />);
     await user.click(screen.getByRole('button', { name: 'NEW GAME' }));
     return { user, onNewGame, ...utils };
   }

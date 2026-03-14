@@ -1,18 +1,21 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useLayoutEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { BUILT_IN_CONTRACTS } from '@load/game-core';
 import type { ContractDef } from '@load/game-core';
 
+export type StartScreenStep = 'menu' | 'contract';
+
 interface StartScreenProps {
   hasSave: boolean;
+  step: StartScreenStep;
+  onStepChange: (step: StartScreenStep) => void;
   onNewGame: (contract: ContractDef) => void;
   onContinue: () => void;
   onSettings: () => void;
   onQuit: () => void;
 }
 
-export function StartScreen({ hasSave, onNewGame, onContinue, onSettings, onQuit }: StartScreenProps) {
-  const [step, setStep] = useState<'menu' | 'contract'>('menu');
+export function StartScreen({ hasSave, step, onStepChange, onNewGame, onContinue, onSettings, onQuit }: StartScreenProps) {
 
   // Move focus to the active panel before the browser paints so that the
   // outgoing panel's aria-hidden never covers a focused element.
@@ -51,7 +54,7 @@ export function StartScreen({ hasSave, onNewGame, onContinue, onSettings, onQuit
                   : 'opacity-0 -translate-x-8 pointer-events-none absolute inset-0'
               }`}
             >
-              <button id="start-new-game-btn" onClick={() => setStep('contract')}
+              <button id="start-new-game-btn" onClick={() => onStepChange('contract')}
                 className="w-full px-5 py-3 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded font-mono tracking-widest transition-colors">
                 NEW GAME
               </button>
@@ -98,7 +101,7 @@ export function StartScreen({ hasSave, onNewGame, onContinue, onSettings, onQuit
               ))}
               <button
                 id="contract-back-btn"
-                onClick={() => setStep('menu')}
+                onClick={() => onStepChange('menu')}
                 className="w-full px-5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-400 font-bold rounded font-mono tracking-widest transition-colors text-sm mt-1"
               >
                 ← BACK

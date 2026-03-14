@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GamePlayArea } from './components/GamePlayArea.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
+import type { StartScreenStep } from './components/overlays/StartScreen.js';
 import { SettingsModal } from './components/overlays/SettingsModal.js';
 import { loadGame, clearSave } from './save.js';
 import { useAudio } from './audio/AudioContext.js';
@@ -9,6 +10,7 @@ import type { ContractDef } from '@load/game-core';
 export function App() {
   const [hasSave, setHasSave] = useState(() => loadGame() !== null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [startStep, setStartStep] = useState<StartScreenStep>('menu');
   const [selectedContract, setSelectedContract] = useState<ContractDef | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const audio = useAudio();
@@ -41,6 +43,7 @@ export function App() {
   const handleReturnToMenu = useCallback(() => {
     setGameStarted(false);
     setSelectedContract(null);
+    setStartStep('menu');
     // Refresh hasSave in case the game created a save during the session.
     setHasSave(loadGame() !== null);
   }, []);
@@ -52,15 +55,33 @@ export function App() {
     setHasSave(false);
   }, []);
 
-  // Escape toggles the settings modal from anywhere (start screen or mid-game).
-  // Registered once with [] — functional updater avoids stale closure.
-  // SettingsModal's FocusTrap has escapeDeactivates: false so this is the
-  // sole Escape handler; no risk of double-firing.
+  // Refs let the stable Escape listener read current state without re-registering.
+  const settingsOpenRef = useRef(settingsOpen);
+  const gameStartedRef = useRef(gameStarted);
+  const startStepRef = useRef(startStep);
+  useEffect(() => { settingsOpenRef.current = settingsOpen; }, [settingsOpen]);
+  useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
+  useEffect(() => { startStepRef.current = startStep; }, [startStep]);
+
+  // Escape behaviour depends on context:
+  //   settings open                    → close settings
+  //   start screen, contract panel     → back to menu panel
+  //   mid-game, no modal               → open settings
+  //   start screen, menu panel         → quit (Electron IPC / window.close)
+  // SettingsModal's FocusTrap has escapeDeactivates: false, so this is
+  // the sole Escape handler — no risk of double-firing.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setSettingsOpen((prev) => !prev);
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (settingsOpenRef.current) {
+        setSettingsOpen(false);
+      } else if (!gameStartedRef.current && startStepRef.current === 'contract') {
+        setStartStep('menu');
+      } else if (gameStartedRef.current) {
+        setSettingsOpen(true);
+      } else {
+        if (window.electronAPI) { window.electronAPI.quit(); } else { window.close(); }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -79,6 +100,8 @@ export function App() {
       {!gameStarted && (
         <StartScreen
           hasSave={hasSave}
+          step={startStep}
+          onStepChange={setStartStep}
           onNewGame={handleStartNewGame}
           onContinue={handleStartContinue}
           onSettings={() => setSettingsOpen(true)}
