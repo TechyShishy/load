@@ -83,9 +83,18 @@ async function playRound(page: Page, opts: { playCard?: boolean } = {}): Promise
       if (count > 0) {
         await cards.first().click();
         // Clicking opens the card details flyout (cards are DnD, not click-to-play).
-        // Dismiss the flyout immediately so its backdrop doesn't block ADVANCE.
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(50);
+        // Dismiss via the backdrop click rather than keyboard — DnD kit listeners
+        // on the focusable flyout element can intercept and swallow Escape before
+        // the document-level handler receives it, leaving the backdrop up.
+        const flyoutBackdrop = page.locator('[data-testid="card-flyout-backdrop"]');
+        const appeared = await flyoutBackdrop
+          .waitFor({ state: 'visible', timeout: 2_000 })
+          .then(() => true)
+          .catch(() => false);
+        if (appeared) {
+          await flyoutBackdrop.click();
+          await flyoutBackdrop.waitFor({ state: 'hidden', timeout: 3_000 });
+        }
       }
     }
     await clickAdvance(page); // scheduling → crisis
@@ -299,9 +308,14 @@ test.describe('LOAD – Network Traffic Balancer', () => {
     // Trigger restart from end screen — win → "PLAY AGAIN", lose → "TRY AGAIN"
     await clickPlayAgain(page);
 
-    // After clicking PLAY AGAIN/TRY AGAIN, wait for the machine to complete
+    // PLAY AGAIN / TRY AGAIN returns to the Start Screen (the app resets to the
+    // main menu so the user can choose a contract). Dismiss the menu to begin a
+    // new game with the default contract before asserting game state.
+    await dismissContinueModal(page);
+
+    // After dismissing the Start Screen, wait for the machine to complete
     // draw → scheduling transition before asserting ADVANCE is enabled.
-    await expect(page.getByText('Mon, W1')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Mon, W1')).toBeVisible({ timeout: 8_000 });
     await expect(ADVANCE(page)).toBeEnabled({ timeout: 10_000 });
     await expect(page.getByText('NETWORK STABLE')).not.toBeVisible();
     await expect(page.getByText('SYSTEM DOWN')).not.toBeVisible();
