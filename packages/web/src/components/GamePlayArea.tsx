@@ -3,8 +3,8 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@
 import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
 import { useDrawAnimationState } from '../hooks/useDrawAnimationState.js';
-import { Period, Track, getFilledTimeSlots, getHand, getPendingEvents } from '@load/game-core';
-import type { ActionCard } from '@load/game-core';
+import { BUILT_IN_CONTRACTS, Period, Track, getFilledTimeSlots, getHand, getPendingEvents } from '@load/game-core';
+import type { ActionCard, ContractDef } from '@load/game-core';
 import { GameCanvas } from './canvas/GameCanvas.js';
 import { BoardDropZones } from './canvas/BoardDropZones.js';
 import { BoardCardOverlay } from './canvas/BoardCardOverlay.js';
@@ -33,8 +33,8 @@ const snapFlyoutToCursor: Modifier = ({ transform, activatorEvent, draggingNodeR
   };
 };
 
-export function GamePlayArea() {
-  const { context, phase, advance, drawComplete, playAction, reset, isWon, isLost } = useGame();
+export function GamePlayArea({ contract, onReturnToMenu }: { contract?: ContractDef; onReturnToMenu: () => void }) {
+  const { context, phase, advance, drawComplete, playAction, isWon, isLost } = useGame(contract);
   const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
   const hand = useMemo(() => getHand(context), [context]);
   const pendingEvents = useMemo(() => getPendingEvents(context), [context]);
@@ -43,6 +43,8 @@ export function GamePlayArea() {
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const activeContractName = BUILT_IN_CONTRACTS.find((c) => c.id === context.contractId)?.name ?? context.contractId;
 
   const prefersReducedMotion =
     typeof window !== 'undefined'
@@ -75,8 +77,8 @@ export function GamePlayArea() {
     allEventIds.every((id) => arrivedCardIds.has(id));
 
   const handlePlayAgain = useCallback(() => {
-    reset();
-  }, [reset]);
+    onReturnToMenu();
+  }, [onReturnToMenu]);
 
   const showFeedback = useCallback(
     (msg: string) => {
@@ -174,8 +176,9 @@ export function GamePlayArea() {
     <div role="main" data-phase={phase} className="relative flex flex-col w-full h-full overflow-hidden">
       <div className="flex items-center gap-4 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0 flex-wrap">
         <div className="text-cyan-400 font-mono font-bold text-sm tracking-widest">LOAD</div>
+        <span className="text-gray-500 text-xs font-mono tracking-widest uppercase">{activeContractName}</span>
         <BudgetBar budget={context.budget} />
-        <SLAMeter slaCount={context.slaCount} />
+        <SLAMeter slaCount={context.slaCount} slaLimit={context.slaLimit} />
         <div className="flex-1" />
         <PhaseIndicator currentPhase={phase} round={context.round} />
       </div>

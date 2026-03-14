@@ -1,24 +1,24 @@
 import React from 'react';
-import { MAX_SLA_FAILURES } from '@load/game-core';
 
 interface SLAMeterProps {
   slaCount: number;
+  slaLimit: number;
 }
 
-export function SLAMeter({ slaCount }: SLAMeterProps) {
+export function SLAMeter({ slaCount, slaLimit }: SLAMeterProps) {
   return (
     <div
       role="meter"
       aria-label="SLA failures"
       aria-valuenow={slaCount}
       aria-valuemin={0}
-      aria-valuemax={MAX_SLA_FAILURES}
+      aria-valuemax={slaLimit}
       aria-live="assertive"
       className="flex items-center gap-2"
     >
       <span className="text-xs font-bold uppercase tracking-widest opacity-60" aria-hidden="true">SLA</span>
       <div className="flex gap-1" aria-hidden="true">
-        {Array.from({ length: MAX_SLA_FAILURES }).map((_, i) => (
+        {Array.from({ length: slaLimit }).map((_, i) => (
           <div
             key={i}
             className={`w-4 h-4 rounded-sm border transition-all ${
@@ -29,8 +29,8 @@ export function SLAMeter({ slaCount }: SLAMeterProps) {
           />
         ))}
       </div>
-      <span className={`text-sm font-mono ${slaCount >= 2 ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true">
-        {slaCount}/{MAX_SLA_FAILURES}
+      <span className={`text-sm font-mono ${slaCount >= slaLimit - 1 ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true">
+        {slaCount}/{slaLimit}
       </span>
     </div>
   );

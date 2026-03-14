@@ -33,6 +33,8 @@ export {
 export type {
   DropZoneTarget,
   Card,
+  DeckSpec,
+  ContractDef,
   TimeSlot,
   TimeSlotLayout,
   TrackSlot,
@@ -61,8 +63,7 @@ export type { GameEvent } from './machine.js';
 export {
   TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY,
   EVENT_CARDS, EVENT_CARD_REGISTRY,
-  ACTION_CARDS, ACTION_CARD_REGISTRY,
-} from './data/index.js';
+  ACTION_CARDS, ACTION_CARD_REGISTRY,  BUILT_IN_CONTRACTS, STANDARD_CONTRACT, LOCAL_ISP_CONTRACT,} from './data/index.js';
 
 // ── Deck constants ────────────────────────────────────────────────────────────
 export { DEFAULT_ACTION_DECK, DEFAULT_TRAFFIC_DECK, DEFAULT_EVENT_DECK } from './deck.js';

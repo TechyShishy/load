@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
-import { gameMachine } from '../machine.js';
+import { gameMachine, createInitialContext } from '../machine.js';
+import { LOCAL_ISP_CONTRACT, STANDARD_CONTRACT } from '../data/contracts/index.js';
 import { getFilledTimeSlots } from '../cardPositionViews.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import {
@@ -557,5 +558,53 @@ describe('gameMachine seeded draw determinism', () => {
     const r2 = drawCount(seed, 2);
     expect(drawCount(seed, 1)).toBe(r1);
     expect(drawCount(seed, 2)).toBe(r2);
+  });
+});
+
+describe('createInitialContext with contract', () => {
+  it('uses default budget and slaLimit when no contract is given', () => {
+    const ctx = createInitialContext('test-seed');
+    expect(ctx.budget).toBe(500_000);
+    expect(ctx.slaLimit).toBe(MAX_SLA_FAILURES);
+    expect(ctx.contractId).toBe('standard');
+  });
+
+  it('uses STANDARD_CONTRACT budget and slaLimit', () => {
+    const ctx = createInitialContext('test-seed', STANDARD_CONTRACT);
+    expect(ctx.budget).toBe(STANDARD_CONTRACT.startingBudget);
+    expect(ctx.slaLimit).toBe(STANDARD_CONTRACT.slaLimit);
+    expect(ctx.contractId).toBe('standard');
+  });
+
+  it('uses LOCAL_ISP_CONTRACT budget and slaLimit', () => {
+    const ctx = createInitialContext('test-seed', LOCAL_ISP_CONTRACT);
+    expect(ctx.budget).toBe(700_000);
+    expect(ctx.slaLimit).toBe(5);
+    expect(ctx.contractId).toBe('local-isp');
+  });
+
+  it('LOCAL_ISP_CONTRACT deck contains only the expected templateIds', () => {
+    const expectedIds = new Set(LOCAL_ISP_CONTRACT.trafficDeck.map((s) => s.templateId));
+    const ctx = createInitialContext('test-seed', LOCAL_ISP_CONTRACT);
+    const trafficCards = ctx.trafficDeckOrder.map((id) => ctx.cardInstances[id]!);
+    expect(trafficCards.every((c) => expectedIds.has(c.templateId))).toBe(true);
+  });
+
+  it('LOCAL_ISP_CONTRACT deck contains no Viral Spike traffic cards', () => {
+    const ctx = createInitialContext('test-seed', LOCAL_ISP_CONTRACT);
+    const trafficCards = ctx.trafficDeckOrder.map((id) => ctx.cardInstances[id]!);
+    expect(trafficCards.every((c) => c.templateId !== 'traffic-viral-spike')).toBe(true);
+  });
+
+  it('LOCAL_ISP_CONTRACT traffic deck has 21 cards total', () => {
+    const ctx = createInitialContext('test-seed', LOCAL_ISP_CONTRACT);
+    expect(ctx.trafficDeckOrder).toHaveLength(21);
+  });
+
+  it('LOCAL_ISP_CONTRACT event deck has 12 cards and no DDoS Attack events', () => {
+    const ctx = createInitialContext('test-seed', LOCAL_ISP_CONTRACT);
+    const eventCards = ctx.eventDeckOrder.map((id) => ctx.cardInstances[id]!);
+    expect(eventCards).toHaveLength(12);
+    expect(eventCards.every((c) => c.templateId !== 'event-ddos-attack')).toBe(true);
   });
 });

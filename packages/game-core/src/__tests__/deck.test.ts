@@ -33,6 +33,33 @@ describe('buildTrafficDeck', () => {
     expect(deck.every((c) => c.type === CardType.Traffic)).toBe(true);
   });
 
+  it('builds deck from a custom DeckSpec — correct total and types', () => {
+    const spec = [
+      { templateId: 'traffic-4k-stream',    count: 3 },
+      { templateId: 'traffic-iot-burst',    count: 2 },
+    ];
+    const deck = buildTrafficDeck(makeRng('custom-traffic-spec'), spec);
+    expect(deck).toHaveLength(5);
+    expect(deck.every((c) => c.type === CardType.Traffic)).toBe(true);
+  });
+
+  it('builds correct templateId counts from a custom DeckSpec', () => {
+    const spec = [
+      { templateId: 'traffic-4k-stream',    count: 2 },
+      { templateId: 'traffic-cloud-backup', count: 1 },
+    ];
+    const deck = buildTrafficDeck(makeRng('custom-traffic-counts'), spec);
+    expect(deck.filter((c) => c.templateId === 'traffic-4k-stream')).toHaveLength(2);
+    expect(deck.filter((c) => c.templateId === 'traffic-cloud-backup')).toHaveLength(1);
+  });
+
+  it('all card IDs are unique with a custom DeckSpec', () => {
+    const spec = [{ templateId: 'traffic-iot-burst', count: 5 }];
+    const deck = buildTrafficDeck(makeRng('custom-unique'), spec);
+    const ids = deck.map((c) => c.id);
+    expect(new Set(ids).size).toBe(deck.length);
+  });
+
   it('all card IDs are unique', () => {
     const deck = buildTrafficDeck();
     const ids = deck.map((c) => c.id);
@@ -57,6 +84,33 @@ describe('buildEventDeck', () => {
     const deck = buildEventDeck();
     expect(deck).toHaveLength(14);
     expect(deck.every((c) => c.type === CardType.Event)).toBe(true);
+  });
+
+  it('builds deck from a custom DeckSpec — correct total and types', () => {
+    const spec = [
+      { templateId: 'event-false-alarm',   count: 4 },
+      { templateId: 'event-tier1-peering', count: 2 },
+    ];
+    const deck = buildEventDeck(makeRng('custom-event-spec'), spec);
+    expect(deck).toHaveLength(6);
+    expect(deck.every((c) => c.type === CardType.Event)).toBe(true);
+  });
+
+  it('builds correct templateId counts from a custom DeckSpec', () => {
+    const spec = [
+      { templateId: 'event-aws-outage',  count: 1 },
+      { templateId: 'event-false-alarm', count: 3 },
+    ];
+    const deck = buildEventDeck(makeRng('custom-event-counts'), spec);
+    expect(deck.filter((c) => c.templateId === 'event-aws-outage')).toHaveLength(1);
+    expect(deck.filter((c) => c.templateId === 'event-false-alarm')).toHaveLength(3);
+  });
+
+  it('all card IDs are unique with a custom DeckSpec', () => {
+    const spec = [{ templateId: 'event-5g-activation', count: 4 }];
+    const deck = buildEventDeck(makeRng('custom-event-unique'), spec);
+    const ids = deck.map((c) => c.id);
+    expect(new Set(ids).size).toBe(deck.length);
   });
 
   it('all card IDs are unique', () => {

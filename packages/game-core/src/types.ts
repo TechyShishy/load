@@ -1,3 +1,5 @@
+// TODO-0012: types.ts is growing large — consider splitting into domain-specific type files
+
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export enum Period {
@@ -154,6 +156,26 @@ export abstract class ActionCard {
 
 export type Card = TrafficCard | EventCard | ActionCard;
 
+// ─── Contract types ───────────────────────────────────────────────────────────
+
+/** One entry in a contract's deck spec — which template and how many copies. */
+export interface DeckSpec {
+  readonly templateId: string;
+  readonly count: number;
+}
+
+/** Named scenario that defines network conditions for a game session. */
+export interface ContractDef {
+  /** Stable slug, e.g. 'standard'. Used as the contractId in GameContext. */
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly trafficDeck: DeckSpec[];
+  readonly eventDeck: DeckSpec[];
+  readonly startingBudget: number;
+  readonly slaLimit: number;
+}
+
 // ─── Serialized card reference ────────────────────────────────────────────────
 
 export interface SerializedCard {
@@ -166,6 +188,10 @@ export interface SerializedGameContext {
   budget: number;
   round: number;
   slaCount: number;
+  /** Slug of the active contract, e.g. 'standard'. */
+  contractId: string;
+  /** Max SLA failures before game over — sourced from the active contract. */
+  slaLimit: number;
   /** Maps every card instanceId → templateId for all cards created in this game session. */
   cardTemplateIds: Record<string, string>;
   /** Slot positions for traffic cards currently on the board, keyed by instanceId. */
@@ -269,6 +295,10 @@ export interface GameContext {
   budget: number;
   round: number;
   slaCount: number;
+  /** Slug of the active contract, e.g. 'standard'. */
+  contractId: string;
+  /** Max SLA failures before game over — sourced from the active contract. */
+  slaLimit: number;
 
   // ── Card instances (all cards ever created, keyed by instanceId) ────────────
   cardInstances: Record<string, Card>;

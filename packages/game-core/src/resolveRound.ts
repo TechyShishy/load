@@ -1,4 +1,4 @@
-import { BANKRUPT_THRESHOLD, CardType, MAX_ROUNDS, MAX_SLA_FAILURES, SlotType, type GameContext, type RoundSummary } from './types.js';
+import { BANKRUPT_THRESHOLD, CardType, MAX_ROUNDS, SlotType, type GameContext, type RoundSummary } from './types.js';
 
 export interface ResolutionResult {
   context: GameContext;
@@ -130,7 +130,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
  */
 export function checkLoseCondition(ctx: GameContext): 'Bankrupt' | 'SLAExceeded' | null {
   if (ctx.budget < BANKRUPT_THRESHOLD) return 'Bankrupt';
-  if (ctx.slaCount >= MAX_SLA_FAILURES) return 'SLAExceeded';
+  if (ctx.slaCount >= ctx.slaLimit) return 'SLAExceeded';
   return null;
 }
 

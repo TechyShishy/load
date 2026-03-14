@@ -1,6 +1,6 @@
 import seedrandom from 'seedrandom';
 import { ACTION_CARD_REGISTRY, EVENT_CARD_REGISTRY, TRAFFIC_CARD_REGISTRY } from './data/index.js';
-import type { ActionCard, EventCard, TrafficCard } from './types.js';
+import type { ActionCard, DeckSpec, EventCard, TrafficCard } from './types.js';
 
 /** Injectable RNG function — default is Math.random, tests can seed it. */
 export type Rng = () => number;
@@ -27,10 +27,7 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
  * Canonical traffic-deck composition.
  * Total: 21 cards (FourKStream×6, IoTBurst×5, CloudBackup×5, AiInference×3, ViralTrafficSpike×2).
  */
-export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<{
-  readonly templateId: string;
-  readonly count: number;
-}> = [
+export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<DeckSpec> = [
   { templateId: 'traffic-4k-stream',    count: 6 },
   { templateId: 'traffic-iot-burst',    count: 5 },
   { templateId: 'traffic-cloud-backup', count: 5 },
@@ -40,11 +37,11 @@ export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<{
 
 /**
  * Build the Traffic deck.
- * Composition is defined by DEFAULT_TRAFFIC_DECK.
+ * Composition is defined by DEFAULT_TRAFFIC_DECK unless overridden by `spec`.
  */
-export function buildTrafficDeck(rng: Rng = Math.random): TrafficCard[] {
+export function buildTrafficDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): TrafficCard[] {
   const traffic: TrafficCard[] = [];
-  for (const { templateId, count } of DEFAULT_TRAFFIC_DECK) {
+  for (const { templateId, count } of (spec ?? DEFAULT_TRAFFIC_DECK)) {
     const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId)!;
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
@@ -58,10 +55,7 @@ export function buildTrafficDeck(rng: Rng = Math.random): TrafficCard[] {
  * Canonical event-deck composition.
  * Total: 14 cards (DDoSAttack×3, AWSOutage×3, FiveGActivation×2, FalseAlarm×4, TierOnePeering×2).
  */
-export const DEFAULT_EVENT_DECK: ReadonlyArray<{
-  readonly templateId: string;
-  readonly count: number;
-}> = [
+export const DEFAULT_EVENT_DECK: ReadonlyArray<DeckSpec> = [
   { templateId: 'event-ddos-attack',    count: 3 },
   { templateId: 'event-aws-outage',     count: 3 },
   { templateId: 'event-5g-activation',  count: 2 },
@@ -71,11 +65,11 @@ export const DEFAULT_EVENT_DECK: ReadonlyArray<{
 
 /**
  * Build the Event deck.
- * Composition is defined by DEFAULT_EVENT_DECK.
+ * Composition is defined by DEFAULT_EVENT_DECK unless overridden by `spec`.
  */
-export function buildEventDeck(rng: Rng = Math.random): EventCard[] {
+export function buildEventDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): EventCard[] {
   const events: EventCard[] = [];
-  for (const { templateId, count } of DEFAULT_EVENT_DECK) {
+  for (const { templateId, count } of (spec ?? DEFAULT_EVENT_DECK)) {
     const Ctor = EVENT_CARD_REGISTRY.get(templateId)!;
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;

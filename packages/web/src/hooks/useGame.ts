@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMachine } from '@xstate/react';
-import { gameMachine } from '@load/game-core';
-import type { ActionCard, Period, Track } from '@load/game-core';
+import { gameMachine, createInitialContext } from '@load/game-core';
+import type { ActionCard, ContractDef, Period, Track } from '@load/game-core';
 import { clearSave, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
 
-export function useGame() {
+export function useGame(contract?: ContractDef) {
   // Allow E2E tests (and dev shortcuts) to inject a deterministic seed via ?seed=
   // in the URL. When present the URL seed takes priority over any persisted save.
   const urlSeed =
@@ -20,8 +20,14 @@ export function useGame() {
     urlSeed ? null : loadGame(),
   );
 
+  // When a contract is provided and there is no existing save, build the full initial
+  // context from the contract spec once at mount time so the deck composition is applied.
+  const [contractInput] = useState<ReturnType<typeof createInitialContext> | undefined>(() =>
+    !savedContext && !urlSeed && contract ? createInitialContext(undefined, contract) : undefined,
+  );
+
   const [snapshot, send] = useMachine(gameMachine, {
-    input: savedContext ?? (urlSeed ? { seed: urlSeed } : undefined),
+    input: savedContext ?? (urlSeed ? { seed: urlSeed } : contractInput),
   });
 
   const context = snapshot.context;

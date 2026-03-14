@@ -43,6 +43,8 @@ export const GameContextSchema = z.object({
   budget: z.number(),
   round: z.number(),
   slaCount: z.number(),
+  contractId: z.string().default('standard'),
+  slaLimit: z.number().default(3),
   cardTemplateIds: z.record(z.string(), z.string()),
   trafficSlotPositions: z.record(z.string(), z.object({
     period: z.string(),

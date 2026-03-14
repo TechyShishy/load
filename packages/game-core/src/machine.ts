@@ -4,7 +4,7 @@ import {
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
-  type ActionCard, type Card, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
+  type ActionCard, type Card, type ContractDef, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, shuffle } from './deck.js';
@@ -21,11 +21,11 @@ import { getPendingEvents } from './cardPositionViews.js';
 
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
-export function createInitialContext(seed?: string): GameContext {
+export function createInitialContext(seed?: string, contract?: ContractDef): GameContext {
   const resolvedSeed = seed ?? crypto.randomUUID();
   const rng = makeRng(resolvedSeed + '-init');
-  const trafficCards = buildTrafficDeck(rng);
-  const eventCards = buildEventDeck(rng);
+  const trafficCards = buildTrafficDeck(rng, contract?.trafficDeck);
+  const eventCards = buildEventDeck(rng, contract?.eventDeck);
   const allActionCards = buildActionDeck(rng);
   const [initialHandCards, remainingActionCards] = drawN(allActionCards, HAND_SIZE);
 
@@ -42,9 +42,11 @@ export function createInitialContext(seed?: string): GameContext {
   };
 
   return {
-    budget: STARTING_BUDGET,
+    budget: contract?.startingBudget ?? STARTING_BUDGET,
     round: 1,
     slaCount: 0,
+    contractId: contract?.id ?? 'standard',
+    slaLimit: contract?.slaLimit ?? MAX_SLA_FAILURES,
     cardInstances,
     trafficSlotPositions: {},
     slotLayout: createInitialSlotLayout(),
@@ -96,7 +98,7 @@ export const gameMachine = setup({
     isGameLost: ({ context }) => checkLoseCondition(context) !== null,
     isGameWon: ({ context }) => checkWinCondition(context),
     isBankrupt: ({ context }) => context.budget < BANKRUPT_THRESHOLD,
-    isSLAExceeded: ({ context }) => context.slaCount >= MAX_SLA_FAILURES,
+    isSLAExceeded: ({ context }) => context.slaCount >= context.slaLimit,
     isWeekendRound: ({ context }) => isWeekend(context.round),
     isWeekendActionAllowed: ({ context, event }) => {
       if (!isWeekend(context.round)) return true;
