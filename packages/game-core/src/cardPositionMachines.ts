@@ -17,6 +17,7 @@ type TrafficCardPositionEvent =
   | { type: 'SPAWN' }
   | { type: 'REMOVE' }
   | { type: 'UPDATE_SLOT_TYPE'; slotType: SlotType }
+  | { type: 'SHIFT_SLOT'; slotIndex: number; slotType: SlotType }
   | { type: 'RESHUFFLE' };
 
 export const trafficCardPositionMachine = setup({
@@ -38,6 +39,10 @@ export const trafficCardPositionMachine = setup({
     assignSlotType: assign(({ event }) => {
       if (event.type !== 'UPDATE_SLOT_TYPE') return {};
       return { slotType: event.slotType };
+    }),
+    applyShift: assign(({ event }) => {
+      if (event.type !== 'SHIFT_SLOT') return {};
+      return { slotIndex: event.slotIndex, slotType: event.slotType };
     }),
   },
 }).createMachine({
@@ -67,6 +72,8 @@ export const trafficCardPositionMachine = setup({
         REMOVE: { target: 'inDiscard', actions: 'clearSlot' },
         // No target = internal transition; context updated without re-entering state.
         UPDATE_SLOT_TYPE: { actions: 'assignSlotType' },
+        // Shifts the card to a new slot index within the same period (compaction).
+        SHIFT_SLOT: { actions: 'applyShift' },
       },
     },
     inDiscard: {

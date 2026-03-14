@@ -1,5 +1,6 @@
-import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
+import { ActionCard, Period, type GameContext } from '../../types.js';
 import { getFilledTimeSlots } from '../../cardPositionViews.js';
+import { shiftTrafficSlotsAfterRemoval } from '../../boardState.js';
 
 export class StreamCompressionCard extends ActionCard {
   readonly templateId = 'action-stream-compression';
@@ -59,6 +60,9 @@ export class StreamCompressionCard extends ActionCard {
     let trafficDiscardOrder = context.trafficDiscardOrder;
 
     // Iterate actors to find matching cards on the board in this period.
+    // getSnapshot() is called per-iteration: prior SHIFT_SLOT events (from
+    // shiftTrafficSlotsAfterRemoval below) may have updated c.slotIndex, so
+    // each iteration sees the card's current position, not a stale snapshot.
     for (const [id, actor] of Object.entries(context.trafficCardActors)) {
       if (!actor) continue;
       if (removedCount >= removeCount) break;
@@ -69,12 +73,16 @@ export class StreamCompressionCard extends ActionCard {
       const card = context.cardInstances[id];
       if (!card || (card as { templateId: string }).templateId !== typeToRemove) continue;
 
+      if (c.slotIndex === undefined) continue;
+
       actor.send({ type: 'REMOVE' });
-      if (c.slotType === SlotType.Overloaded) {
-        slotLayout = slotLayout.filter(
-          (s) => !(s.period === c.period && s.index === c.slotIndex),
-        );
-      }
+      // Shift subsequent cards and clean up any vacated overload slot.
+      const shifted = shiftTrafficSlotsAfterRemoval(
+        { ...context, slotLayout },
+        targetPeriod,
+        c.slotIndex,
+      );
+      slotLayout = shifted.slotLayout;
       // Spawned cards disappear on discard rather than cycling back through the deck.
       if (!context.spawnedTrafficIds.includes(id)) {
         trafficDiscardOrder = [...trafficDiscardOrder, id];

@@ -1,4 +1,5 @@
-import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
+import { ActionCard, Period, type GameContext } from '../../types.js';
+import { shiftTrafficSlotsAfterRemoval } from '../../boardState.js';
 
 export class TrafficPrioritizationCard extends ActionCard {
   readonly templateId = 'action-traffic-prioritization';
@@ -27,27 +28,21 @@ export class TrafficPrioritizationCard extends ActionCard {
     const snap = targetActor.getSnapshot();
     if (snap.value !== 'onSlot') return context;
 
-    const { period: actorPeriod, slotIndex, slotType } =
-      snap.context;
+    const { period: actorPeriod, slotIndex } = snap.context;
     const removedCard = context.cardInstances[targetTrafficCardId];
-    if (!removedCard || actorPeriod === undefined) return context;
+    if (!removedCard || actorPeriod === undefined || slotIndex === undefined) return context;
 
     // Transition actor: onSlot → inDiscard.
     targetActor.send({ type: 'REMOVE' });
 
-    // Remove the overload slot from layout if that's what it was.
-    let slotLayout = context.slotLayout;
-    if (slotType === SlotType.Overloaded) {
-      slotLayout = slotLayout.filter(
-        (s) => !(s.period === actorPeriod && s.index === slotIndex),
-      );
-    }
+    // Shift subsequent cards in the period up to fill the gap; removes the
+    // vacated overload slot from the layout if one exists.
+    context = shiftTrafficSlotsAfterRemoval(context, actorPeriod, slotIndex);
 
     // Spawned cards disappear on discard rather than cycling back through the deck.
     const isSpawned = context.spawnedTrafficIds.includes(targetTrafficCardId);
     context = {
       ...context,
-      slotLayout,
       trafficDiscardOrder: isSpawned
         ? context.trafficDiscardOrder
         : [...context.trafficDiscardOrder, targetTrafficCardId],
