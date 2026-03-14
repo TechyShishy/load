@@ -1,6 +1,6 @@
 ---
 name: new-music
-description: 'Add a new looping background music track to the Load game using only Web Audio API primitives. Targets the aesthetic of synth-generated game OST — structured melody, harmony, bass, and rhythm with a small number of synthesised instrument layers. Not chiptune (no intentional lo-fi constraints) and not orchestral (no complex arrangement). Use when the user asks to add background music for a game phase, screen, or mood.'
+description: 'Add a new looping background music track to the Load game using only Web Audio API primitives. Target aesthetic: as realistic as possible — push every instrument toward the acoustic or electric original using envelope shaping, harmonic richness, timing humanization, and spatial simulation. No audio files; everything is synthesised. Use when the user asks to add background music for a game phase, screen, or mood.'
 argument-hint: "Track name and game context, e.g. 'schedulingTheme – calm focus music for the scheduling phase' or 'crisisBed – tense ambient loop for the crisis phase'"
 ---
 
@@ -8,7 +8,7 @@ argument-hint: "Track name and game context, e.g. 'schedulingTheme – calm focu
 
 Produces a looping background music track: a `music/<trackName>.ts` module using a look-ahead scheduler, registered on `IAudioManager` and `SynthAudioManager` via `startMusic` / `stopMusic`.
 
-**Target aesthetic:** synthesiser-generated game OST. The goal is music that sounds composed and intentional, not a demonstration of audio primitives. Think late-80s/early-90s synth scores — structured melody over moving chords, distinct bass, light percussion. Acceptable limitations: thin timbre, no dynamics beyond what envelopes provide, no live-performance nuance.
+**Target aesthetic: as realistic as possible.** The constraint is no audio files — everything is synthesised from Web Audio API primitives. Within that constraint, push every instrument toward acoustic or electric realism: rich harmonics, natural-sounding envelopes, subtle timing and velocity variation, and spatial depth via delay and chorus. Music should sound composed and performed, not sequenced. Prior acceptable-limitations language is retired — thin timbre, mechanical timing, and flat dynamics are failures to fix, not acceptable tradeoffs.
 
 ## When to Use
 
@@ -64,13 +64,15 @@ Before writing any code, complete the brief:
 
 | Layer           | Sound source                                                                               | Character                     | Complexity               |
 | --------------- | ------------------------------------------------------------------------------------------ | ----------------------------- | ------------------------ |
-| **Synth bass**  | Sawtooth → lowpass (fc ≈ 200 Hz, Q ≈ 2) → short ADSR                                       | Warm, foundational            | Required for most tracks |
-| **Pad**         | 3–4 detuned triangle/sawtooth OSCs → lowpass (fc ≈ 800 Hz) → slow attack (0.2–0.4 s)       | Lush, atmospheric             | Use for harmonic bed     |
-| **Lead melody** | Triangle or sawtooth → subtle LFO vibrato (5–6 Hz, ±10 cents) → no filter or mild highpass | Clear, singable               | One note at a time       |
-| **Chord stab**  | 3-note chord, sawtooth, short decay (0.1–0.3 s)                                            | Rhythmic harmonic punctuation | Optional                 |
-| **Kick**        | Sine 80 Hz → exp pitch-drop to 30 Hz over 60 ms, gain decay over 80 ms                     | Punchy low transient          | Optional                 |
-| **Snare / rim** | Short noise burst → bandpass (fc ≈ 800 Hz, Q ≈ 4) + quiet pitched component                | Crisp mid hit                 | Optional                 |
-| **Hi-hat**      | Very short noise burst → highpass (fc ≈ 6 kHz) → 20–40 ms gain decay                       | Air and rhythm                | Optional                 |
+| **Synth bass**      | Sawtooth → lowpass (fc ≈ 200 Hz, Q ≈ 2) → short ADSR                                                              | Warm, foundational                | Required for most tracks         |
+| **Pad**             | 3–4 detuned triangle/sawtooth OSCs → lowpass (fc ≈ 800 Hz) → slow attack (0.2–0.4 s)                              | Lush, atmospheric                 | Harmonic bed (use sparingly — pervasive)     |
+| **FM Rhodes**       | Sine carrier + sine modulator at 2× freq → decaying modulation depth → amplitude ADSR                              | Bell attack fading to warm tine   | Struck chords / harmonic events  |
+| **Additive Organ**  | 4 sine partials at 1×/2×/3×/4× with drawbar weights → tremolo LFO (6.5 Hz, ±10%)                                  | Transparent, present              | Harmonic bed, no blur or swell   |
+| **Lead melody**     | Triangle or sawtooth → subtle LFO vibrato (5–6 Hz, ±10 cents) → no filter or mild highpass                        | Clear, singable                   | One note at a time               |
+| **Chord stab**      | 3-note chord, sawtooth, short decay (0.1–0.3 s)                                                                    | Rhythmic harmonic punctuation     | Optional                         |
+| **Kick**            | Sine 80 Hz → exp pitch-drop to 30 Hz over 60 ms, gain decay over 80 ms                                             | Punchy low transient              | Optional                         |
+| **Snare / rim**     | Short noise burst → bandpass (fc ≈ 800 Hz, Q ≈ 4) + quiet pitched component                                       | Crisp mid hit                     | Optional                         |
+| **Hi-hat**          | Very short noise burst → highpass (fc ≈ 6 kHz) → 20–40 ms gain decay                                              | Air and rhythm                    | Optional                         |
 
 **Maximum recommended layers:** 4–5. Every layer added beyond that requires careful gain management and likely blurs the mix.
 
@@ -296,116 +298,21 @@ For **8th-note resolution** (two steps per beat), keep `STEPS` count in step uni
 
 ## Step 4 — Instrument Design Templates
 
-### Synth pad (sustained chord tone)
+Each instrument is documented in its own reference file in `.github/skills/new-music/instruments/`. Read the file for every instrument you plan to use before implementing it in a track.
 
-```ts
-function schedulePad(midi: number[], t: number, dur: number): void {
-  const DETUNE = [-6, 0, 6, 12]; // 4-oscillator unison spread + octave double
-  DETUNE.forEach((detune) => {
-    const osc = ctx.createOscillator();
-    const filt = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
+| Instrument | File | Role | Performance tier |
+| ---------- | ---- | ---- | ---------------- |
+| Synth bass | [instruments/synth-bass.md](instruments/synth-bass.md) | Low foundation | ✅ Cheap |
+| Pad | [instruments/pad.md](instruments/pad.md) | Harmonic bed (atmospheric swell) | ⚠️ Moderate |
+| FM Rhodes | [instruments/fm-rhodes.md](instruments/fm-rhodes.md) | Struck chords / harmonic events | ⚠️ Moderate (pre-render for full tracks) |
+| Additive organ | [instruments/additive-organ.md](instruments/additive-organ.md) | Harmonic bed (transparent, no blur) | 🔴 Pre-render |
+| Lead melody | [instruments/lead-melody.md](instruments/lead-melody.md) | Melodic line, one note at a time | ✅ Cheap |
+| Chord stab | [instruments/chord-stab.md](instruments/chord-stab.md) | Rhythmic harmonic punctuation | ✅ Cheap |
+| Kick | [instruments/kick.md](instruments/kick.md) | Low transient / downbeat anchor | ✅ Cheap |
+| Snare | [instruments/snare.md](instruments/snare.md) | Mid transient / backbeat | ✅ Cheap |
+| Hi-hat | [instruments/hi-hat.md](instruments/hi-hat.md) | High frequency / rhythm subdivisions | ✅ Cheap |
 
-    osc.type = 'sawtooth';
-    osc.frequency.value = noteFreq(midi[0]!); // use first note as base; add others as separate layers
-    osc.detune.value = detune;
-
-    filt.type = 'lowpass';
-    filt.frequency.value = 900;
-    filt.Q.value = 0.8;
-
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.12, t + 0.3); // slow attack
-    gain.gain.setValueAtTime(0.12, t + dur - 0.3);
-    gain.gain.linearRampToValueAtTime(0, t + dur); // slow release (linear to 0 is ok at end of stop)
-
-    osc.connect(filt);
-    filt.connect(gain);
-    gain.connect(music);
-    osc.start(t);
-    osc.stop(t + dur + 0.05);
-  });
-}
-```
-
-For **full chord pads**, schedule each note of the chord separately with `schedulePad([root], t, dur)` × each chord tone, or build a helper that iterates over `chord(rootMidi, [0,3,7])`.
-
-### Kick drum
-
-```ts
-function scheduleKick(t: number): void {
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(80, t);
-  osc.frequency.exponentialRampToValueAtTime(30, t + 0.06);
-
-  gain.gain.setValueAtTime(0.7, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-  osc.connect(gain);
-  gain.connect(music);
-  osc.start(t);
-  osc.stop(t + 0.1);
-}
-```
-
-### Snare
-
-```ts
-function scheduleSnare(t: number): void {
-  // Noise component
-  const noiseBuf = makeNoiseBuffer(ctx, 0.15);
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuf;
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.value = 750;
-  bp.Q.value = 3;
-  const nGain = ctx.createGain();
-  nGain.gain.setValueAtTime(0.3, t);
-  nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-  noise.connect(bp);
-  bp.connect(nGain);
-  nGain.connect(music);
-  noise.start(t);
-  noise.stop(t + 0.15);
-
-  // Pitched body (adds crack)
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.value = 180;
-  gain.gain.setValueAtTime(0.15, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-  osc.connect(gain);
-  gain.connect(music);
-  osc.start(t);
-  osc.stop(t + 0.05);
-}
-```
-
-### Hi-hat (closed)
-
-```ts
-function scheduleHat(t: number): void {
-  const noiseBuf = makeNoiseBuffer(ctx, 0.05);
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuf;
-  const hp = ctx.createBiquadFilter();
-  hp.type = 'highpass';
-  hp.frequency.value = 7000;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.15, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-  noise.connect(hp);
-  hp.connect(gain);
-  gain.connect(music);
-  noise.start(t);
-  noise.stop(t + 0.05);
-}
-```
+The performance tiers are defined in the **Performance budget** section of Step 5.
 
 ---
 
@@ -419,11 +326,200 @@ function scheduleHat(t: number): void {
 - **Full ensemble silence is a valid compositional note.** One or two beats where every instrument goes silent — no bass, no melody, no percussion — creates emphasis, lets the previous phrase land, and makes the re-entry hit harder. Use it very sparingly (once or twice across a 64-beat pattern), always at a phrase boundary, and never for more than one beat unless you are deliberately building tension. A well-placed beat of silence is more effective than any amount of layering.
 - Chord changes every 2 or 4 beats feel natural. Use `null` in chord-based layers on non-change beats.
 
-### Avoiding mechanical feel
+### Realism techniques
 
-- Vary note durations slightly by using different envelope decay lengths per step (e.g. `BEAT * (0.7 + Math.sin(step) * 0.1)`). Keep variation small — ±15%.
-- For hi-hats, slightly vary the gain: `0.12 + 0.03 * (step % 3 === 0 ? 1 : 0)` to accent every third hit.
-- Do **not** add random variation to pitch — unquantised pitch sounds like a bug, not feel.
+The goal is to sound performed, not sequenced. Apply these everywhere.
+
+**Timing humanization.** Real musicians play slightly ahead of or behind the beat. Add a small deterministic jitter to the scheduled time of each note — use `step` as a seed so the pattern is reproducible, not random on every loop:
+
+```ts
+// Deterministic micro-timing: ±8 ms based on step position.
+// Uses a simple LCG-style hash so the same step always gets the same offset.
+function humanTime(t: number, step: number): number {
+  const hash = ((step * 1664525 + 1013904223) & 0xffffffff) / 0xffffffff;
+  return t + (hash - 0.5) * 0.016; // ±8 ms
+}
+// Usage: scheduleBass(midi, humanTime(t, step));
+```
+
+Apply to melody and bass. Do not apply to kick / snare downbeats — those anchor the tempo.
+
+**Velocity variation.** Real instruments vary loudness note-to-note. Scale `vol` per note using the same deterministic technique:
+
+```ts
+function humanVol(base: number, step: number): number {
+  const hash = ((step * 22695477 + 1) & 0xffffffff) / 0xffffffff;
+  return base * (0.82 + hash * 0.36); // ±18% variation
+}
+```
+
+**Envelope realism per instrument class:**
+
+| Instrument       | Attack                     | Sustain                              | Release                          |
+| ---------------- | -------------------------- | ------------------------------------ | -------------------------------- |
+| Acoustic bass    | 1–3 ms linear              | Exponential sag (-3 dB over 300 ms)  | 60–80 ms exponential             |
+| Electric piano   | 3–8 ms linear              | Shoulder then long exp decay         | 20–40 ms (sustain pedal = longer)|
+| Organ            | 5 ms linear (key-click)    | Flat                                 | 5 ms linear                      |
+| Plucked string   | Instantaneous (< 1 ms)     | Natural loop decay                   | Decays to silence naturally      |
+| Melody (lead)    | 10–20 ms linear            | Gentle sag                           | 30–50 ms                         |
+
+Never use a symmetric ADSR. Real instruments have asymmetric envelopes — attack is always shorter than release, and sustain always sags slightly rather than holding flat.
+
+**Timbral richness.** Thin tone is a synthesis failure, not an aesthetic.
+
+- **Unison detune + chorus:** For any sustained single-note layer, create 2–3 oscillators detuned ±5–12 cents and slowly sweep one with a 0.3–0.8 Hz LFO on `detune`. This creates natural ensemble spread.
+- **Spectral weight:** Add a single sub-oscillator (one octave below, sine wave, gain ≈ 0.15) to bass and chord instruments to fill the low end.
+- **Filter movement:** A slow (0.1–0.3 Hz) LFO on a lowpass filter's `frequency` parameter (+/- 120 Hz) animates sustained notes so they breathe rather than freeze.
+
+**Spatial depth.** Use a short stereo-like delay to place instruments in a simulated room:
+
+```ts
+// Lightweight reverb tail: two comb delays + one allpass.
+// Insert between instrument gain and music GainNode.
+function addRoomTail(
+  ctx: AudioContext,
+  source: AudioNode,
+  dest: AudioNode,
+  roomMs = 28,
+  decayGain = 0.22,
+): void {
+  const wet = ctx.createGain();
+  wet.gain.value = decayGain;
+
+  const d1 = ctx.createDelay(0.5);
+  const d2 = ctx.createDelay(0.5);
+  d1.delayTime.value = roomMs / 1000;
+  d2.delayTime.value = (roomMs * 1.37) / 1000; // prime ratio avoids comb-filter cancellation
+
+  source.connect(d1); d1.connect(wet);
+  source.connect(d2); d2.connect(wet);
+  wet.connect(dest);
+  source.connect(dest); // dry path
+}
+```
+
+Use short `roomMs` (18–35 ms) for intimate instruments (FM Rhodes, organ). Use longer (40–60 ms) for ambient layers (pad). Never add room tail to kick or bass — it muddies the low end.
+
+**Percussion realism:** Instrument-specific realism techniques (sub body on kick, dual noise bands on snare, two-source sheen on hi-hat) are documented in each instrument's reference file: [instruments/kick.md](instruments/kick.md), [instruments/snare.md](instruments/snare.md), [instruments/hi-hat.md](instruments/hi-hat.md).
+
+### Performance budget — quality vs timing tradeoffs
+
+**Why this matters.** The scheduler tick runs on the main thread inside `setInterval`. Every call to `ctx.createOscillator()`, `ctx.createBiquadFilter()`, etc. inside `scheduleStep()` costs main-thread time. If a single tick creates too many nodes, it stalls the JavaScript event loop long enough that the *next* tick fires late, causing the scheduled note times to drift relative to `ctx.currentTime`. The audio hardware still plays previously-scheduled notes on time — but new notes get pushed back. The result is audible timing slop that sounds worse than reduced timbral richness.
+
+**Rule:** prefer cheaper playback over expensive generation in the hot `scheduleStep()` path.
+
+#### Complexity tier table — what to keep and what to drop
+
+| Tier | Technique | Cost per note | Keep by default? |
+| ---- | --------- | ------------- | ---------------- |
+| ✅ Free | Parameter automation (`setValueAtTime`, `linearRampToValueAtTime`, `exponentialRampToValueAtTime`) | Negligible | Always |
+| ✅ Free | Playback of a pre-rendered `AudioBuffer` via `AudioBufferSourceNode` | Negligible | Always |
+| ✅ Cheap | 1–2 oscillators + 1 filter + 1 gain per note | Low | Yes |
+| ⚠️ Moderate | 3–4 oscillators per note (unison detune), simple LFO | Medium | Yes, up to 2 simultaneous notes |
+| ⚠️ Moderate | `addRoomTail()` (2 delay nodes) | Medium | Yes, but only on melody/chords — not percussion |
+| 🔴 Expensive | 6+ oscillators per note (additive organ, rich unison) | High | Pre-render instead (see below) |
+| 🔴 Expensive | Feedback delay loop (Karplus-Strong) | High | Pre-render instead |
+| 🔴 Never in hot path | `OfflineAudioContext` render | Blocking (async) | Startup only |
+
+#### Pre-rendering expensive sounds with OfflineAudioContext
+
+For any instrument whose `scheduleXxx` function creates 5+ nodes, render each distinct pitch at startup into an `AudioBuffer` and store it in a `Map<number, AudioBuffer>`. The scheduler then fires a single `AudioBufferSourceNode` per note — one node, no filter, no oscillator chain.
+
+```ts
+/**
+ * Pre-renders a single pitch of a note shape into a buffer.
+ * Called once per pitch at track startup, before the scheduler interval starts.
+ *
+ * @param ctx       The live AudioContext — used only to discover sampleRate.
+ * @param renderFn  A function that builds the synthesis graph in an OfflineAudioContext
+ *                  and returns the destination GainNode.
+ * @param durationS Buffer length in seconds (use the longest note duration for this layer).
+ */
+async function prerenderNote(
+  ctx: AudioContext,
+  renderFn: (offCtx: OfflineAudioContext) => void,
+  durationS: number,
+): Promise<AudioBuffer> {
+  const offCtx = new OfflineAudioContext(1, Math.ceil(ctx.sampleRate * durationS), ctx.sampleRate);
+  renderFn(offCtx);
+  return offCtx.startRendering();
+}
+
+// ── Usage pattern ─────────────────────────────────────────────────────────
+// At track startup (before setInterval), build the buffer cache:
+
+const noteBuffers = new Map<number, AudioBuffer>();
+
+const MIDI_NOTES = [48, 50, 52, 53, 55, 57, 58, 60, 62, 63, 64, 65, 67, 69, 70, 72, 74];
+
+await Promise.all(
+  MIDI_NOTES.map(async (midi) => {
+    const buf = await prerenderNote(
+      ctx,
+      (offCtx) => {
+        // Build the exact same synthesis graph here as in the live scheduleXxx function,
+        // but use offCtx instead of ctx. Connect final gain to offCtx.destination.
+        const freq = noteFreq(midi);
+        // example: FM Rhodes graph
+        const mod = offCtx.createOscillator();
+        // … full graph …
+        gain.connect(offCtx.destination);
+        mod.start(0); mod.stop(noteDur + 0.05);
+        carrier.start(0); carrier.stop(noteDur + 0.05);
+      },
+      noteDur + 0.1,
+    );
+    noteBuffers.set(midi, buf);
+  }),
+);
+
+// In the scheduler hot path:
+function scheduleNote(midi: number, t: number): void {
+  const buf = noteBuffers.get(midi);
+  if (!buf) return;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const gain = ctx.createGain();
+  gain.gain.value = humanVol(0.22, currentStep); // velocity variation still applies
+  src.connect(gain);
+  gain.connect(music);
+  src.start(t);
+  // No src.stop() needed — buffer plays to end and disconnects automatically.
+}
+```
+
+**Caveat:** `prerenderNote` is async and uses actual wall-clock time to render (fast — typically < 50 ms per note at 44.1 kHz). Call all renders in parallel with `Promise.all` before starting `setInterval`. Make the exported `startXxx` function `async` and `await` the renders before arming the scheduler.
+
+**What pre-rendering cannot replicate:** parameter automation that references `ctx.currentTime` at playback time (e.g. the human-timing jitter). Apply timing jitter by adjusting the `src.start(t)` argument as normal — that still works on a buffer source.
+
+#### Node count budget
+
+Every `scheduleStep()` call should create **≤ 8 Web Audio nodes in total** across all instruments firing on that step. Count oscillators, filters, gains, delay nodes, and buffer sources — each is one node.
+
+If a step fires bass + melody + percussion simultaneously and the honest count exceeds 12 nodes, pre-render the most expensive of those three layers.
+
+#### startMusic must be async when pre-rendering
+
+```ts
+// SynthAudioManager.ts — when the track uses pre-rendering:
+startMusic(trackId: string): void {
+  this.stopCurrentTrack?.();
+  const { ctx, music } = this.getMusicGain();
+  switch (trackId) {
+    case 'myTrack':
+      // Fire-and-forget the async start; stopCurrentTrack is set
+      // once rendering completes. Music is silent for ~50–100 ms.
+      startMyTrack(ctx, music).then((stop) => {
+        this.stopCurrentTrack = stop;
+      });
+      break;
+  }
+}
+```
+
+The 50–100 ms silence while buffers render is inaudible on a phase transition.
+
+---
 
 ### Structure: intro → loop
 
@@ -536,6 +632,7 @@ Checklist:
 - [ ] No single layer gain exceeds 0.4; total perceived level is comfortable alongside SFX
 - [ ] All imports use `.js` extensions (native ESM)
 - [ ] All `osc.start()` / `noise.start()` calls have matching `osc.stop()` / `noise.stop()` calls scheduled
+- [ ] **Timing drift check:** open browser DevTools Performance tab, record 10 seconds of music, verify no `setInterval` callback takes > 8 ms. If any tick exceeds that, identify which `scheduleStep()` call is creating the most nodes and pre-render it.
 
 ### Gain budget for music
 
