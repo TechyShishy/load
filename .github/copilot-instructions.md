@@ -136,3 +136,15 @@ describe('integration: SLA accumulates across rounds', () => { … });
 - Dev server must be on port **4201** — matches `playwright.config.ts` `baseURL` and `webServer.url`.
 - Use `clearSave(page)` before each test and `dismissContinueModal(page)` to dismiss the Start Screen.
 - Use `playRound(page, opts)` to abstract the full scheduling → ADVANCE → crisis → ADVANCE loop.
+
+## Music / Audio
+
+The `new-music` and `new-instrument` skills live in the **rockkit** repo. Use those skills for full implementation instructions. Relevant paths in this repo:
+
+| What | Path |
+| --- | --- |
+| `IAudioManager` interface | `packages/web/src/audio/AudioManager.ts` |
+| `SynthAudioManager` implementation | `packages/web/src/audio/SynthAudioManager.ts` |
+| Noise buffer / audio helpers | `packages/web/src/audio/sounds/utils.ts` |
+| Music track modules | `packages/web/src/audio/music/` |
+| Instrument demo pages | `packages/web/instrument-demos/` |
