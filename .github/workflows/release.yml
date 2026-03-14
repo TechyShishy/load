@@ -211,23 +211,24 @@ jobs:
           echo "LINUX_PKG=$(find artifacts/electron-linux -name '*.AppImage' | head -1)" >> "$GITHUB_ENV"
           echo "WINDOWS_PKG=$(find artifacts/electron-windows -name '*.exe' | head -1)" >> "$GITHUB_ENV"
           echo "MACOS_PKG=$(find artifacts/electron-macos -name '*.dmg' | head -1)" >> "$GITHUB_ENV"
+          echo "SEMVER=${{ github.ref_name }}" | sed 's/^SEMVER=v/SEMVER=/' >> "$GITHUB_ENV"
 
       - name: Push HTML5 build to itch.io
-        run: butler push "artifacts/web-zip/load-web-${{ github.ref_name }}.zip" techyshishy/load:html5 --userversion "${{ github.ref_name }}"
+        run: butler push "artifacts/web-zip/load-web-${{ github.ref_name }}.zip" techyshishy/load:html5 --userversion "${{ env.SEMVER }}"
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
 
       - name: Push Linux build to itch.io
-        run: butler push "${{ env.LINUX_PKG }}" techyshishy/load:linux --userversion "${{ github.ref_name }}"
+        run: butler push "${{ env.LINUX_PKG }}" techyshishy/load:linux --userversion "${{ env.SEMVER }}"
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
 
       - name: Push Windows build to itch.io
-        run: butler push "${{ env.WINDOWS_PKG }}" techyshishy/load:windows --userversion "${{ github.ref_name }}"
+        run: butler push "${{ env.WINDOWS_PKG }}" techyshishy/load:windows --userversion "${{ env.SEMVER }}"
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
 
       - name: Push macOS build to itch.io
-        run: butler push "${{ env.MACOS_PKG }}" techyshishy/load:osx --userversion "${{ github.ref_name }}"
+        run: butler push "${{ env.MACOS_PKG }}" techyshishy/load:osx --userversion "${{ env.SEMVER }}"
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
