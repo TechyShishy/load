@@ -1,5 +1,5 @@
 import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
-import { getActorAtSlot } from '../../cardPositionViews.js';
+import { getCardIdAtSlot } from '../../cardPositionViews.js';
 
 export class BandwidthUpgradeCard extends ActionCard {
   readonly templateId = 'action-bandwidth-upgrade';
@@ -33,6 +33,7 @@ export class BandwidthUpgradeCard extends ActionCard {
     const slotsToAdd = 1 - slotsToConvert;
 
     let updatedSlotLayout = context.slotLayout;
+    let updatedTrafficSlotPositions = context.trafficSlotPositions;
     let converted = 0;
     updatedSlotLayout = updatedSlotLayout.map((s) => {
       if (
@@ -41,9 +42,14 @@ export class BandwidthUpgradeCard extends ActionCard {
         converted < slotsToConvert
       ) {
         converted++;
-        // Also update the traffic card actor occupying this slot.
-        const occupant = getActorAtSlot(context, s.period, s.index);
-        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.Normal });
+        // Also update the occupying card's slot type in the position map.
+        const occupantId = getCardIdAtSlot(context, s.period, s.index);
+        if (occupantId !== undefined) {
+          updatedTrafficSlotPositions = {
+            ...updatedTrafficSlotPositions,
+            [occupantId]: { ...updatedTrafficSlotPositions[occupantId]!, slotType: SlotType.Normal },
+          };
+        }
         return { ...s, slotType: SlotType.Normal };
       }
       return s;
@@ -58,6 +64,6 @@ export class BandwidthUpgradeCard extends ActionCard {
       ];
     }
 
-    return { ...context, slotLayout: updatedSlotLayout };
+    return { ...context, slotLayout: updatedSlotLayout, trafficSlotPositions: updatedTrafficSlotPositions };
   }
 }

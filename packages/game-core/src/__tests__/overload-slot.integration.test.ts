@@ -265,9 +265,8 @@ describe('integration: overload card shifts to normal slot when lower card is re
     // Slot 2 removed; formerly slot-3 card now at 2; former overload card now at 3.
     expect(filled.find((s) => s.index === 2)?.card?.id).toBe(normalCards[3]!.id);
     expect(filled.find((s) => s.index === 3)?.card?.id).toBe(overloadCard.id);
-    // Check the overload card's actor slotType is now Normal.
-    const olActor = snap.context.trafficCardActors[overloadCard.id];
-    expect(olActor?.getSnapshot().context.slotType).toBe(SlotType.Normal);
+    // Check the overload card's slotType is now Normal.
+    expect(snap.context.trafficSlotPositions[overloadCard.id]?.slotType).toBe(SlotType.Normal);
   });
 });
 
@@ -314,10 +313,8 @@ describe('integration: two overload slots — only one disappears per removal', 
     expect(filled.find((s) => s.index === 3)?.card?.id).toBe(E.id);
     expect(filled.find((s) => s.index === 4)?.card?.id).toBe(F.id);
 
-    const eActor = snap.context.trafficCardActors[E.id];
-    const fActor = snap.context.trafficCardActors[F.id];
-    expect(eActor?.getSnapshot().context.slotType).toBe(SlotType.Normal);
-    expect(fActor?.getSnapshot().context.slotType).toBe(SlotType.Overloaded);
+    expect(snap.context.trafficSlotPositions[E.id]?.slotType).toBe(SlotType.Normal);
+    expect(snap.context.trafficSlotPositions[F.id]?.slotType).toBe(SlotType.Overloaded);
   });
 });
 

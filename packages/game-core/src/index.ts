@@ -44,15 +44,8 @@ export type {
   SerializedCard,
   SerializedGameContext,
   StorageAdapter,
-  TrafficCardActorRegistry,
-  ActionCardActorRegistry,
-  EventCardActorRegistry,
+  TrafficSlotPosition,
 } from './types.js';
-export type {
-  TrafficCardActorRef,
-  ActionCardActorRef,
-  EventCardActorRef,
-} from './cardPositionMachines.js';
 
 // ── Persistence schema (for save/load validation) ─────────────────────────────
 export { GameContextSchema } from './schemas.js';
@@ -89,5 +82,5 @@ export {
   getPendingEvents,
   getTrackTickets,
   getTracks,
-  getActorAtSlot,
+  getCardIdAtSlot,
 } from './cardPositionViews.js';

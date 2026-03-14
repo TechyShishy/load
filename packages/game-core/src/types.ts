@@ -1,5 +1,3 @@
-import type { TrafficCardActorRef, ActionCardActorRef, EventCardActorRef } from './cardPositionMachines.js';
-
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export enum Period {
@@ -43,10 +41,12 @@ export enum SlotType {
   Temporary = 'temporary',
 }
 
-/** Registries of per-card position actors keyed by instanceId. */
-export type TrafficCardActorRegistry = Record<string, TrafficCardActorRef>;
-export type ActionCardActorRegistry = Record<string, ActionCardActorRef>;
-export type EventCardActorRegistry = Record<string, EventCardActorRef>;
+/** Position data for a traffic card currently placed on the board. */
+export interface TrafficSlotPosition {
+  period: Period;
+  slotIndex: number;
+  slotType: SlotType;
+}
 
 export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'ticket' | 'board';
 
@@ -161,41 +161,15 @@ export interface SerializedCard {
   readonly instanceId: string;
 }
 
-// ─── Serialized actor snapshot shapes (for save/load) ────────────────────────
-
-export interface SerializedTrafficActorSnapshot {
-  status: 'active';
-  value: string;
-  context: {
-    instanceId: string;
-    templateId: string;
-    period?: string;
-    slotIndex?: number;
-    slotType?: string;
-  };
-}
-
-export interface SerializedActionActorSnapshot {
-  status: 'active';
-  value: string;
-  context: { instanceId: string; templateId: string };
-}
-
-export interface SerializedEventActorSnapshot {
-  status: 'active';
-  value: string;
-  context: { instanceId: string; templateId: string; track?: string };
-}
-
-/** GameContext shape as stored in JSON — cards are represented as actor snapshots. */
+/** GameContext shape as stored in JSON. */
 export interface SerializedGameContext {
   budget: number;
   round: number;
   slaCount: number;
-  /** Per-card position actor snapshots keyed by instanceId. */
-  trafficActorSnapshots: Record<string, SerializedTrafficActorSnapshot>;
-  actionActorSnapshots: Record<string, SerializedActionActorSnapshot>;
-  eventActorSnapshots: Record<string, SerializedEventActorSnapshot>;
+  /** Maps every card instanceId → templateId for all cards created in this game session. */
+  cardTemplateIds: Record<string, string>;
+  /** Slot positions for traffic cards currently on the board, keyed by instanceId. */
+  trafficSlotPositions: Record<string, { period: string; slotIndex: number; slotType: string }>;
   /** Slot layout (structure only, no card refs). */
   slotLayout: Array<{ period: string; index: number; slotType: string }>;
   /** Ordered ticket instance IDs per track. */
@@ -237,7 +211,7 @@ export interface SerializedGameContext {
 
 /**
  * Describes the structural layout of a single time slot (whether it exists and what type it is).
- * Card occupancy is tracked by the traffic card actor's position state, not here.
+ * Card occupancy is tracked by trafficSlotPositions in GameContext, not here.
  */
 export interface TimeSlotLayout {
   readonly period: Period;
@@ -299,10 +273,9 @@ export interface GameContext {
   // ── Card instances (all cards ever created, keyed by instanceId) ────────────
   cardInstances: Record<string, Card>;
 
-  // ── Per-card position actors (keyed by instanceId) ──────────────────────────
-  trafficCardActors: TrafficCardActorRegistry;
-  actionCardActors: ActionCardActorRegistry;
-  eventCardActors: EventCardActorRegistry;
+  // ── Traffic card slot positions (cards currently on the board) ───────────────
+  /** Keyed by instanceId; entry exists iff the card is in a slot on the board. */
+  trafficSlotPositions: Record<string, TrafficSlotPosition>;
 
   // ── Slot layout (structure without card refs) ────────────────────────────────
   /** Ordered list of all time slots; slot presence / type is the source of truth here. */

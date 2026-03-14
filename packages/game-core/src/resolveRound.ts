@@ -19,14 +19,10 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
   // Collect overloaded slot positions occupied by spawned cards (to preserve them).
   const spawnedOverloadSlotKeys = new Set<string>();
   const overloadedCardIds: string[] = [];
-  for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
-    if (!actor) continue;
-    const snap = actor.getSnapshot();
-    if (snap.value !== 'onSlot') continue;
-    const c = snap.context;
-    if (c.slotType !== SlotType.Overloaded) continue;
+  for (const [id, pos] of Object.entries(ctx.trafficSlotPositions)) {
+    if (pos.slotType !== SlotType.Overloaded) continue;
     if (spawnedCardIds.has(id)) {
-      spawnedOverloadSlotKeys.add(`${c.period}:${c.slotIndex}`);
+      spawnedOverloadSlotKeys.add(`${pos.period}:${pos.slotIndex}`);
     } else {
       overloadedCardIds.push(id);
     }
@@ -56,15 +52,11 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
   const forgivenCount = Math.min(ctx.slaForgivenessThisRound, totalFailures);
   const newSlaCount = ctx.slaCount + totalFailures - forgivenCount;
 
-  // Transition overloaded cards from onSlot → inDiscard.
-  for (const id of overloadedCardIds) {
-    ctx.trafficCardActors[id]?.send({ type: 'REMOVE' });
-  }
-
-  // Transition expired ticket actors to inDiscard.
-  for (const id of expiredTicketIds) {
-    ctx.eventCardActors[id]?.send({ type: 'CLEAR_TICKET' });
-  }
+  // Remove overloaded cards from the position map.
+  const overloadedSet = new Set(overloadedCardIds);
+  const newTrafficSlotPositions = Object.fromEntries(
+    Object.entries(ctx.trafficSlotPositions).filter(([id]) => !overloadedSet.has(id)),
+  );
 
   // Remove overloaded slot entries from layout, preserving slots occupied by
   // just-spawned cards (the player needs a scheduling turn to address them).
@@ -79,16 +71,9 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     ...overloadedCardIds.filter((id) => !spawnedTrafficIdSet.has(id)),
   ];
 
-  // Count cards remaining on board (non-overloaded slots with a card).
-  let resolvedCount = 0;
-  for (const actor of Object.values(ctx.trafficCardActors)) {
-    if (!actor) continue;
-    const snap = actor.getSnapshot();
-    if (snap.value === 'onSlot') {
-      const c = snap.context;
-      if (c.slotType !== SlotType.Overloaded) resolvedCount++;
-    }
-  }
+  const resolvedCount = Object.values(newTrafficSlotPositions).filter(
+    (pos) => pos.slotType !== SlotType.Overloaded,
+  ).length;
 
   const budgetDelta = ctx.pendingRevenue;
 
@@ -122,12 +107,10 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     ...ctx,
     slotLayout,
     trafficDiscardOrder,
+    trafficSlotPositions: newTrafficSlotPositions,
     // Prune stale IDs (cards that left the board this round or earlier); only keep
     // spawned cards that are still on a slot so the set stays tightly bounded.
-    spawnedTrafficIds: ctx.spawnedTrafficIds.filter((id) => {
-      const actor = ctx.trafficCardActors[id];
-      return actor?.getSnapshot().value === 'onSlot';
-    }),
+    spawnedTrafficIds: ctx.spawnedTrafficIds.filter((id) => id in newTrafficSlotPositions),
     ticketOrders: newTicketOrders,
     ticketProgress: newTicketProgress,
     ticketIssuedRound: newTicketIssuedRound,

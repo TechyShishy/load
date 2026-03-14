@@ -72,7 +72,6 @@ export class WorkOrderCard extends ActionCard {
       const newTicketIssuedRound = { ...context.ticketIssuedRound };
       delete newTicketIssuedRound[targetId];
 
-      context.eventCardActors[targetId]?.send({ type: 'CLEAR_TICKET' });
       context = {
         ...context,
         ticketOrders: {

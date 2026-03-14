@@ -1,7 +1,5 @@
-import { createActor } from 'xstate';
 import { Period, SlotType, TrafficCard, type GameContext } from '../../types.js';
-import { trafficCardPositionMachine } from '../../cardPositionMachines.js';
-import { getActorAtSlot } from '../../cardPositionViews.js';
+import { getCardIdAtSlot } from '../../cardPositionViews.js';
 
 export class ViralTrafficSpikeCard extends TrafficCard {
   readonly templateId = 'traffic-viral-spike';
@@ -30,12 +28,6 @@ export class ViralTrafficSpikeCard extends TrafficCard {
     const periodOrder = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
     const nextPeriod = periodOrder[periodOrder.indexOf(sourcePeriod) + 1] ?? Period.Overnight;
 
-    // Create actor for the copy, starting in inDeck (will immediately be placed or spawned).
-    const copyActor = createActor(trafficCardPositionMachine, {
-      input: { instanceId: copy.id, templateId: copy.templateId },
-    });
-    copyActor.start();
-
     // Place the copy in the next period (the period after sourcePeriod).
     // This direct placement bypasses computeTrafficPlacements — the "next period"
     // override takes precedence over the card's weekTable.
@@ -45,27 +37,22 @@ export class ViralTrafficSpikeCard extends TrafficCard {
     // as an SLA failure unless the player clears it first. However, it IS
     // registered in spawnedTrafficIds, so when swept it does NOT recycle into
     // trafficDiscardOrder — it simply disappears from the game.
+    const newTrafficSlotPositions = { ...ctx.trafficSlotPositions };
     const freeSlot = ctx.slotLayout.find((s) => {
       if (s.period !== nextPeriod || s.slotType === SlotType.Overloaded) return false;
-      return getActorAtSlot(ctx, s.period, s.index) === undefined;
+      return getCardIdAtSlot({ ...ctx, trafficSlotPositions: newTrafficSlotPositions }, s.period, s.index) === undefined;
     });
 
     const newCardInstances = { ...ctx.cardInstances, [copy.id]: copy };
-    const newTrafficCardActors = { ...ctx.trafficCardActors, [copy.id]: copyActor };
     // Track the copy permanently so it is never recycled into the discard pile.
     const newSpawnedTrafficIds = [...ctx.spawnedTrafficIds, copy.id];
 
     if (freeSlot) {
-      copyActor.send({
-        type: 'PLACE',
-        period: freeSlot.period,
-        slotIndex: freeSlot.index,
-        slotType: freeSlot.slotType,
-      });
+      newTrafficSlotPositions[copy.id] = { period: freeSlot.period, slotIndex: freeSlot.index, slotType: freeSlot.slotType };
       return {
         ...ctx,
         cardInstances: newCardInstances,
-        trafficCardActors: newTrafficCardActors,
+        trafficSlotPositions: newTrafficSlotPositions,
         spawnedTrafficIds: newSpawnedTrafficIds,
       };
     }
@@ -73,16 +60,11 @@ export class ViralTrafficSpikeCard extends TrafficCard {
     // No free slot — create an overload slot and place directly so the player
     // can see and potentially address it during scheduling.
     const overloadIndex = ctx.slotLayout.filter((s) => s.period === nextPeriod).length;
-    copyActor.send({
-      type: 'PLACE',
-      period: nextPeriod,
-      slotIndex: overloadIndex,
-      slotType: SlotType.Overloaded,
-    });
+    newTrafficSlotPositions[copy.id] = { period: nextPeriod, slotIndex: overloadIndex, slotType: SlotType.Overloaded };
     return {
       ...ctx,
       cardInstances: newCardInstances,
-      trafficCardActors: newTrafficCardActors,
+      trafficSlotPositions: newTrafficSlotPositions,
       spawnedTrafficIds: newSpawnedTrafficIds,
       slotLayout: [
         ...ctx.slotLayout,

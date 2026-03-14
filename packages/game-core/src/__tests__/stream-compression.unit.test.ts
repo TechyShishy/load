@@ -198,6 +198,33 @@ describe('StreamCompressionCard', () => {
       .flatMap((s) => s.card ? [s.card] : []);
     expect(morningCards).toHaveLength(2);
   });
+
+  it('slot indices are contiguous and zero-based after removing 3 of 4 cards', () => {
+    // Regression guard for the stale-slotIndex bug: the removal loop must use
+    // live slot positions from trafficSlotPositions, not a pre-loop snapshot.
+    // With 4 cards at slots 0-3 where FourKStream is the majority (3 copies),
+    // each removal shifts cards above it down by 1. If the loop uses a stale
+    // snapshot, the third removal fires shiftTrafficSlotsAfterRemoval at index 2
+    // even though the card has already shifted to index 0, leaving the survivor
+    // stranded at slotIndex 1 instead of 0.
+    const iot = new IoTBurstCard('iot-stay');
+    const a   = new FourKStreamCard('4k-a');
+    const b   = new FourKStreamCard('4k-b');
+    const c   = new FourKStreamCard('4k-c');
+    let ctx = ctxWithHandCardsFixedIds([streamComp], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    ctx = ctxWithCardOnSlot(iot, Period.Morning, 0, ctx);
+    ctx = ctxWithCardOnSlot(a,   Period.Morning, 1, ctx);
+    ctx = ctxWithCardOnSlot(b,   Period.Morning, 2, ctx);
+    ctx = ctxWithCardOnSlot(c,   Period.Morning, 3, ctx);
+    const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
+
+    const remaining = Object.entries(updated.trafficSlotPositions)
+      .filter(([, pos]) => pos.period === Period.Morning);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]![0]).toBe(iot.id);
+    // Survivor must be at slot 0. Stale-index bug would leave it at slot 1.
+    expect(remaining[0]![1].slotIndex).toBe(0);
+  });
 });
 
 describe('revenueBoostMultiplier applied by StreamCompressionCard', () => {

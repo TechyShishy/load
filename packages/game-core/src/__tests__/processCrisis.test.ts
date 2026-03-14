@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createActor } from 'xstate';
 import { playActionCard, processCrisis } from '../processCrisis.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { EVENT_CARDS } from '../data/events/index.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { WorkOrderCard } from '../data/actions/WorkOrderCard.js';
 import { FiveGActivationCard } from '../data/events/FiveGActivationCard.js';
-import { eventCardPositionMachine } from '../cardPositionMachines.js';
 import { getFilledTimeSlots } from '../cardPositionViews.js';
 import {
   Period,
@@ -55,17 +53,9 @@ describe('playActionCard', () => {
 
   it('ClearTicket removes first ticket from the target track', () => {
     const base = makeCtx();
-    // Issue ddosEvent as a ticket on BreakFix by building actor + ticketOrders manually.
-    const ticketActor = createActor(eventCardPositionMachine, {
-      input: { instanceId: ddosEvent.id, templateId: ddosEvent.templateId },
-    });
-    ticketActor.start();
-    ticketActor.send({ type: 'DRAW' });
-    ticketActor.send({ type: 'ISSUE_TICKET', track: Track.BreakFix });
     const ctx = {
       ...base,
       cardInstances: { ...base.cardInstances, [ddosEvent.id]: ddosEvent },
-      eventCardActors: { ...base.eventCardActors, [ddosEvent.id]: ticketActor },
       ticketOrders: { ...base.ticketOrders, [Track.BreakFix]: [ddosEvent.id] },
     };
     const updated = playActionCard(ctx, emMaint);
@@ -119,16 +109,9 @@ describe('playActionCard', () => {
 
   it('ClearTicket targets ticket by eventId', () => {
     const base = makeCtx();
-    const maintActor = createActor(eventCardPositionMachine, {
-      input: { instanceId: ddosEvent.id, templateId: ddosEvent.templateId },
-    });
-    maintActor.start();
-    maintActor.send({ type: 'DRAW' });
-    maintActor.send({ type: 'ISSUE_TICKET', track: Track.Maintenance });
     const ctx = {
       ...base,
       cardInstances: { ...base.cardInstances, [ddosEvent.id]: ddosEvent },
-      eventCardActors: { ...base.eventCardActors, [ddosEvent.id]: maintActor },
       ticketOrders: { ...base.ticketOrders, [Track.Maintenance]: [ddosEvent.id] },
     };
     // Target the specific ticket by its event instanceId
@@ -173,7 +156,7 @@ describe('processCrisis', () => {
     expect(context.spawnedQueueOrder.every((id) => context.cardInstances[id]?.templateId === 'traffic-ddos')).toBe(true);
     // All 4 cards are already on a slot (not waiting for performResolution to place them).
     for (const id of context.spawnedQueueOrder) {
-      expect(context.trafficCardActors[id]?.getSnapshot().value).toBe('onSlot');
+      expect(context.trafficSlotPositions[id]).toBeDefined();
     }
   });
 
@@ -264,18 +247,10 @@ describe('processCrisis', () => {
 /** Build a base context with one FiveGActivation ticket already issued on Projects. */
 function makeCtxWithFiveGTicket() {
   const ticket = new FiveGActivationCard('ticket-5g-test');
-  const ticketActor = createActor(eventCardPositionMachine, {
-    input: { instanceId: ticket.id, templateId: ticket.templateId },
-  });
-  ticketActor.start();
-  ticketActor.send({ type: 'DRAW' });
-  ticketActor.send({ type: 'ISSUE_TICKET', track: Track.Projects });
-
   const base = safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis });
   return {
     ...base,
     cardInstances: { ...base.cardInstances, [ticket.id]: ticket },
-    eventCardActors: { ...base.eventCardActors, [ticket.id]: ticketActor },
     ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket.id] },
     ticketIssuedRound: { ...base.ticketIssuedRound, [ticket.id]: 1 },
   };
@@ -387,18 +362,10 @@ describe('Work Order multi-step ticket mechanic', () => {
     // Two 5G tickets on Projects — working one should not affect the other.
     const ticket1 = new FiveGActivationCard('ticket-5g-1');
     const ticket2 = new FiveGActivationCard('ticket-5g-2');
-    const makeActor = (t: FiveGActivationCard) => {
-      const a = createActor(eventCardPositionMachine, { input: { instanceId: t.id, templateId: t.templateId } });
-      a.start();
-      a.send({ type: 'DRAW' });
-      a.send({ type: 'ISSUE_TICKET', track: Track.Projects });
-      return a;
-    };
     const base = safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis });
     const ctx = {
       ...base,
       cardInstances: { ...base.cardInstances, [ticket1.id]: ticket1, [ticket2.id]: ticket2 },
-      eventCardActors: { ...base.eventCardActors, [ticket1.id]: makeActor(ticket1), [ticket2.id]: makeActor(ticket2) },
       ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket1.id, ticket2.id] },
       ticketIssuedRound: { [ticket1.id]: 1, [ticket2.id]: 1 },
     };
@@ -432,22 +399,10 @@ describe('Work Order multi-step ticket mechanic', () => {
     // BreakFix first (BreakFix is declared first in the Track enum).
     const bfTicket = new FiveGActivationCard('ticket-bf');
     const projTicket = new FiveGActivationCard('ticket-proj');
-    const makeActor = (t: FiveGActivationCard, track: Track) => {
-      const a = createActor(eventCardPositionMachine, { input: { instanceId: t.id, templateId: t.templateId } });
-      a.start();
-      a.send({ type: 'DRAW' });
-      a.send({ type: 'ISSUE_TICKET', track });
-      return a;
-    };
     const base = safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis });
     const ctx = {
       ...base,
       cardInstances: { ...base.cardInstances, [bfTicket.id]: bfTicket, [projTicket.id]: projTicket },
-      eventCardActors: {
-        ...base.eventCardActors,
-        [bfTicket.id]: makeActor(bfTicket, Track.BreakFix),
-        [projTicket.id]: makeActor(projTicket, Track.Projects),
-      },
       ticketOrders: {
         ...base.ticketOrders,
         [Track.BreakFix]: [bfTicket.id],

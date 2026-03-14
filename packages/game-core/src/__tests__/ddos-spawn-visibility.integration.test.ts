@@ -29,15 +29,11 @@ describe('integration: DDoS spawn visibility', () => {
     const drawSnap = actor.getSnapshot();
     expect(drawSnap.value).toBe('draw');
 
-    // Count DDoS actors on-slot. The board is empty at crisis start (safeContext
-    // skips the initial draw), so all 4 spawned cards (one per period) land on
-    // normal slots — none should be discarded via overload resolution.
+    // Count DDoS cards on-slot via trafficSlotPositions.
     let ddosOnSlot = 0;
-    for (const [id, a] of Object.entries(drawSnap.context.trafficCardActors)) {
-      if (!a) continue;
+    for (const [id] of Object.entries(drawSnap.context.trafficSlotPositions)) {
       const inst = drawSnap.context.cardInstances[id];
-      if (!(inst instanceof DDoSTrafficCard)) continue;
-      if (a.getSnapshot().value === 'onSlot') ddosOnSlot++;
+      if (inst instanceof DDoSTrafficCard) ddosOnSlot++;
     }
     expect(ddosOnSlot).toBe(4);
     expect(drawSnap.context.round).toBe(2);
@@ -87,15 +83,12 @@ describe('integration: DDoS spawn visibility', () => {
     expect(drawSnap.value).toBe('draw');
 
     // Count DDoS cards by state.
-    let ddosOnSlot = 0;
-    let ddosInDiscard = 0;
-    for (const [id, a] of Object.entries(drawSnap.context.trafficCardActors)) {
-      if (!a) continue;
-      if (!(drawSnap.context.cardInstances[id] instanceof DDoSTrafficCard)) continue;
-      const state = a.getSnapshot().value;
-      if (state === 'onSlot') ddosOnSlot++;
-      if (state === 'inDiscard') ddosInDiscard++;
-    }
+    const ddosOnSlot = Object.keys(drawSnap.context.trafficSlotPositions).filter(
+      (id) => drawSnap.context.cardInstances[id] instanceof DDoSTrafficCard,
+    ).length;
+    const ddosInDiscard = drawSnap.context.trafficDiscardOrder.filter(
+      (id) => drawSnap.context.cardInstances[id] instanceof DDoSTrafficCard,
+    ).length;
 
     // All 4 DDoS cards must survive — none should be silently discarded by
     // resolveRound just because they overflowed during performResolution.

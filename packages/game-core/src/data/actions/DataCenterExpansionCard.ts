@@ -1,5 +1,5 @@
 import { ActionCard, Period, SlotType, type GameContext } from '../../types.js';
-import { getActorAtSlot } from '../../cardPositionViews.js';
+import { getCardIdAtSlot } from '../../cardPositionViews.js';
 
 export class DataCenterExpansionCard extends ActionCard {
   readonly templateId = 'action-datacenter-expansion';
@@ -32,6 +32,7 @@ export class DataCenterExpansionCard extends ActionCard {
     const slotsToAdd = 2 - slotsToConvert;
 
     let updatedSlotLayout = context.slotLayout;
+    let updatedTrafficSlotPositions = context.trafficSlotPositions;
     let converted = 0;
     updatedSlotLayout = updatedSlotLayout.map((s) => {
       if (
@@ -40,8 +41,13 @@ export class DataCenterExpansionCard extends ActionCard {
         converted < slotsToConvert
       ) {
         converted++;
-        const occupant = getActorAtSlot(context, s.period, s.index);
-        occupant?.actor.send({ type: 'UPDATE_SLOT_TYPE', slotType: SlotType.Normal });
+        const occupantId = getCardIdAtSlot(context, s.period, s.index);
+        if (occupantId !== undefined) {
+          updatedTrafficSlotPositions = {
+            ...updatedTrafficSlotPositions,
+            [occupantId]: { ...updatedTrafficSlotPositions[occupantId]!, slotType: SlotType.Normal },
+          };
+        }
         return { ...s, slotType: SlotType.Normal };
       }
       return s;
@@ -55,6 +61,6 @@ export class DataCenterExpansionCard extends ActionCard {
       ];
     }
 
-    return { ...context, slotLayout: updatedSlotLayout };
+    return { ...context, slotLayout: updatedSlotLayout, trafficSlotPositions: updatedTrafficSlotPositions };
   }
 }

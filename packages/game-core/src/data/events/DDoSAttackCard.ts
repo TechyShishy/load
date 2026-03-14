@@ -1,8 +1,6 @@
-import { createActor } from 'xstate';
 import { EventCard, Period, SlotType, type GameContext } from '../../types.js';
-import { trafficCardPositionMachine } from '../../cardPositionMachines.js';
 import { DDoSTrafficCard } from '../traffic/DDoSTrafficCard.js';
-import { getActorAtSlot } from '../../cardPositionViews.js';
+import { getCardIdAtSlot } from '../../cardPositionViews.js';
 
 export class DDoSAttackCard extends EventCard {
   readonly templateId = 'event-ddos-attack';
@@ -20,38 +18,33 @@ export class DDoSAttackCard extends EventCard {
 
     const periods = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight] as const;
     const newCardInstances = { ...ctx.cardInstances };
-    const newTrafficCardActors = { ...ctx.trafficCardActors };
+    const newTrafficSlotPositions = { ...ctx.trafficSlotPositions };
     let newSlotLayout = [...ctx.slotLayout];
     const newIds: string[] = [];
 
     for (const period of periods) {
       const card = new DDoSTrafficCard(crypto.randomUUID());
-      const actor = createActor(trafficCardPositionMachine, {
-        input: { instanceId: card.id, templateId: card.templateId },
-      });
-      actor.start();
 
       // Find the first free non-overloaded slot in this period.
-      // Pass the growing newTrafficCardActors so already-placed DDoS cards in
+      // Pass the growing newTrafficSlotPositions so already-placed DDoS cards in
       // earlier periods are visible and not double-counted as free.
       const freeSlot = newSlotLayout.find(
         (s) =>
           s.period === period &&
           s.slotType !== SlotType.Overloaded &&
-          getActorAtSlot({ ...ctx, trafficCardActors: newTrafficCardActors }, s.period, s.index) === undefined,
+          getCardIdAtSlot({ ...ctx, trafficSlotPositions: newTrafficSlotPositions }, s.period, s.index) === undefined,
       );
 
       if (freeSlot) {
-        actor.send({ type: 'PLACE', period: freeSlot.period, slotIndex: freeSlot.index, slotType: freeSlot.slotType });
+        newTrafficSlotPositions[card.id] = { period: freeSlot.period, slotIndex: freeSlot.index, slotType: freeSlot.slotType };
       } else {
         // Period is full — create an overload slot.
         const overloadIndex = newSlotLayout.filter((s) => s.period === period).length;
         newSlotLayout = [...newSlotLayout, { period, index: overloadIndex, slotType: SlotType.Overloaded }];
-        actor.send({ type: 'PLACE', period, slotIndex: overloadIndex, slotType: SlotType.Overloaded });
+        newTrafficSlotPositions[card.id] = { period, slotIndex: overloadIndex, slotType: SlotType.Overloaded };
       }
 
       newCardInstances[card.id] = card;
-      newTrafficCardActors[card.id] = actor;
       newIds.push(card.id);
     }
 
@@ -66,11 +59,10 @@ export class DDoSAttackCard extends EventCard {
     return {
       ...ctx,
       cardInstances: newCardInstances,
-      trafficCardActors: newTrafficCardActors,
+      trafficSlotPositions: newTrafficSlotPositions,
       slotLayout: newSlotLayout,
       spawnedQueueOrder: newSpawnedQueueOrder,
       spawnedTrafficIds: newSpawnedTrafficIds,
     };
   }
 }
-

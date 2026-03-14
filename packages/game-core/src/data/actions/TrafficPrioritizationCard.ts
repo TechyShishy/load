@@ -23,17 +23,17 @@ export class TrafficPrioritizationCard extends ActionCard {
     let context = commit();
     if (!targetTrafficCardId) return context;
 
-    const targetActor = context.trafficCardActors[targetTrafficCardId];
-    if (!targetActor) return context;
-    const snap = targetActor.getSnapshot();
-    if (snap.value !== 'onSlot') return context;
+    const pos = context.trafficSlotPositions[targetTrafficCardId];
+    if (!pos) return context;
 
-    const { period: actorPeriod, slotIndex } = snap.context;
+    const { period: actorPeriod, slotIndex } = pos;
     const removedCard = context.cardInstances[targetTrafficCardId];
-    if (!removedCard || actorPeriod === undefined || slotIndex === undefined) return context;
+    if (!removedCard) return context;
 
-    // Transition actor: onSlot → inDiscard.
-    targetActor.send({ type: 'REMOVE' });
+    // Remove card from the position map.
+    const newTrafficSlotPositions = { ...context.trafficSlotPositions };
+    delete newTrafficSlotPositions[targetTrafficCardId];
+    context = { ...context, trafficSlotPositions: newTrafficSlotPositions };
 
     // Shift subsequent cards in the period up to fill the gap; removes the
     // vacated overload slot from the layout if one exists.

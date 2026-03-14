@@ -16,20 +16,13 @@ export function getSpawnedTrafficQueue(ctx: GameContext): TrafficCard[] {
 
 /**
  * Returns the full slot list with card refs, mirroring the old timeSlots field.
- * Builds a position→instanceId index from actor states, then maps slotLayout.
+ * Builds a position→instanceId index from trafficSlotPositions, then maps slotLayout.
  */
 export function getFilledTimeSlots(ctx: GameContext): TimeSlot[] {
   // Build a single-pass lookup: 'period:index' → instanceId
   const slotMap = new Map<string, string>();
-  for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
-    if (!actor) continue;
-    const snap = actor.getSnapshot();
-    if (snap.value === 'onSlot') {
-      const c = snap.context;
-      if (c.period !== undefined && c.slotIndex !== undefined) {
-        slotMap.set(`${c.period}:${c.slotIndex}`, id);
-      }
-    }
+  for (const [id, pos] of Object.entries(ctx.trafficSlotPositions)) {
+    slotMap.set(`${pos.period}:${pos.slotIndex}`, id);
   }
 
   return ctx.slotLayout.map((layout) => {
@@ -91,21 +84,17 @@ export function getTracks(ctx: GameContext): TrackSlot[] {
 // ─── Slot helpers (used by card apply() methods) ──────────────────────────────
 
 /**
- * Find the actor currently occupying the given slot position.
+ * Find the card ID currently occupying the given slot position.
  * Returns undefined if the slot is empty.
  */
-export function getActorAtSlot(
+export function getCardIdAtSlot(
   ctx: GameContext,
   period: Period,
   slotIndex: number,
-) {
-  for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
-    const snap = actor.getSnapshot();
-    if (snap.value === 'onSlot') {
-      const c = snap.context;
-      if (c.period === period && c.slotIndex === slotIndex) {
-        return { id, actor };
-      }
+): string | undefined {
+  for (const [id, pos] of Object.entries(ctx.trafficSlotPositions)) {
+    if (pos.period === period && pos.slotIndex === slotIndex) {
+      return id;
     }
   }
   return undefined;

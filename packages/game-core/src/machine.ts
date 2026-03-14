@@ -1,12 +1,10 @@
 import { and, assign, enqueueActions, setup } from 'xstate';
-import { createActor } from 'xstate';
 import {
   HAND_SIZE, LoseReason, Period, PhaseId, STARTING_BUDGET, Track,
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
   type ActionCard, type Card, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
-  type TrafficCardActorRegistry, type ActionCardActorRegistry, type EventCardActorRegistry,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, shuffle } from './deck.js';
@@ -19,9 +17,7 @@ import { computeTrafficPlacements } from './autoFillTrafficSlots.js';
 import { playActionCard as applyPlayActionCard, processCrisis } from './processCrisis.js';
 import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRound.js';
 import { getPendingEvents } from './cardPositionViews.js';
-import {
-  trafficCardPositionMachine, actionCardPositionMachine, eventCardPositionMachine,
-} from './cardPositionMachines.js';
+
 
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
@@ -39,44 +35,6 @@ export function createInitialContext(seed?: string): GameContext {
     cardInstances[c.id] = c;
   }
 
-  // ─ traffic card actors (all start inDeck) ─
-  const trafficCardActors: TrafficCardActorRegistry = {};
-  for (const card of trafficCards) {
-    const actor = createActor(trafficCardPositionMachine, {
-      input: { instanceId: card.id, templateId: card.templateId },
-    });
-    actor.start();
-    trafficCardActors[card.id] = actor;
-  }
-
-  // ─ action card actors ─
-  const actionCardActors: ActionCardActorRegistry = {};
-  for (const card of remainingActionCards) {
-    const actor = createActor(actionCardPositionMachine, {
-      input: { instanceId: card.id, templateId: card.templateId },
-    });
-    actor.start();
-    actionCardActors[card.id] = actor;
-  }
-  for (const card of initialHandCards) {
-    const actor = createActor(actionCardPositionMachine, {
-      input: { instanceId: card.id, templateId: card.templateId },
-    });
-    actor.start();
-    actor.send({ type: 'DRAW' }); // inDeck → inHand
-    actionCardActors[card.id] = actor;
-  }
-
-  // ─ event card actors (all start inDeck) ─
-  const eventCardActors: EventCardActorRegistry = {};
-  for (const card of eventCards) {
-    const actor = createActor(eventCardPositionMachine, {
-      input: { instanceId: card.id, templateId: card.templateId },
-    });
-    actor.start();
-    eventCardActors[card.id] = actor;
-  }
-
   const ticketOrders: Record<Track, string[]> = {
     [Track.BreakFix]: [],
     [Track.Projects]: [],
@@ -88,9 +46,7 @@ export function createInitialContext(seed?: string): GameContext {
     round: 1,
     slaCount: 0,
     cardInstances,
-    trafficCardActors,
-    actionCardActors,
-    eventCardActors,
+    trafficSlotPositions: {},
     slotLayout: createInitialSlotLayout(),
     ticketOrders,
     ticketProgress: {},
@@ -202,11 +158,6 @@ export const gameMachine = setup({
       let trafficDeckOrder = context.trafficDeckOrder;
       let trafficDiscardOrder = context.trafficDiscardOrder;
       if (trafficDeckOrder.length === 0 && trafficDiscardOrder.length > 0) {
-        for (const id of trafficDiscardOrder) {
-          // Direct synchronous send — actor state must be updated before enqueue.assign
-          // fires so that getFilledTimeSlots() sees the correct state during React render.
-          context.trafficCardActors[id]?.send({ type: 'RESHUFFLE' });
-        }
         trafficDeckOrder = shuffle(trafficDiscardOrder, drawRng);
         trafficDiscardOrder = [];
       }
@@ -215,17 +166,9 @@ export const gameMachine = setup({
       const remainingDeckOrder = trafficDeckOrder.slice(trafficDrawCount);
 
       // Compute slot placements (pure, no side effects).
-      const occupiedSlots = new Set<string>();
-      for (const actor of Object.values(context.trafficCardActors)) {
-        if (!actor) continue;
-        const snap = actor.getSnapshot();
-        if (snap.value === 'onSlot') {
-          const c = snap.context;
-          if (c.period !== undefined && c.slotIndex !== undefined) {
-            occupiedSlots.add(`${c.period}:${c.slotIndex}`);
-          }
-        }
-      }
+      const occupiedSlots = new Set<string>(
+        Object.values(context.trafficSlotPositions).map((pos) => `${pos.period}:${pos.slotIndex}`),
+      );
       const drawnCards = drawnIds.map((id) => context.cardInstances[id] as TrafficCard);
       const { placements, newSlotLayout } = computeTrafficPlacements(
         freshLayout,
@@ -234,12 +177,9 @@ export const gameMachine = setup({
         context.round,
       );
 
-      // Send PLACE events to actors synchronously before enqueue.assign fires.
-      // getFilledTimeSlots() reads live actor state during React's render phase;
-      // deferred sends (enqueue.sendTo) would leave actors in inDeck when the
-      // useMemo recomputes, causing slot drop zones to never appear.
+      const newTrafficSlotPositions = { ...context.trafficSlotPositions };
       for (const p of placements) {
-        context.trafficCardActors[p.cardId]?.send({ type: 'PLACE', period: p.period, slotIndex: p.slotIndex, slotType: p.slotType });
+        newTrafficSlotPositions[p.cardId] = { period: p.period, slotIndex: p.slotIndex, slotType: p.slotType };
       }
 
       // Build draw log.
@@ -253,6 +193,7 @@ export const gameMachine = setup({
         slotLayout: newSlotLayout,
         trafficDeckOrder: remainingDeckOrder,
         trafficDiscardOrder,
+        trafficSlotPositions: newTrafficSlotPositions,
         playedThisRoundOrder: [],
         mitigatedEventIds: [],
         pendingEventsOrder: [],
@@ -276,10 +217,6 @@ export const gameMachine = setup({
 
       // Reshuffle if exhausted.
       if (eventDeckOrder.length === 0 && eventDiscardOrder.length > 0) {
-        for (const id of eventDiscardOrder) {
-          // Direct synchronous send — same reasoning as performDraw PLACE events.
-          context.eventCardActors[id]?.send({ type: 'RESHUFFLE' });
-        }
         eventDeckOrder = shuffle(eventDiscardOrder, eventRng);
         eventDiscardOrder = [];
       }
@@ -287,11 +224,6 @@ export const gameMachine = setup({
       const eventDrawCount = isWeekend(context.round) ? WEEKEND_EVENT_DRAW : WEEKDAY_EVENT_DRAW;
       const drawnIds = eventDeckOrder.slice(0, eventDrawCount);
       const remainingDeckOrder = eventDeckOrder.slice(eventDrawCount);
-
-      // Send DRAW to each drawn event actor synchronously before enqueue.assign fires.
-      for (const id of drawnIds) {
-        context.eventCardActors[id]?.send({ type: 'DRAW' });
-      }
 
       const drawnCards = drawnIds.map((id) => context.cardInstances[id] as EventCard);
 
@@ -320,23 +252,14 @@ export const gameMachine = setup({
       // during onCrisis — e.g. DDoS — are already in onSlot and are skipped).
       let resolveCtx = context;
       if (spawnCount > 0) {
-        const needsPlacement = context.spawnedQueueOrder.filter((id) => {
-          const actor = context.trafficCardActors[id];
-          return !actor || actor.getSnapshot().value !== 'onSlot';
-        });
+        const needsPlacement = context.spawnedQueueOrder.filter(
+          (id) => !(id in context.trafficSlotPositions),
+        );
 
         if (needsPlacement.length > 0) {
-          const occupiedSlots = new Set<string>();
-          for (const actor of Object.values(context.trafficCardActors)) {
-            if (!actor) continue;
-            const snap = actor.getSnapshot();
-            if (snap.value === 'onSlot') {
-              const c = snap.context;
-              if (c.period !== undefined && c.slotIndex !== undefined) {
-                occupiedSlots.add(`${c.period}:${c.slotIndex}`);
-              }
-            }
-          }
+          const occupiedSlots = new Set<string>(
+            Object.values(context.trafficSlotPositions).map((pos) => `${pos.period}:${pos.slotIndex}`),
+          );
           const spawnedCards = needsPlacement.map((id) => context.cardInstances[id] as TrafficCard);
           const { placements, newSlotLayout } = computeTrafficPlacements(
             context.slotLayout,
@@ -344,11 +267,11 @@ export const gameMachine = setup({
             spawnedCards,
             context.round,
           );
-          // Send PLACE events synchronously before enqueue.assign fires.
+          const newTrafficSlotPositions = { ...context.trafficSlotPositions };
           for (const p of placements) {
-            context.trafficCardActors[p.cardId]?.send({ type: 'PLACE', period: p.period, slotIndex: p.slotIndex, slotType: p.slotType });
+            newTrafficSlotPositions[p.cardId] = { period: p.period, slotIndex: p.slotIndex, slotType: p.slotType };
           }
-          resolveCtx = { ...context, slotLayout: newSlotLayout, spawnedQueueOrder: [] };
+          resolveCtx = { ...context, slotLayout: newSlotLayout, trafficSlotPositions: newTrafficSlotPositions, spawnedQueueOrder: [] };
         } else {
           // All spawns were pre-placed (e.g. DDoS direct placement during crisis).
           // Clear the queue so the next round doesn't re-protect these cards.
@@ -365,18 +288,11 @@ export const gameMachine = setup({
       const actRng = makeRng(context.seed + '-act-' + context.round);
 
       // Move played cards to discard.
-      for (const id of context.playedThisRoundOrder) {
-        // Direct synchronous send — action actor state must be updated before enqueue.assign.
-        context.actionCardActors[id]?.send({ type: 'DISCARD' });
-      }
       let actionDiscardOrder = [...context.actionDiscardOrder, ...context.playedThisRoundOrder];
 
       // On Friday, also discard the entire remaining hand.
       let handOrder = context.handOrder;
       if (friday) {
-        for (const id of context.handOrder) {
-          context.actionCardActors[id]?.send({ type: 'DISCARD' });
-        }
         actionDiscardOrder = [...actionDiscardOrder, ...context.handOrder];
         handOrder = [];
       }
@@ -388,18 +304,11 @@ export const gameMachine = setup({
       if (deficit > 0) {
         // Reshuffle if exhausted.
         if (actionDeckOrder.length === 0 && actionDiscardOrder.length > 0) {
-          for (const id of actionDiscardOrder) {
-            // Direct synchronous send — action actor state must be updated before enqueue.assign.
-            context.actionCardActors[id]?.send({ type: 'RESHUFFLE' });
-          }
           actionDeckOrder = shuffle(actionDiscardOrder, actRng);
           actionDiscardOrder = [];
         }
         const drawnIds = actionDeckOrder.slice(0, deficit);
         actionDeckOrder = actionDeckOrder.slice(deficit);
-        for (const id of drawnIds) {
-          context.actionCardActors[id]?.send({ type: 'DRAW' });
-        }
         handOrder = [...handOrder, ...drawnIds];
         actionDrawn = drawnIds.map((id) => context.cardInstances[id] as ActionCard);
       }

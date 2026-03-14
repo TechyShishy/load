@@ -29,8 +29,6 @@ export function playActionCard(
   }
 
   const commit = (): GameContext => {
-    // Move actor: inHand → played
-    ctx.actionCardActors[card.id]?.send({ type: 'PLAY' });
     return {
       ...ctx,
       budget: ctx.budget - card.cost,
@@ -56,16 +54,10 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     penaltiesApplied += budgetBefore - context.budget;
   }
 
-  // Events that issued a ticket during onCrisis are now in ticketOrders; their
-  // actor is already in 'asTicket' state (sent by issueTicket). Skip RESOLVE
-  // and discard for those — WorkOrderCard handles the move to discard
-  // when the ticket is fully cleared.
+  // Events that issued a ticket during onCrisis are now in ticketOrders and
+  // will remain tracked until cleared by WorkOrderCard. Discard the rest.
   const allTicketIds = new Set(Object.values(context.ticketOrders).flat());
   const eventsToDiscard = ctx.pendingEventsOrder.filter((id) => !allTicketIds.has(id));
-
-  for (const id of eventsToDiscard) {
-    context.eventCardActors[id]?.send({ type: 'RESOLVE' });
-  }
 
   context = {
     ...context,

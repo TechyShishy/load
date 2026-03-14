@@ -58,31 +58,38 @@ export class StreamCompressionCard extends ActionCard {
     let collectedRevenue = 0;
     let slotLayout = context.slotLayout;
     let trafficDiscardOrder = context.trafficDiscardOrder;
+    let trafficSlotPositions = context.trafficSlotPositions;
 
-    // Iterate actors to find matching cards on the board in this period.
-    // getSnapshot() is called per-iteration: prior SHIFT_SLOT events (from
-    // shiftTrafficSlotsAfterRemoval below) may have updated c.slotIndex, so
-    // each iteration sees the card's current position, not a stale snapshot.
-    for (const [id, actor] of Object.entries(context.trafficCardActors)) {
-      if (!actor) continue;
+    // Iterate a snapshot of the original position keys to find matching cards.
+    // IMPORTANT: read the *live* slotIndex from trafficSlotPositions on each
+    // iteration — prior shiftTrafficSlotsAfterRemoval calls update indices in the
+    // live map, so using pos.slotIndex from the snapshot would pass a stale
+    // removedSlotIndex for the second and later removals.
+    const positionEntries = Object.entries(trafficSlotPositions);
+    for (const [id, pos] of positionEntries) {
       if (removedCount >= removeCount) break;
-      const snap = actor.getSnapshot();
-      if (snap.value !== 'onSlot') continue;
-      const c = snap.context;
-      if (c.period !== targetPeriod) continue;
+      if (pos.period !== targetPeriod) continue;
       const card = context.cardInstances[id];
       if (!card || (card as { templateId: string }).templateId !== typeToRemove) continue;
 
-      if (c.slotIndex === undefined) continue;
+      // Resolve the current (possibly shifted) slot index before removing.
+      const currentPos = trafficSlotPositions[id];
+      if (!currentPos) continue;
+      const currentSlotIndex = currentPos.slotIndex;
 
-      actor.send({ type: 'REMOVE' });
+      // Remove card from the position map.
+      const newPositions = { ...trafficSlotPositions };
+      delete newPositions[id];
+      trafficSlotPositions = newPositions;
+
       // Shift subsequent cards and clean up any vacated overload slot.
       const shifted = shiftTrafficSlotsAfterRemoval(
-        { ...context, slotLayout },
+        { ...context, slotLayout, trafficSlotPositions },
         targetPeriod,
-        c.slotIndex,
+        currentSlotIndex,
       );
       slotLayout = shifted.slotLayout;
+      trafficSlotPositions = shifted.trafficSlotPositions;
       // Spawned cards disappear on discard rather than cycling back through the deck.
       if (!context.spawnedTrafficIds.includes(id)) {
         trafficDiscardOrder = [...trafficDiscardOrder, id];
@@ -92,17 +99,18 @@ export class StreamCompressionCard extends ActionCard {
       // onPickUp hook.
       if ('onPickUp' in card && typeof (card as { onPickUp?: unknown }).onPickUp === 'function') {
         context = (card as { onPickUp: (ctx: GameContext, period: Period) => GameContext }).onPickUp(
-          { ...context, slotLayout, trafficDiscardOrder },
+          { ...context, slotLayout, trafficDiscardOrder, trafficSlotPositions },
           targetPeriod,
         );
         slotLayout = context.slotLayout;
         trafficDiscardOrder = context.trafficDiscardOrder;
+        trafficSlotPositions = context.trafficSlotPositions;
       }
 
       removedCount++;
     }
 
-    context = { ...context, slotLayout, trafficDiscardOrder };
+    context = { ...context, slotLayout, trafficDiscardOrder, trafficSlotPositions };
 
     if (collectedRevenue > 0) {
       const boostedRevenue = Math.round(collectedRevenue * context.revenueBoostMultiplier);

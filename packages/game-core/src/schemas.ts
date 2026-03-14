@@ -13,39 +13,6 @@ export const TrackSchema = z.nativeEnum(Track);
 export const PhaseIdSchema = z.nativeEnum(PhaseId);
 export const LoseReasonSchema = z.nativeEnum(LoseReason);
 
-// ─── Actor Snapshot Schemas ───────────────────────────────────────────────────
-
-export const SerializedTrafficActorSnapshotSchema = z.object({
-  status: z.literal('active'),
-  value: z.string(),
-  context: z.object({
-    instanceId: z.string(),
-    templateId: z.string(),
-    period: z.string().optional(),
-    slotIndex: z.number().optional(),
-    slotType: z.string().optional(),
-  }).passthrough(),
-}).passthrough();
-
-export const SerializedActionActorSnapshotSchema = z.object({
-  status: z.literal('active'),
-  value: z.string(),
-  context: z.object({
-    instanceId: z.string(),
-    templateId: z.string(),
-  }).passthrough(),
-}).passthrough();
-
-export const SerializedEventActorSnapshotSchema = z.object({
-  status: z.literal('active'),
-  value: z.string(),
-  context: z.object({
-    instanceId: z.string(),
-    templateId: z.string(),
-    track: z.string().optional(),
-  }).passthrough(),
-}).passthrough();
-
 // ─── Board State Schemas ──────────────────────────────────────────────────────
 
 export const SlotLayoutEntrySchema = z.object({
@@ -76,9 +43,12 @@ export const GameContextSchema = z.object({
   budget: z.number(),
   round: z.number(),
   slaCount: z.number(),
-  trafficActorSnapshots: z.record(z.string(), SerializedTrafficActorSnapshotSchema),
-  actionActorSnapshots: z.record(z.string(), SerializedActionActorSnapshotSchema),
-  eventActorSnapshots: z.record(z.string(), SerializedEventActorSnapshotSchema),
+  cardTemplateIds: z.record(z.string(), z.string()),
+  trafficSlotPositions: z.record(z.string(), z.object({
+    period: z.string(),
+    slotIndex: z.number(),
+    slotType: z.string(),
+  })),
   slotLayout: z.array(SlotLayoutEntrySchema),
   ticketOrders: z.record(z.string(), z.array(z.string())),
   ticketProgress: z.record(z.string(), z.number()).default({}),

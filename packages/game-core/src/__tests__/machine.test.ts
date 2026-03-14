@@ -7,7 +7,7 @@ import {
   MIN_WEEKDAY_TRAFFIC_DRAW, MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW, MAX_WEEKEND_TRAFFIC_DRAW,
   MAX_SLA_FAILURES, HAND_SIZE, PhaseId, Period, SlotType, Track, type TrafficCard,
 } from '../types.js';
-import { eventCardPositionMachine } from '../cardPositionMachines.js';
+
 import { getDayOfWeek, getDayName, getWeekNumber, isWeekend, isFriday } from '../types.js';
 import { WorkOrderCard } from '../data/actions/index.js';
 import { AWSOutageCard, DDoSAttackCard, FiveGActivationCard } from '../data/events/index.js';
@@ -455,12 +455,6 @@ describe('gameMachine weekend mechanics', () => {
   it('allows Work Order (ClearTicket) during weekend crisis', () => {
     const workOrder = ACTION_CARDS.find(c => c.templateId === 'action-work-order')!;
     const ticketTarget = new DDoSAttackCard('ev-weekend-ticket');
-    const ticketActor = createActor(eventCardPositionMachine, {
-      input: { instanceId: ticketTarget.id, templateId: ticketTarget.templateId },
-    });
-    ticketActor.start();
-    ticketActor.send({ type: 'DRAW' });
-    ticketActor.send({ type: 'ISSUE_TICKET', track: Track.BreakFix });
     const base = ctxWithHandCardsFixedIds(
       [workOrder],
       safeContext('test-seed', { round: 6, activePhase: PhaseId.Crisis }),
@@ -468,7 +462,6 @@ describe('gameMachine weekend mechanics', () => {
     const ctx = {
       ...base,
       cardInstances: { ...base.cardInstances, [ticketTarget.id]: ticketTarget },
-      eventCardActors: { ...base.eventCardActors, [ticketTarget.id]: ticketActor },
       ticketOrders: { ...base.ticketOrders, [Track.BreakFix]: [ticketTarget.id] },
     };
     const actor = createActor(gameMachine, { input: ctx });

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createActor } from 'xstate';
 import { checkLoseCondition, checkWinCondition, resolveRound } from '../resolveRound.js';
 import { TRAFFIC_CARDS } from '../data/traffic/index.js';
 import { FiveGActivationCard } from '../data/events/FiveGActivationCard.js';
-import { eventCardPositionMachine } from '../cardPositionMachines.js';
 import {
   MAX_ROUNDS,
   MAX_SLA_FAILURES,
@@ -110,18 +108,11 @@ function makeCtxWithAgedTicket(age: number) {
   const issuedRound = 1;
   const currentRound = issuedRound + age;
   const ticket = new FiveGActivationCard('ticket-exp-test');
-  const actor = createActor(eventCardPositionMachine, {
-    input: { instanceId: ticket.id, templateId: ticket.templateId },
-  });
-  actor.start();
-  actor.send({ type: 'DRAW' });
-  actor.send({ type: 'ISSUE_TICKET', track: Track.Projects });
 
   const base = safeContext('test-seed', { round: currentRound, activePhase: PhaseId.Resolution });
   return {
     ...base,
     cardInstances: { ...base.cardInstances, [ticket.id]: ticket },
-    eventCardActors: { ...base.eventCardActors, [ticket.id]: actor },
     ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket.id] },
     ticketIssuedRound: { [ticket.id]: issuedRound },
   };
@@ -177,17 +168,10 @@ describe('resolveRound ticket expiry', () => {
     const ticket = new FiveGActivationCard('ticket-no-decay');
     // Patch the card to have revenueDecayPerRound = 0 to simulate a zero-decay card
     Object.defineProperty(ticket, 'revenueDecayPerRound', { value: 0 });
-    const actor = createActor(eventCardPositionMachine, {
-      input: { instanceId: ticket.id, templateId: ticket.templateId },
-    });
-    actor.start();
-    actor.send({ type: 'DRAW' });
-    actor.send({ type: 'ISSUE_TICKET', track: Track.Projects });
     const base = safeContext('test-seed', { round: 99, activePhase: PhaseId.Resolution });
     const ctx = {
       ...base,
       cardInstances: { ...base.cardInstances, [ticket.id]: ticket },
-      eventCardActors: { ...base.eventCardActors, [ticket.id]: actor },
       ticketOrders: { ...base.ticketOrders, [Track.Projects]: [ticket.id] },
       ticketIssuedRound: { [ticket.id]: 1 },
     };

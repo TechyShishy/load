@@ -87,18 +87,10 @@ describe('integration: cross-period overload swap preserves total length', () =>
     expect(afterResolve.slotLayout.filter((s) => s.period === Period.Morning)).toHaveLength(4);
 
     // Step 2: Simulate performDraw — compute placements for two new cards.
-    // Build occupiedSlots from actors still in onSlot after resolveRound.
-    const occupiedSlots = new Set<string>();
-    for (const [, actor] of Object.entries(afterResolve.trafficCardActors)) {
-      if (!actor) continue;
-      const snap = actor.getSnapshot();
-      if (snap.value === 'onSlot') {
-        const c = snap.context;
-        if (c.period !== undefined && c.slotIndex !== undefined) {
-          occupiedSlots.add(`${c.period}:${c.slotIndex}`);
-        }
-      }
-    }
+    // Build occupiedSlots from trafficSlotPositions still on the board after resolveRound.
+    const occupiedSlots = new Set<string>(
+      Object.values(afterResolve.trafficSlotPositions).map((pos) => `${pos.period}:${pos.slotIndex}`),
+    );
 
     // Week-table (round 1 = Monday): IoT Burst → Morning (slot 3 free → placed normally)
     //                                 Viral Spike → Afternoon (all 4 occupied → overload at index 4)

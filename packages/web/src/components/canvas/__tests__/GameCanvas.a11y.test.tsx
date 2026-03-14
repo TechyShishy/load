@@ -155,9 +155,7 @@ function makeCtx(): GameContext {
     round: 1,
     slaCount: 0,
     cardInstances: {},
-    trafficCardActors: {},
-    actionCardActors: {},
-    eventCardActors: {},
+    trafficSlotPositions: {},
     slotLayout: [],
     ticketOrders: {
       [Track.BreakFix]: [],

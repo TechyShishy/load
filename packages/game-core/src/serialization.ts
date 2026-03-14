@@ -1,13 +1,6 @@
-import { createActor, type SnapshotFrom } from 'xstate';
 import {
   type Card, type GameContext, type SerializedGameContext, type Track,
-  type TrafficCardActorRegistry, type ActionCardActorRegistry, type EventCardActorRegistry,
 } from './types.js';
-import {
-  trafficCardPositionMachine,
-  actionCardPositionMachine,
-  eventCardPositionMachine,
-} from './cardPositionMachines.js';
 import { ACTION_CARD_REGISTRY } from './data/actions/index.js';
 import { EVENT_CARD_REGISTRY } from './data/events/index.js';
 import { TRAFFIC_CARD_REGISTRY } from './data/traffic/index.js';
@@ -16,31 +9,20 @@ import { TRAFFIC_CARD_REGISTRY } from './data/traffic/index.js';
 
 /**
  * Convert a runtime GameContext into a plain JSON-safe SerializedGameContext.
- * Actor state is persisted using actor.getPersistedSnapshot().
  */
 export function dehydrateContext(ctx: GameContext): SerializedGameContext {
-  const trafficActorSnapshots: SerializedGameContext['trafficActorSnapshots'] = {};
-  for (const [id, actor] of Object.entries(ctx.trafficCardActors)) {
-    trafficActorSnapshots[id] = actor.getPersistedSnapshot() as unknown as SerializedGameContext['trafficActorSnapshots'][string];
-  }
-
-  const actionActorSnapshots: SerializedGameContext['actionActorSnapshots'] = {};
-  for (const [id, actor] of Object.entries(ctx.actionCardActors)) {
-    actionActorSnapshots[id] = actor.getPersistedSnapshot() as unknown as SerializedGameContext['actionActorSnapshots'][string];
-  }
-
-  const eventActorSnapshots: SerializedGameContext['eventActorSnapshots'] = {};
-  for (const [id, actor] of Object.entries(ctx.eventCardActors)) {
-    eventActorSnapshots[id] = actor.getPersistedSnapshot() as unknown as SerializedGameContext['eventActorSnapshots'][string];
+  // Build the instanceId → templateId map from all card instances.
+  const cardTemplateIds: Record<string, string> = {};
+  for (const [id, card] of Object.entries(ctx.cardInstances)) {
+    cardTemplateIds[id] = card.templateId;
   }
 
   return {
     budget: ctx.budget,
     round: ctx.round,
     slaCount: ctx.slaCount,
-    trafficActorSnapshots,
-    actionActorSnapshots,
-    eventActorSnapshots,
+    cardTemplateIds,
+    trafficSlotPositions: ctx.trafficSlotPositions,
     slotLayout: ctx.slotLayout,
     ticketOrders: ctx.ticketOrders,
     ticketProgress: ctx.ticketProgress,
@@ -75,50 +57,15 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
  */
 export function hydrateContext(raw: SerializedGameContext): GameContext | null {
   const cardInstances: Record<string, Card> = {};
-  const trafficCardActors: TrafficCardActorRegistry = {};
-  const actionCardActors: ActionCardActorRegistry = {};
-  const eventCardActors: EventCardActorRegistry = {};
 
-  // ─ traffic actors ─
-  for (const [id, snapshot] of Object.entries(raw.trafficActorSnapshots)) {
-    const templateId = (snapshot as { context: { templateId: string } }).context.templateId;
-    const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId);
-    if (!Ctor) return null; // unknown card — save is stale
-    cardInstances[id] = new Ctor(id);
-    const actor = createActor(trafficCardPositionMachine, {
-      input: { instanceId: id, templateId },
-      snapshot: snapshot as unknown as SnapshotFrom<typeof trafficCardPositionMachine>,
-    });
-    actor.start();
-    trafficCardActors[id] = actor;
-  }
-
-  // ─ action actors ─
-  for (const [id, snapshot] of Object.entries(raw.actionActorSnapshots)) {
-    const templateId = (snapshot as { context: { templateId: string } }).context.templateId;
-    const Ctor = ACTION_CARD_REGISTRY.get(templateId);
-    if (!Ctor) return null;
-    cardInstances[id] = new Ctor(id);
-    const actor = createActor(actionCardPositionMachine, {
-      input: { instanceId: id, templateId },
-      snapshot: snapshot as unknown as SnapshotFrom<typeof actionCardPositionMachine>,
-    });
-    actor.start();
-    actionCardActors[id] = actor;
-  }
-
-  // ─ event actors ─
-  for (const [id, snapshot] of Object.entries(raw.eventActorSnapshots)) {
-    const templateId = (snapshot as { context: { templateId: string } }).context.templateId;
-    const Ctor = EVENT_CARD_REGISTRY.get(templateId);
-    if (!Ctor) return null;
-    cardInstances[id] = new Ctor(id);
-    const actor = createActor(eventCardPositionMachine, {
-      input: { instanceId: id, templateId },
-      snapshot: snapshot as unknown as SnapshotFrom<typeof eventCardPositionMachine>,
-    });
-    actor.start();
-    eventCardActors[id] = actor;
+  for (const [id, templateId] of Object.entries(raw.cardTemplateIds)) {
+    const trafficCtor = TRAFFIC_CARD_REGISTRY.get(templateId);
+    if (trafficCtor) { cardInstances[id] = new trafficCtor(id); continue; }
+    const actionCtor = ACTION_CARD_REGISTRY.get(templateId);
+    if (actionCtor) { cardInstances[id] = new actionCtor(id); continue; }
+    const eventCtor = EVENT_CARD_REGISTRY.get(templateId);
+    if (eventCtor) { cardInstances[id] = new eventCtor(id); continue; }
+    return null; // unknown templateId — save is stale
   }
 
   return {
@@ -126,9 +73,7 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     round: raw.round,
     slaCount: raw.slaCount,
     cardInstances,
-    trafficCardActors,
-    actionCardActors,
-    eventCardActors,
+    trafficSlotPositions: raw.trafficSlotPositions as import('./types.js').GameContext['trafficSlotPositions'],
     slotLayout: raw.slotLayout as import('./types.js').TimeSlotLayout[],
     ticketOrders: raw.ticketOrders as Record<Track, string[]>,
     ticketProgress: raw.ticketProgress,
