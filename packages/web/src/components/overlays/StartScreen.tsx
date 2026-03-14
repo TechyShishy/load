@@ -61,9 +61,8 @@ export function StartScreen({ hasSave, onNewGame, onContinue, onSettings, onQuit
                   CONTINUE
                 </button>
               )}
-              <button onClick={onSettings} disabled title="Coming soon"
-                className="w-full px-5 py-3 bg-gray-800 text-gray-600 font-bold rounded font-mono tracking-widest cursor-not-allowed opacity-50"
-                aria-disabled="true">
+              <button onClick={onSettings}
+                className="w-full px-5 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded font-mono tracking-widest transition-colors">
                 SETTINGS
               </button>
               <button onClick={onQuit}

@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Load</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--
+      Apply persisted display preferences synchronously before first paint so
+      users never see a flash of the wrong theme or motion state.
+    -->
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem('load-settings') || '{}');
+        if (s.theme === 'light' || s.theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', s.theme);
+        }
+        if (s.reducedMotion === true) {
+          document.documentElement.setAttribute('data-reduced-motion', 'true');
+        }
+      } catch (_) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

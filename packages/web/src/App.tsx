@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { GamePlayArea } from './components/GamePlayArea.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
+import { SettingsModal } from './components/overlays/SettingsModal.js';
 import { loadGame, clearSave } from './save.js';
 import { useAudio } from './audio/AudioContext.js';
 import type { ContractDef } from '@load/game-core';
 
 export function App() {
-  const [savedContext] = useState(() => loadGame());
-  const hasSave = savedContext !== null;
+  const [hasSave, setHasSave] = useState(() => loadGame() !== null);
   const [gameStarted, setGameStarted] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractDef | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const audio = useAudio();
 
   // Unlock the AudioContext on the first pointer event anywhere in the document.
@@ -40,22 +41,55 @@ export function App() {
   const handleReturnToMenu = useCallback(() => {
     setGameStarted(false);
     setSelectedContract(null);
+    // Refresh hasSave in case the game created a save during the session.
+    setHasSave(loadGame() !== null);
   }, []);
   const handleQuit = useCallback(() => {
-    const w = window as Window & { electronAPI?: { quit: () => void } };
-    if (w.electronAPI) { w.electronAPI.quit(); } else { window.close(); }
+    if (window.electronAPI) { window.electronAPI.quit(); } else { window.close(); }
   }, []);
+  const handleClearSave = useCallback(() => {
+    clearSave();
+    setHasSave(false);
+  }, []);
+
+  // Escape key opens the settings modal from anywhere (start screen or mid-game).
+  // When the modal is already open, FocusTrap handles Escape internally via
+  // its onDeactivate callback — we only need to handle the "open" direction here.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !settingsOpen) {
+        e.preventDefault();
+        setSettingsOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [settingsOpen]);
 
   return (
     <div className="relative w-full h-full">
-      {gameStarted && <GamePlayArea {...(selectedContract ? { contract: selectedContract } : {})} onReturnToMenu={handleReturnToMenu} />}
+      {gameStarted && (
+        <GamePlayArea
+          {...(selectedContract ? { contract: selectedContract } : {})}
+          onReturnToMenu={handleReturnToMenu}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
       {!gameStarted && (
         <StartScreen
           hasSave={hasSave}
           onNewGame={handleStartNewGame}
           onContinue={handleStartContinue}
-          onSettings={() => {}}
+          onSettings={() => setSettingsOpen(true)}
           onQuit={handleQuit}
+        />
+      )}
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          midGame={gameStarted}
+          hasSave={hasSave}
+          onClearSave={handleClearSave}
         />
       )}
     </div>

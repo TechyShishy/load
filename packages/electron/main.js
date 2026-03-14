@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('path');
 
+/** Reference kept at module scope so IPC handlers can reach the window. */
+let mainWindow = null;
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -26,9 +29,29 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools();
   }
+
+  mainWindow = win;
+  win.on('closed', () => { mainWindow = null; });
 }
 
 ipcMain.on('quit', () => app.quit());
+
+const VALID_WINDOW_SIZES = new Set([
+  '1280,720', '1280,800', '1600,900', '1920,1080',
+]);
+
+ipcMain.on('set-window-size', (_, width, height) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (!VALID_WINDOW_SIZES.has(`${width},${height}`)) return;
+    mainWindow.setSize(width, height, true /* animate */);
+  }
+});
+
+ipcMain.on('set-fullscreen', (_, enabled) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setFullScreen(enabled);
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();

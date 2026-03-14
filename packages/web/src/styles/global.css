@@ -10,6 +10,50 @@
   --color-border: #1f2937;
 }
 
+/* ── Light theme ─────────────────────────────────────────────────────────────
+   Inverts the Tailwind gray scale so every bg-gray-* / text-gray-* utility
+   automatically uses the light-mode equivalent value. Tailwind v4 exposes
+   palette colors as CSS custom properties, so overriding them here is enough
+   — no component changes required.
+   ────────────────────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg-dark: #f0f4f8;
+  --color-bg-panel: #ffffff;
+  --color-border: #e2e8f0;
+
+  /* Invert the gray scale: darkest ↔ lightest */
+  --color-gray-950: oklch(0.985 0.002 247.839);
+  --color-gray-900: oklch(0.967 0.003 264.542);
+  --color-gray-800: oklch(0.928 0.006 264.531);
+  --color-gray-700: oklch(0.809 0.015 263.988);
+  --color-gray-600: oklch(0.707 0.022 261.325);
+  --color-gray-500: oklch(0.551 0.027 264.364);
+  --color-gray-400: oklch(0.446 0.043 257.281);
+  --color-gray-300: oklch(0.372 0.044 257.287);
+  --color-gray-200: oklch(0.278 0.033 256.848);
+  --color-gray-100: oklch(0.21 0.034 264.665);
+  --color-gray-50:  oklch(0.13 0.028 261.18);
+}
+
+[data-theme="light"] body {
+  background-color: var(--color-bg-dark);
+  color: #1a202c;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────────
+   When the user enables reduced motion in Settings (or the OS preference is
+   respected on first load), this collapses all CSS transitions and animations
+   to near-instant. The game logic uses the settings value directly; this CSS
+   rule covers remaining Tailwind utility animations (e.g. animate-pulse).
+   ────────────────────────────────────────────────────────────────────────── */
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 * {
   box-sizing: border-box;
 }

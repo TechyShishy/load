@@ -3,6 +3,7 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@
 import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
 import { useDrawAnimationState } from '../hooks/useDrawAnimationState.js';
+import { useSettings } from '../settings/SettingsContext.js';
 import { BUILT_IN_CONTRACTS, Period, Track, getFilledTimeSlots, getHand, getPendingEvents } from '@load/game-core';
 import type { ActionCard, ContractDef } from '@load/game-core';
 import { GameCanvas } from './canvas/GameCanvas.js';
@@ -33,8 +34,9 @@ const snapFlyoutToCursor: Modifier = ({ transform, activatorEvent, draggingNodeR
   };
 };
 
-export function GamePlayArea({ contract, onReturnToMenu }: { contract?: ContractDef; onReturnToMenu: () => void }) {
+export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { contract?: ContractDef; onReturnToMenu: () => void; onOpenSettings: () => void }) {
   const { context, phase, advance, drawComplete, playAction, isWon, isLost } = useGame(contract);
+  const { settings } = useSettings();
   const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
   const hand = useMemo(() => getHand(context), [context]);
   const pendingEvents = useMemo(() => getPendingEvents(context), [context]);
@@ -46,10 +48,9 @@ export function GamePlayArea({ contract, onReturnToMenu }: { contract?: Contract
 
   const activeContractName = BUILT_IN_CONTRACTS.find((c) => c.id === context.contractId)?.name ?? context.contractId;
 
-  const prefersReducedMotion =
-    typeof window !== 'undefined'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false;
+  // Use the settings-controlled reducedMotion flag which already initialises
+  // from the OS preference on first load.
+  const prefersReducedMotion = settings.reducedMotion;
 
   const { arrivedCardIds, markArrived, allTrafficIds, allEventIds, allActionIds, speedMult } = useDrawAnimationState({
     drawLog: context.drawLog ?? null,
@@ -181,6 +182,13 @@ export function GamePlayArea({ contract, onReturnToMenu }: { contract?: Contract
         <SLAMeter slaCount={context.slaCount} slaLimit={context.slaLimit} />
         <div className="flex-1" />
         <PhaseIndicator currentPhase={phase} round={context.round} />
+        <button
+          onClick={onOpenSettings}
+          aria-label="Open settings"
+          className="ml-2 text-gray-500 hover:text-gray-300 font-mono text-base px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+        >
+          ⚙
+        </button>
       </div>
       <div className="flex-1 relative overflow-hidden">
         <GameCanvas
