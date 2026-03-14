@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { GamePlayArea } from './components/GamePlayArea.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
 import { loadGame, clearSave } from './save.js';
+import { useAudio } from './audio/AudioContext.js';
 import type { ContractDef } from '@load/game-core';
 
 export function App() {
@@ -9,6 +10,17 @@ export function App() {
   const hasSave = savedContext !== null;
   const [gameStarted, setGameStarted] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractDef | null>(null);
+  const audio = useAudio();
+
+  // Start title music when the start screen is visible; stop it when the game begins.
+  // Note: browsers suspend AudioContext until the first user interaction — the music
+  // will begin playing on the first click/keypress rather than immediately on mount.
+  useEffect(() => {
+    if (!gameStarted) {
+      audio.startMusic('titleTheme');
+      return () => audio.stopMusic();
+    }
+  }, [gameStarted, audio]);
 
   const handleStartContinue = useCallback(() => { setGameStarted(true); }, []);
   const handleStartNewGame = useCallback((contract: ContractDef) => {
