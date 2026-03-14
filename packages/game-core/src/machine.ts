@@ -1,4 +1,5 @@
 import { and, assign, enqueueActions, setup } from 'xstate';
+import { BUILT_IN_CONTRACTS } from './data/index.js';
 import {
   HAND_SIZE, LoseReason, Period, PhaseId, STARTING_BUDGET, Track,
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
@@ -22,11 +23,14 @@ import { getPendingEvents } from './cardPositionViews.js';
 // ─── Initial Context ──────────────────────────────────────────────────────────
 
 export function createInitialContext(seed?: string, contract?: ContractDef): GameContext {
-  const resolvedSeed = seed ?? crypto.randomUUID();
+  // Fixed-seed contracts always use their declared seed, regardless of what the
+  // caller passed. createInitialContext(seed, contract) — if fixedSeed is set on
+  // the contract, the seed arg is ignored.
+  const resolvedSeed = contract?.fixedSeed ?? seed ?? crypto.randomUUID();
   const rng = makeRng(resolvedSeed + '-init');
   const trafficCards = buildTrafficDeck(rng, contract?.trafficDeck);
   const eventCards = buildEventDeck(rng, contract?.eventDeck);
-  const allActionCards = buildActionDeck(rng);
+  const allActionCards = buildActionDeck(rng, contract?.actionDeck);
   const [initialHandCards, remainingActionCards] = drawN(allActionCards, HAND_SIZE);
 
   // ─ card instance registry ─
@@ -347,7 +351,12 @@ export const gameMachine = setup({
       activePhase: PhaseId.GameWon,
     })),
 
-    resetGame: assign(() => createInitialContext()),
+    resetGame: assign(({ context }) => {
+      // Re-look up the contract by id so the reset preserves the contract's
+      // fixed seed, custom action deck, and other spec fields.
+      const contract = BUILT_IN_CONTRACTS.find((c) => c.id === context.contractId);
+      return createInitialContext(undefined, contract);
+    }),
   },
 }).createMachine({
   id: 'load',

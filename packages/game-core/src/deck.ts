@@ -99,11 +99,11 @@ export const DEFAULT_ACTION_DECK: ReadonlyArray<{
 
 /**
  * Build the Action deck.
- * Composition is defined by DEFAULT_ACTION_DECK.
+ * Composition is defined by DEFAULT_ACTION_DECK unless overridden by `spec`.
  */
-export function buildActionDeck(rng: Rng = Math.random): ActionCard[] {
+export function buildActionDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): ActionCard[] {
   const cards: ActionCard[] = [];
-  for (const { templateId, count } of DEFAULT_ACTION_DECK) {
+  for (const { templateId, count } of (spec ?? DEFAULT_ACTION_DECK)) {
     const Ctor = ACTION_CARD_REGISTRY.get(templateId)!;
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;

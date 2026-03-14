@@ -13,21 +13,29 @@ export function useGame(contract?: ContractDef) {
       ? (new URLSearchParams(window.location.search).get('seed') ?? undefined)
       : undefined;
 
+  // Fixed-seed contracts always start fresh — their deck order is part of the
+  // learning experience and must not be disrupted by a prior save or a URL seed.
+  const isFixedSeed = contract?.fixedSeed !== undefined;
+
   // Lazy initializer: loadGame() runs once per hook mount, not at module import time.
   // This allows independent save-state control between test cases without module-cache tricks.
-  // Skip loading from storage when a URL seed is provided — the seed is the source of truth.
+  // Skip loading from storage when a URL seed or a fixed-seed contract is in play.
   const [savedContext] = useState<ReturnType<typeof loadGame>>(() =>
-    urlSeed ? null : loadGame(),
+    urlSeed || isFixedSeed ? null : loadGame(),
   );
 
   // When a contract is provided and there is no existing save, build the full initial
   // context from the contract spec once at mount time so the deck composition is applied.
+  // NOTE: do NOT gate this on !urlSeed — a fixed-seed contract must always win over the
+  // URL seed (the URL seed is for E2E tests; the fixed seed is a product invariant).
   const [contractInput] = useState<ReturnType<typeof createInitialContext> | undefined>(() =>
-    !savedContext && !urlSeed && contract ? createInitialContext(undefined, contract) : undefined,
+    !savedContext && contract ? createInitialContext(undefined, contract) : undefined,
   );
 
   const [snapshot, send] = useMachine(gameMachine, {
-    input: savedContext ?? (urlSeed ? { seed: urlSeed } : contractInput),
+    // Fixed-seed contracts take full priority. URL seeds only apply when no contract
+    // (or a non-fixed contract without an existing save) is in play.
+    input: savedContext ?? (contractInput ?? (urlSeed ? { seed: urlSeed } : undefined)),
   });
 
   const context = snapshot.context;
@@ -40,10 +48,12 @@ export function useGame(contract?: ContractDef) {
   const slaEffectMountedRef = useRef(false);
 
   useEffect(() => {
-    if (phase === 'scheduling' || phase === 'crisis') {
+    // Fixed-seed contracts skip persistence: their decks are always rebuilt from the
+    // seed, so a mid-run save would be loaded next time and defeat the fixed sequence.
+    if (!isFixedSeed && (phase === 'scheduling' || phase === 'crisis')) {
       saveGame(snapshot.context);
     }
-  }, [snapshot, phase]);
+  }, [snapshot, phase, isFixedSeed]);
 
   const advance = useCallback(() => {
     audio.playAdvance();

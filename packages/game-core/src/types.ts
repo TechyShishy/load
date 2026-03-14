@@ -172,8 +172,15 @@ export interface ContractDef {
   readonly description: string;
   readonly trafficDeck: DeckSpec[];
   readonly eventDeck: DeckSpec[];
+  /** When set, overrides the default action-deck composition for this contract.
+   * TODO-0015: merge into the Alpha deckbuilding system when that lands. */
+  readonly actionDeck?: DeckSpec[];
   readonly startingBudget: number;
   readonly slaLimit: number;
+  /** When set, this contract always uses this seed regardless of any caller-supplied
+   * seed or URL override. Bump the suffix (e.g. v1 → v2) whenever deck composition
+   * changes so returning players get a fresh sequence. */
+  readonly fixedSeed?: string;
   /** Track ID passed to startMusic() when this contract is active in-game. Omit for silent contracts. */
   readonly musicTrackId?: string;
 }
