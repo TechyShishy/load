@@ -71,10 +71,9 @@ function DeckBuilderSidebar({
       </div>
 
       {/* Card subpanel */}
-      <div className="flex flex-col items-center px-4 pt-4 pb-2 flex-shrink-0">
+      <div className="px-4 pt-4 pb-2 flex-shrink-0">
         <div
-          className="flex flex-col border border-purple-500 rounded overflow-hidden bg-purple-950 shadow shadow-cyan-900/30"
-          style={{ width: 160 }}
+          className="flex flex-col border border-purple-500 rounded bg-purple-950 shadow shadow-cyan-900/30 w-full"
         >
           <span
             className="font-bold text-purple-300 px-1.5 pt-0.5 border-b border-purple-700/30 text-nowrap overflow-hidden text-ellipsis"
@@ -86,22 +85,20 @@ function DeckBuilderSidebar({
             src={`./cards/${card.templateId}.svg`}
             alt=""
             aria-hidden="true"
-            className="w-full bg-purple-900/40"
-            style={{ imageRendering: 'pixelated', height: 100 }}
+            className="bg-purple-900/40 self-center"
+            style={{ imageRendering: 'pixelated', height: 100, width: 160 }}
           />
+          <div className="px-1.5 py-1.5 border-t border-purple-700/30">
+            <p className="text-gray-300 leading-relaxed" style={{ fontSize: '11px' }}>
+              {card.description}
+            </p>
+          </div>
           <div className="flex items-center justify-between px-1.5 py-0.5 border-t border-purple-700/30">
             <span className="text-yellow-400 font-mono" style={{ fontSize: '10px' }}>
               Cost: ${card.cost.toLocaleString()}
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Description */}
-      <div className="px-4 pb-4 flex-1">
-        <p className="text-gray-300 leading-relaxed" style={{ fontSize: '11px' }}>
-          {card.description}
-        </p>
       </div>
     </div>
   );
