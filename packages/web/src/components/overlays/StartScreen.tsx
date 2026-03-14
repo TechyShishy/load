@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { BUILT_IN_CONTRACTS } from '@load/game-core';
 import type { ContractDef } from '@load/game-core';
@@ -13,6 +13,13 @@ interface StartScreenProps {
 
 export function StartScreen({ hasSave, onNewGame, onContinue, onSettings, onQuit }: StartScreenProps) {
   const [step, setStep] = useState<'menu' | 'contract'>('menu');
+
+  // Move focus to the active panel before the browser paints so that the
+  // outgoing panel's aria-hidden never covers a focused element.
+  useLayoutEffect(() => {
+    const id = step === 'contract' ? 'contract-back-btn' : 'start-new-game-btn';
+    document.getElementById(id)?.focus();
+  }, [step]);
 
   return (
     <FocusTrap focusTrapOptions={{ initialFocus: step === 'menu' ? '#start-new-game-btn' : '#contract-back-btn', escapeDeactivates: false }}>
