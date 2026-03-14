@@ -223,7 +223,7 @@ describe('DeckBuilderScreen — card detail flyout', () => {
     expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
   });
 
-  it('clicking outside the flyout dismisses it', async () => {
+  it('clicking the close button on the panel dismisses it', async () => {
     const user = userEvent.setup();
     render(<DeckBuilderScreen {...defaultProps} />);
 
@@ -231,8 +231,7 @@ describe('DeckBuilderScreen — card detail flyout', () => {
     await user.click(screen.getByRole('button', { name: `View ${workOrder.name} details` }));
     expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
 
-    // Click the DECK BUILDER heading — outside the flyout panel
-    await user.click(screen.getByRole('heading', { name: 'DECK BUILDER' }));
+    await user.click(screen.getByRole('button', { name: 'Close card details' }));
     expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
   });
 
