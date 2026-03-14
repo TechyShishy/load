@@ -28,7 +28,7 @@ jobs:
         run: cd packages/web/dist && zip -r ../../../load-web-${{ github.ref_name }}.zip .
 
       - name: Upload web ZIP
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-zip
           path: load-web-${{ github.ref_name }}.zip
@@ -60,21 +60,21 @@ jobs:
 
       - name: Upload Linux artifact
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: electron-linux
           path: packages/electron/dist/*.AppImage
 
       - name: Upload Windows artifact
         if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: electron-windows
           path: packages/electron/dist/*.exe
 
       - name: Upload macOS artifact
         if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: electron-macos
           path: packages/electron/dist/*.dmg
@@ -128,7 +128,7 @@ jobs:
         run: rm -f packages/mobile/android/release.keystore
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-aab
           path: packages/mobile/android/app/build/outputs/bundle/release/*.aab
@@ -140,25 +140,25 @@ jobs:
       contents: write
     steps:
       - name: Download web artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: web-zip
           path: artifacts/web-zip
 
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: electron-linux
           path: artifacts/electron-linux
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: electron-windows
           path: artifacts/electron-windows
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: electron-macos
           path: artifacts/electron-macos
@@ -175,25 +175,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download web artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: web-zip
           path: artifacts/web-zip
 
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: electron-linux
           path: artifacts/electron-linux
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: electron-windows
           path: artifacts/electron-windows
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: electron-macos
           path: artifacts/electron-macos
