@@ -7,6 +7,7 @@ import {
   computeSlotRect,
   computeTicketRect,
 } from './canvasLayout.js';
+import { computeFlyoutPosition } from '../flyoutPosition.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
@@ -24,8 +25,14 @@ function BoardCardFlyout({
   onDismiss: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Content-sized flyout: measure on first layout pass so the clamping math
+  // uses the real height rather than an estimate. useLayoutEffect fires
+  // synchronously before paint so the user never sees the interim position.
+  const [flyoutHeight, setFlyoutHeight] = useState(200);
   useLayoutEffect(() => {
-    dialogRef.current?.focus();
+    if (!dialogRef.current) return;
+    setFlyoutHeight(dialogRef.current.offsetHeight);
+    dialogRef.current.focus();
   }, []);
 
   useEffect(() => {
@@ -37,19 +44,7 @@ function BoardCardFlyout({
   }, [onDismiss]);
 
   const flyoutWidth = 180;
-  const gap = 8;
-  const centerX = sourceRect.left + sourceRect.width / 2;
-  const left = Math.max(
-    16,
-    Math.min(centerX - flyoutWidth / 2, window.innerWidth - flyoutWidth - 16),
-  );
-  // Open downward when the source is in the top half of the viewport so the
-  // flyout never extends above the gameplay area (e.g. discard piles at top).
-  const openDownward = sourceRect.top < window.innerHeight / 2;
-  const verticalStyle = openDownward
-    ? { top: sourceRect.bottom + gap }
-    : { bottom: window.innerHeight - sourceRect.top + gap };
-
+  const pos = computeFlyoutPosition(sourceRect, flyoutWidth, flyoutHeight);
   const isTraffic = card.type === CardType.Traffic;
   const isAction = card.type === CardType.Action;
 
@@ -70,8 +65,8 @@ function BoardCardFlyout({
         tabIndex={-1}
         style={{
           position: 'fixed',
-          left,
-          ...verticalStyle,
+          left: pos.left,
+          top: pos.top,
           zIndex: 9999,
           width: flyoutWidth,
         }}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { useDraggable } from '@dnd-kit/core';
 import type { ActionCard } from '@load/game-core';
+import { computeFlyoutPosition } from '../flyoutPosition.js';
 
 /**
  * Single-line text that auto-shrinks its font size to fit the container width.
@@ -106,10 +107,8 @@ function ExpandedCardFlyout({
   }, [onDismiss]);
 
   const flyoutWidth = 180;
-  const gap = 8;
-  const centerX = sourceRect.left + sourceRect.width / 2;
-  const left = Math.max(16, Math.min(centerX - flyoutWidth / 2, window.innerWidth - flyoutWidth - 16));
-  const bottom = window.innerHeight - sourceRect.top + gap;
+  const flyoutHeight = 240;
+  const pos = computeFlyoutPosition(sourceRect, flyoutWidth, flyoutHeight);
 
   return createPortal(
     <>
@@ -128,7 +127,7 @@ function ExpandedCardFlyout({
         aria-label={`${card.name} details`}
         tabIndex={-1}
         {...listeners}
-        style={{ position: 'fixed', left, bottom, zIndex: 9999, width: flyoutWidth, height: 240, touchAction: 'none', opacity: isDragging ? 0 : 1 }}
+        style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999, width: flyoutWidth, height: flyoutHeight, touchAction: 'none', opacity: isDragging ? 0 : 1 }}
         className="flex flex-col border border-cyan-400 rounded bg-purple-950 shadow-2xl shadow-cyan-900/60 cursor-grab"
       >
         <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
