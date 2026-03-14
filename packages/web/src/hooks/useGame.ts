@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
-import { gameMachine, createInitialContext } from '@load/game-core';
+import { gameMachine, createInitialContext, SlotType } from '@load/game-core';
 import type { ActionCard, ContractDef, Period, Track } from '@load/game-core';
 import { clearSave, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
@@ -33,6 +33,11 @@ export function useGame(contract?: ContractDef) {
   const context = snapshot.context;
   const phase = snapshot.value as string;
   const audio = useAudio();
+  const prevPhaseRef = useRef(phase);
+  // Skip the SLA fail sound on the initial render -- if the player continues a
+  // saved game where lastRoundSummary.failedCount > 0, the effect would fire
+  // immediately with no corresponding game event.
+  const slaEffectMountedRef = useRef(false);
 
   useEffect(() => {
     if (phase === 'scheduling' || phase === 'crisis') {
@@ -41,8 +46,9 @@ export function useGame(contract?: ContractDef) {
   }, [snapshot, phase]);
 
   const advance = useCallback(() => {
+    audio.playAdvance();
     send({ type: 'ADVANCE' });
-  }, [send]);
+  }, [send, audio]);
 
   const drawComplete = useCallback(() => {
     send({ type: 'DRAW_COMPLETE' });
@@ -73,6 +79,34 @@ export function useGame(contract?: ContractDef) {
     if (phase === 'gameWon') audio.playWin();
     if (phase === 'gameLost') audio.playLose();
   }, [phase, audio]);
+
+  // SLA failure sound — fires when the round summary shows failures.
+  // Skip on terminal phases: if the game just ended due to SLA, playLose() takes over.
+  // Skip on initial mount: a continued save with failedCount > 0 must not
+  // trigger the sound without a corresponding game event.
+  useEffect(() => {
+    if (!slaEffectMountedRef.current) {
+      slaEffectMountedRef.current = true;
+      return;
+    }
+    if (phase === 'gameWon' || phase === 'gameLost') return;
+    if (context.lastRoundSummary && context.lastRoundSummary.failedCount > 0) {
+      audio.playSLAFail();
+    }
+  }, [context.lastRoundSummary, phase, audio]);
+
+  // Overload sound — fires once upon entering scheduling when overloaded slots exist
+  useEffect(() => {
+    if (prevPhaseRef.current !== phase) {
+      prevPhaseRef.current = phase;
+      if (phase === 'scheduling') {
+        const overloaded = Object.values(context.trafficSlotPositions).filter(
+          (p) => p.slotType === SlotType.Overloaded,
+        ).length;
+        if (overloaded > 0) audio.playOverload();
+      }
+    }
+  }, [phase, context.trafficSlotPositions, audio]);
 
   return {
     context,

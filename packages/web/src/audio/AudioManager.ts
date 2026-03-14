@@ -11,8 +11,16 @@ export interface IAudioManager {
   playOverload(): void;
   playWin(): void;
   playLose(): void;
+  playAdvance(): void;
   setMasterVolume(volume: number): void;
+  setMusicVolume(volume: number): void;
   mute(muted: boolean): void;
+  startMusic(trackId: string): void;
+  stopMusic(): void;
+  /** Resume the AudioContext after a user gesture. Safe to call repeatedly. */
+  unlock(): void;
+  /** Close the AudioContext and release all audio resources. Call once on unmount. */
+  destroy(): void;
 }
 
 /**
@@ -30,6 +38,7 @@ export class AudioManager implements IAudioManager {
   private overload: Howl;
   private win: Howl;
   private lose: Howl;
+  private advance: Howl;
 
   constructor() {
     // Howler will log a warning if the file 404s, but won't throw — safe in dev before assets exist
@@ -53,6 +62,10 @@ export class AudioManager implements IAudioManager {
       src: ['./audio/lose.ogg', './audio/lose.mp3'],
       volume: 1.0,
     });
+    this.advance = new Howl({
+      src: ['./audio/advance.ogg', './audio/advance.mp3'],
+      volume: 0.5,
+    });
   }
 
   playCardDrop(): void {
@@ -75,6 +88,10 @@ export class AudioManager implements IAudioManager {
     this.lose.play();
   }
 
+  playAdvance(): void {
+    this.advance.play();
+  }
+
   setMasterVolume(volume: number): void {
     Howler.volume(Math.max(0, Math.min(1, volume)));
   }
@@ -82,4 +99,11 @@ export class AudioManager implements IAudioManager {
   mute(muted: boolean): void {
     Howler.mute(muted);
   }
+
+  // TODO-0014: implement file-backed music when public/audio/music/ assets are added
+  startMusic(_trackId: string): void { /* no-op */ }
+  stopMusic(): void { /* no-op */ }
+  setMusicVolume(_volume: number): void { /* no-op until file-backed music is implemented */ }
+  unlock(): void { /* Howler handles autoplay policy internally */ }
+  destroy(): void { Howler.unload(); }
 }

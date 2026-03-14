@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useMemo } from 'react';
-import { AudioManager, type IAudioManager } from './AudioManager.js';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { SynthAudioManager } from './SynthAudioManager.js';
+import type { IAudioManager } from './AudioManager.js';
 
+// Swap SynthAudioManager → AudioManager when public/audio/ assets are ready.
 const AudioCtx = createContext<IAudioManager | null>(null);
 
 /**
@@ -9,8 +11,10 @@ const AudioCtx = createContext<IAudioManager | null>(null);
  * receives the same manager instance without module-level singletons.
  */
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  // useMemo with [] guarantees one AudioManager for the lifetime of the provider.
-  const manager = useMemo(() => new AudioManager(), []);
+  // useState initializer runs once on mount. useEffect cleanup calls destroy()
+  // when the provider unmounts so the AudioContext is properly closed.
+  const [manager] = useState<SynthAudioManager>(() => new SynthAudioManager());
+  useEffect(() => () => { manager.destroy(); }, [manager]);
   return <AudioCtx.Provider value={manager}>{children}</AudioCtx.Provider>;
 }
 
