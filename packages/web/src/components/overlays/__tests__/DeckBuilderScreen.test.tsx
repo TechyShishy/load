@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ACTION_CARDS, DEFAULT_ACTION_DECK, MIN_DECK_SIZE } from '@load/game-core';
 import type { DeckSpec } from '@load/game-core';
@@ -165,5 +165,103 @@ describe('DeckBuilderScreen — navigation', () => {
     await user.click(screen.getByRole('button', { name: 'START →' }));
     expect(mockSaveDeckConfig).toHaveBeenCalledOnce();
     expect(onStart).toHaveBeenCalledOnce();
+  });
+});
+
+describe('DeckBuilderScreen — card detail flyout', () => {
+  it('opens flyout with card name and description when tile is clicked', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    await user.click(screen.getByRole('button', { name: `View ${workOrder.name} details` }));
+
+    // The flyout dialog is identified by the card name via aria-labelledby
+    const flyoutDialog = screen.getByRole('dialog', { name: workOrder.name });
+    expect(flyoutDialog).toBeInTheDocument();
+    // Description text also appears in the card tile preview — scope to the flyout
+    expect(within(flyoutDialog).getByText(workOrder.description)).toBeInTheDocument();
+  });
+
+  it('replaces flyout when a different tile is clicked', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const [cardA, cardB] = ACTION_CARDS as [typeof ACTION_CARDS[0], typeof ACTION_CARDS[1]];
+    await user.click(screen.getByRole('button', { name: `View ${cardA.name} details` }));
+    expect(screen.getByRole('dialog', { name: cardA.name })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: `View ${cardB.name} details` }));
+
+    expect(screen.queryByRole('dialog', { name: cardA.name })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: cardB.name })).toBeInTheDocument();
+  });
+
+  it('clicking the same tile again dismisses the flyout (toggle)', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    const tileBtn = screen.getByRole('button', { name: `View ${workOrder.name} details` });
+
+    await user.click(tileBtn);
+    expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
+
+    await user.click(tileBtn);
+    expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
+  });
+
+  it('Escape key dismisses the flyout', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    await user.click(screen.getByRole('button', { name: `View ${workOrder.name} details` }));
+    expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
+  });
+
+  it('clicking outside the flyout dismisses it', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    await user.click(screen.getByRole('button', { name: `View ${workOrder.name} details` }));
+    expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
+
+    // Click the DECK BUILDER heading — outside the flyout panel
+    await user.click(screen.getByRole('heading', { name: 'DECK BUILDER' }));
+    expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
+  });
+
+  it('focus returns to the trigger tile after dismissal', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    const tileBtn = screen.getByRole('button', { name: `View ${workOrder.name} details` });
+
+    await user.click(tileBtn);
+    expect(screen.getByRole('dialog', { name: workOrder.name })).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(tileBtn).toHaveFocus();
+  });
+
+  it('counter buttons remain interactive while flyout is open', async () => {
+    mockLoadDeckConfig.mockReturnValue([]);
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    await user.click(screen.getByRole('button', { name: `View ${workOrder.name} details` }));
+    expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: `Add one ${workOrder.name}` }));
+    expect(screen.getByLabelText(`1 copies of ${workOrder.name}`)).toBeInTheDocument();
+    // Flyout remains open after counter interaction
+    expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
   });
 });

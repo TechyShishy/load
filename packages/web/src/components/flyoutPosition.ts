@@ -44,8 +44,11 @@ export interface FlyoutPosition {
  * Read the safe-area insets from the CSS custom properties set in global.css.
  * Falls back to zero for environments where the properties are absent (SSR,
  * tests that don't inject styles).
+ *
+ * Exported so callers that compute their own positioning (e.g. wide-panel pinning)
+ * can read the same insets without duplicating the CSS property names.
  */
-function readSafeArea(): FlyoutSafeArea {
+export function readSafeArea(): FlyoutSafeArea {
   const style = getComputedStyle(document.documentElement);
   const parse = (v: string) => parseFloat(v) || 0;
   return {

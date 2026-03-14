@@ -1,9 +1,143 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
 import { ACTION_CARDS, DEFAULT_ACTION_DECK, MIN_DECK_SIZE, validateDeckSpec } from '@load/game-core';
-import type { DeckSpec } from '@load/game-core';
+import type { ActionCard, DeckSpec } from '@load/game-core';
 import { ActionCardPreview } from '../hud/HandZone.js';
+import { computeFlyoutPosition, readSafeArea, MARGIN } from '../flyoutPosition.js';
 import { loadDeckConfig, saveDeckConfig } from '../../save.js';
+
+/**
+ * On viewports at least this wide the flyout is a fixed right-edge panel
+ * rather than a floating tooltip near the tile.
+ */
+const WIDE_FLYOUT_BREAKPOINT = 768;
+const FLYOUT_WIDTH = 280;
+
+type FlyoutState = { card: ActionCard; rect: DOMRect; triggerEl: HTMLButtonElement };
+
+/** Floating or right-pinned flyout showing full action card detail. */
+function DeckBuilderCardFlyout({
+  card,
+  sourceRect,
+  onDismiss,
+}: {
+  card: ActionCard;
+  sourceRect: DOMRect;
+  onDismiss: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [flyoutHeight, setFlyoutHeight] = useState(300);
+
+  useLayoutEffect(() => {
+    if (!dialogRef.current) return;
+    setFlyoutHeight(dialogRef.current.offsetHeight);
+    dialogRef.current.focus();
+  }, []);
+
+  // Capture phase ensures this fires before App's bubble-phase handler, preventing
+  // Escape from propagating up and closing the whole DeckBuilderScreen.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onDismiss();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [onDismiss]);
+
+  // Outside-click: dismiss when a pointerdown lands outside the flyout panel AND
+  // is not on a deck-builder interactive element (tile buttons, counter buttons)
+  // that should remain functional while the flyout is open.
+  useEffect(() => {
+    function handlePointerDown(e: PointerEvent) {
+      if (dialogRef.current?.contains(e.target as Node)) return;
+      if ((e.target as Element).closest?.('[data-flyout-interactive]')) return;
+      onDismiss();
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [onDismiss]);
+
+  const vw = window.visualViewport?.width ?? window.innerWidth;
+  const isWide = vw >= WIDE_FLYOUT_BREAKPOINT;
+
+  let style: React.CSSProperties;
+  if (isWide) {
+    const sa = readSafeArea();
+    style = {
+      position: 'fixed',
+      right: MARGIN + sa.right,
+      top: MARGIN + sa.top,
+      width: FLYOUT_WIDTH,
+      zIndex: 9999,
+    };
+  } else {
+    const pos = computeFlyoutPosition(sourceRect, FLYOUT_WIDTH, flyoutHeight);
+    style = {
+      position: 'fixed',
+      left: pos.left,
+      top: pos.top,
+      width: FLYOUT_WIDTH,
+      zIndex: 9999,
+    };
+  }
+
+  return createPortal(
+    <>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-labelledby="deck-builder-flyout-title"
+        tabIndex={-1}
+        style={style}
+        className="flex flex-col border border-cyan-400 rounded bg-purple-950 shadow-2xl shadow-cyan-900/60"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
+          <span
+            id="deck-builder-flyout-title"
+            className="font-bold text-purple-300 leading-tight flex-1 min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+            style={{ fontSize: '11px' }}
+          >
+            {card.name}
+          </span>
+          <button
+            onClick={onDismiss}
+            aria-label="Close card details"
+            className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"
+            style={{ fontSize: '14px' }}
+          >
+            ×
+          </button>
+        </div>
+        {/* Art */}
+        <img
+          src={`./cards/${card.templateId}.svg`}
+          alt=""
+          aria-hidden="true"
+          className="w-full object-cover bg-purple-900/40"
+          style={{ imageRendering: 'pixelated' }}
+        />
+        {/* Description + cost */}
+        <div className="flex flex-col items-stretch p-2 gap-1">
+          <p className="text-gray-300 leading-snug" style={{ fontSize: '10px' }}>
+            {card.description}
+          </p>
+          <span
+            className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
+            style={{ fontSize: '9px' }}
+          >
+            Cost: ${card.cost.toLocaleString()}
+          </span>
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
 
 interface DeckBuilderScreenProps {
   onBack: () => void;
@@ -40,6 +174,21 @@ function defaultCounts(): Record<string, number> {
 
 export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
   const [counts, setCounts] = useState<Record<string, number>>(initialCounts);
+  const [flyout, setFlyout] = useState<FlyoutState | null>(null);
+
+  const handleTileClick = useCallback((card: ActionCard, el: HTMLButtonElement) => {
+    setFlyout((prev) => {
+      // Clicking the same tile again toggles the flyout closed.
+      if (prev?.card.templateId === card.templateId) return null;
+      return { card, rect: el.getBoundingClientRect(), triggerEl: el };
+    });
+  }, []);
+
+  const handleFlyoutDismiss = useCallback(() => {
+    // Return focus to the tile that opened the flyout before unmounting.
+    flyout?.triggerEl.focus();
+    setFlyout(null);
+  }, [flyout]);
 
   const currentSpec: DeckSpec[] = ACTION_CARDS.map((card) => ({
     templateId: card.templateId,
@@ -70,7 +219,7 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
   };
 
   return (
-    <FocusTrap focusTrapOptions={{ initialFocus: '#deck-builder-back-btn', escapeDeactivates: false }}>
+    <FocusTrap focusTrapOptions={{ initialFocus: '#deck-builder-back-btn', escapeDeactivates: false }} paused={flyout !== null}>
       <div
         className="absolute inset-0 flex flex-col bg-black/95 z-50 overflow-y-auto"
         role="dialog"
@@ -107,9 +256,19 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
               const count = counts[card.templateId] ?? 0;
               return (
                 <div key={card.templateId} className="flex flex-col items-center gap-2">
-                  <ActionCardPreview card={card} />
+                  <button
+                    data-flyout-interactive
+                    onClick={(e) => handleTileClick(card, e.currentTarget)}
+                    aria-label={`View ${card.name} details`}
+                    aria-expanded={flyout?.card.templateId === card.templateId}
+                    aria-haspopup="dialog"
+                    className="rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+                  >
+                    <ActionCardPreview card={card} />
+                  </button>
                   <div className="flex items-center gap-2">
                     <button
+                      data-flyout-interactive
                       onClick={() => adjust(card.templateId, -1)}
                       disabled={count === 0}
                       aria-label={`Remove one ${card.name}`}
@@ -124,6 +283,7 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
                       {count}
                     </span>
                     <button
+                      data-flyout-interactive
                       onClick={() => adjust(card.templateId, 1)}
                       aria-label={`Add one ${card.name}`}
                       // TODO-0016: cap this button by the player's owned count once card ownership is implemented
@@ -137,6 +297,13 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
             })}
           </div>
         </div>
+        {flyout !== null && (
+          <DeckBuilderCardFlyout
+            card={flyout.card}
+            sourceRect={flyout.rect}
+            onDismiss={handleFlyoutDismiss}
+          />
+        )}
 
         {/* Footer: total + actions */}
         <div className="flex-shrink-0 border-t border-cyan-900 px-6 py-4 flex items-center justify-between gap-4">
