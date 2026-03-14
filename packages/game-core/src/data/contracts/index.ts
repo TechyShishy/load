@@ -42,6 +42,7 @@ export const LOCAL_ISP_CONTRACT: ContractDef = {
   id: 'local-isp',
   name: 'Local ISP',
   description: 'A small regional provider with predictable traffic and minimal outages. Learn the basics before stepping up.',
+  musicTrackId: 'tutorialTheme',
   trafficDeck: [
     { templateId: 'traffic-4k-stream',    count: 7 },
     { templateId: 'traffic-iot-burst',    count: 6 },

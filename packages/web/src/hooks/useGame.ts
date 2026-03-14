@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
-import { gameMachine, createInitialContext, SlotType } from '@load/game-core';
+import { gameMachine, createInitialContext, SlotType, BUILT_IN_CONTRACTS } from '@load/game-core';
 import type { ActionCard, ContractDef, Period, Track } from '@load/game-core';
 import { clearSave, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
@@ -76,9 +76,26 @@ export function useGame(contract?: ContractDef) {
 
   // Trigger audio on win/lose — only when phase transitions, not on every render
   useEffect(() => {
-    if (phase === 'gameWon') audio.playWin();
-    if (phase === 'gameLost') audio.playLose();
+    if (phase === 'gameWon') { audio.stopMusic(); audio.playWin(); }
+    if (phase === 'gameLost') { audio.stopMusic(); audio.playLose(); }
   }, [phase, audio]);
+
+  // In-game music — start the track declared on the active contract when entering
+  // the scheduling phase from any non-crisis state (covers initial mount, save-resume,
+  // and game reset). Skips the crisis→scheduling transition so the track doesn't
+  // restart mid-loop. Contracts without a musicTrackId are silently skipped.
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    if (phase === 'scheduling' && prev !== 'crisis') {
+      const trackId = BUILT_IN_CONTRACTS.find(
+        (c) => c.id === context.contractId,
+      )?.musicTrackId;
+      if (trackId !== undefined) {
+        audio.startMusic(trackId);
+      }
+    }
+    // stopMusic() is called on win/lose (above) and on return-to-menu (App.tsx).
+  }, [phase, context.contractId, audio]);
 
   // SLA failure sound — fires when the round summary shows failures.
   // Skip on terminal phases: if the game just ended due to SLA, playLose() takes over.

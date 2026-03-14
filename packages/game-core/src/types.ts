@@ -174,6 +174,8 @@ export interface ContractDef {
   readonly eventDeck: DeckSpec[];
   readonly startingBudget: number;
   readonly slaLimit: number;
+  /** Track ID passed to startMusic() when this contract is active in-game. Omit for silent contracts. */
+  readonly musicTrackId?: string;
 }
 
 // ─── Serialized card reference ────────────────────────────────────────────────
