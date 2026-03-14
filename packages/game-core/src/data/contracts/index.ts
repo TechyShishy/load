@@ -12,6 +12,7 @@ import {
 export const STANDARD_CONTRACT: ContractDef = {
   id: 'standard',
   name: 'Standard',
+  musicTrackId: 'contractTheme',
   description: 'Balanced traffic mix with real crisis pressure. A solid starting point for experienced operators.',
   trafficDeck: [
     { templateId: 'traffic-4k-stream',    count: 6 },
