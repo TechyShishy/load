@@ -11,6 +11,8 @@ export class AWSOutageCard extends EventCard {
     super();
   }
 
+  // TODO-0018: add a Failover Protocol action card (MitigateEvent subtype targeting event-aws-outage)
+  // that lets the player avoid the $25,000 penalty and the skipped traffic draw by playing it during crisis phase.
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
     return {

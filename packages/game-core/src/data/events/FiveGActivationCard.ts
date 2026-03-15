@@ -20,7 +20,7 @@ export class FiveGActivationCard extends EventCard {
     super();
   }
 
-  // TODO-0011: add a Negotiate Contract action card (MitigateEvent subtype targeting event-5g-activation)
+  // TODO-0011 (post-MVP): add a Negotiate Contract action card (MitigateEvent subtype targeting event-5g-activation)
   // that lets the player waive the $15,000 fee and project ticket by playing it during crisis phase.
   onCrisis(ctx: GameContext, mitigated: boolean): GameContext {
     if (mitigated) return ctx;
