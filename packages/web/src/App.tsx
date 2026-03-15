@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { GamePlayArea } from './components/GamePlayArea.js';
 import { StartScreen } from './components/overlays/StartScreen.js';
 import type { StartScreenStep } from './components/overlays/StartScreen.js';
@@ -65,7 +67,9 @@ export function App() {
     setHasSave(loadGame() !== null);
   }, []);
   const handleQuit = useCallback(() => {
-    if (window.electronAPI) { window.electronAPI.quit(); } else { window.close(); }
+    if (window.electronAPI) { window.electronAPI.quit(); return; }
+    if (Capacitor.getPlatform() === 'android') { void CapacitorApp.exitApp(); return; }
+    window.close();
   }, []);
   const handleClearSave = useCallback(() => {
     clearSave();
@@ -82,18 +86,16 @@ export function App() {
   useEffect(() => { showDeckBuilderRef.current = showDeckBuilder; }, [showDeckBuilder]);
   useEffect(() => { startStepRef.current = startStep; }, [startStep]);
 
-  // Escape behaviour depends on context:
+  // Shared navigation-stack logic for Escape key and Android hardware back button:
   //   settings open                    → close settings
   //   deck builder open                → close deck builder
   //   start screen, contract panel     → back to menu panel
   //   mid-game, no modal               → open settings
-  //   start screen, menu panel         → quit (Electron IPC / window.close)
+  //   start screen, menu panel         → exit (platform-specific)
   // SettingsModal's FocusTrap has escapeDeactivates: false, so this is
   // the sole Escape handler — no risk of double-firing.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
+    const handleBack = (exitFn: () => void) => {
       if (settingsOpenRef.current) {
         setSettingsOpen(false);
       } else if (showDeckBuilderRef.current) {
@@ -103,12 +105,39 @@ export function App() {
       } else if (gameStartedRef.current) {
         setSettingsOpen(true);
       } else {
-        if (window.electronAPI) { window.electronAPI.quit(); } else { window.close(); }
+        exitFn();
       }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      handleBack(handleQuit);
+    };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+
+    // Register the Android hardware back button / gesture handler.
+    // addListener returns a Promise<PluginListenerHandle>. The cancellation flag
+    // handles the React StrictMode mount→unmount→remount cycle: if cleanup fires
+    // before the promise resolves, cancelled=true causes the handle to be removed
+    // immediately on arrival, preventing a leaked duplicate listener.
+    let cancelled = false;
+    let backButtonHandle: { remove: () => Promise<void> } | null = null;
+    if (Capacitor.getPlatform() === 'android') {
+      void CapacitorApp.addListener('backButton', () => {
+        handleBack(() => void CapacitorApp.exitApp());
+      }).then(handle => {
+        if (cancelled) { void handle.remove(); }
+        else { backButtonHandle = handle; }
+      });
+    }
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('keydown', handleKeyDown);
+      if (backButtonHandle) { void backButtonHandle.remove(); }
+    };
+  }, [handleQuit]);
 
   return (
     <div className="relative w-full h-full">

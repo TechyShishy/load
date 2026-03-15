@@ -269,6 +269,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@capacitor/app@npm:^8.0.0":
+  version: 8.0.1
+  resolution: "@capacitor/app@npm:8.0.1"
+  peerDependencies:
+    "@capacitor/core": ">=8.0.0"
+  checksum: 10c0/3e0298dd4197ddf81856bf4f29121bf25626ec542ab6eb448fc0f38fcf9a102d57e3c2051d349c908edde5c16582f62403564af1fb34fb73bf9ec4d6de968dfa
+  languageName: node
+  linkType: hard
+
 "@capacitor/cli@npm:^8.0.0":
   version: 8.2.0
   resolution: "@capacitor/cli@npm:8.2.0"
@@ -1141,6 +1150,7 @@ __metadata:
   resolution: "@load/mobile@workspace:packages/mobile"
   dependencies:
     "@capacitor/android": "npm:^8.0.0"
+    "@capacitor/app": "npm:^8.0.0"
     "@capacitor/cli": "npm:^8.0.0"
     "@capacitor/core": "npm:^8.0.0"
     "@capacitor/ios": "npm:^8.0.0"
@@ -1151,6 +1161,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@load/web@workspace:packages/web"
   dependencies:
+    "@capacitor/app": "npm:^8.0.0"
+    "@capacitor/core": "npm:^8.0.0"
     "@dnd-kit/core": "npm:^6.3.1"
     "@load/game-core": "workspace:*"
     "@playwright/test": "npm:^1.58.2"
