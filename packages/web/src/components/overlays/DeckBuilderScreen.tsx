@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
 import { ACTION_CARDS, DEFAULT_ACTION_DECK, MIN_DECK_SIZE, validateDeckSpec } from '@load/game-core';
 import type { ActionCard, DeckSpec } from '@load/game-core';
-import { ActionCardPreview } from '../hud/HandZone.js';
+import { ActionCardPreview, ActionCardFace, CARD_W, CARD_H } from '../hud/HandZone.js';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
 import { loadDeckConfig, saveDeckConfig } from '../../save.js';
 
@@ -13,7 +13,6 @@ import { loadDeckConfig, saveDeckConfig } from '../../save.js';
  */
 const WIDE_FLYOUT_BREAKPOINT = 768;
 const SIDEBAR_WIDTH = 240;
-const NARROW_FLYOUT_WIDTH = 240;
 
 type FlyoutState = { card: ActionCard; rect: DOMRect; triggerEl: HTMLButtonElement };
 
@@ -71,33 +70,9 @@ function DeckBuilderSidebar({
       </div>
 
       {/* Card subpanel */}
-      <div className="px-4 pt-4 pb-2 flex-shrink-0">
-        <div
-          className="flex flex-col border border-purple-500 rounded bg-purple-950 shadow shadow-cyan-900/30 w-full"
-        >
-          <span
-            className="font-bold text-purple-300 px-1.5 pt-0.5 border-b border-purple-700/30 text-nowrap overflow-hidden text-ellipsis"
-            style={{ fontSize: '12px' }}
-          >
-            {card.name}
-          </span>
-          <img
-            src={`./cards/${card.templateId}.svg`}
-            alt=""
-            aria-hidden="true"
-            className="bg-purple-900/40 self-center"
-            style={{ imageRendering: 'pixelated', height: 100, width: 160 }}
-          />
-          <div className="px-1.5 py-1.5 border-t border-purple-700/30">
-            <p className="text-gray-300 leading-relaxed" style={{ fontSize: '11px' }}>
-              {card.description}
-            </p>
-          </div>
-          <div className="flex items-center justify-between px-1.5 py-0.5 border-t border-purple-700/30">
-            <span className="text-yellow-400 font-mono" style={{ fontSize: '10px' }}>
-              Cost: ${card.cost.toLocaleString()}
-            </span>
-          </div>
+      <div className="flex justify-center px-4 pt-4 pb-2 flex-shrink-0">
+        <div className="rounded overflow-hidden border border-purple-500 shadow shadow-cyan-900/30">
+          <ActionCardFace card={card} className="bg-purple-950" />
         </div>
       </div>
     </div>
@@ -119,12 +94,9 @@ function DeckBuilderCardFlyout({
   onDismiss: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [flyoutHeight, setFlyoutHeight] = useState(300);
 
   useLayoutEffect(() => {
-    if (!dialogRef.current) return;
-    setFlyoutHeight(dialogRef.current.offsetHeight);
-    dialogRef.current.focus();
+    dialogRef.current?.focus();
   }, []);
 
   // Capture phase ensures this fires before App's bubble-phase handler, preventing
@@ -153,33 +125,21 @@ function DeckBuilderCardFlyout({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [onDismiss]);
 
-  const pos = computeFlyoutPosition(sourceRect, NARROW_FLYOUT_WIDTH, flyoutHeight);
+  const pos = computeFlyoutPosition(sourceRect, CARD_W, CARD_H);
 
   return createPortal(
-    <>
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-labelledby="deck-builder-flyout-title"
-        tabIndex={-1}
-        style={{
-          position: 'fixed',
-          left: pos.left,
-          top: pos.top,
-          width: NARROW_FLYOUT_WIDTH,
-          zIndex: 9999,
-        }}
-        className="flex flex-col border border-cyan-400 rounded bg-purple-950 shadow-2xl shadow-cyan-900/60"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
-          <span
-            id="deck-builder-flyout-title"
-            className="font-bold text-purple-300 leading-tight flex-1 min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
-            style={{ fontSize: '11px' }}
-          >
-            {card.name}
-          </span>
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-label={card.name}
+      tabIndex={-1}
+      style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
+      className="rounded overflow-hidden border border-cyan-400 shadow-2xl shadow-cyan-900/60"
+    >
+      <ActionCardFace
+        card={card}
+        className="bg-purple-950"
+        titleSlot={
           <button
             onClick={onDismiss}
             aria-label="Close card details"
@@ -188,29 +148,9 @@ function DeckBuilderCardFlyout({
           >
             ×
           </button>
-        </div>
-        {/* Art */}
-        <img
-          src={`./cards/${card.templateId}.svg`}
-          alt=""
-          aria-hidden="true"
-          className="w-full object-cover bg-purple-900/40"
-          style={{ imageRendering: 'pixelated' }}
-        />
-        {/* Description + cost */}
-        <div className="flex flex-col items-stretch p-2 gap-1">
-          <p className="text-gray-300 leading-snug" style={{ fontSize: '10px' }}>
-            {card.description}
-          </p>
-          <span
-            className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
-            style={{ fontSize: '9px' }}
-          >
-            Cost: ${card.cost.toLocaleString()}
-          </span>
-        </div>
-      </div>
-    </>,
+        }
+      />
+    </div>,
     document.body,
   );
 }

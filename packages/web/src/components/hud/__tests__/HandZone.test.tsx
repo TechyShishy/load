@@ -6,10 +6,11 @@ import type { ActionCard } from '@load/game-core';
 import { CardType } from '@load/game-core';
 import { HandZone } from '../HandZone.js';
 
-function makeCard(overrides: Partial<Pick<ActionCard, 'id' | 'name' | 'cost' | 'description'>> = {}): ActionCard {
+function makeCard(overrides: Partial<Pick<ActionCard, 'id' | 'name' | 'cost' | 'description' | 'templateId'>> = {}): ActionCard {
   return {
     id: 'test-card-1',
     type: CardType.Action,
+    templateId: 'test-card',
     name: 'Test Card',
     cost: 10_000,
     description: 'A test card.',
@@ -45,7 +46,7 @@ describe('HandZone', () => {
 
   it('displays the card cost formatted with a dollar sign', () => {
     renderWithDnd(<HandZone hand={[makeCard({ cost: 25_000 })]} />);
-    expect(screen.getByText('$25,000')).toBeInTheDocument();
+    expect(screen.getByText('Cost: $25,000')).toBeInTheDocument();
   });
 
   it('renders cards with draggable role when not disabled', () => {

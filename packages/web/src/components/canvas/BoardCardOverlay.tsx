@@ -8,6 +8,7 @@ import {
   computeTicketRect,
 } from './canvasLayout.js';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
+import { FitText, FitTextBlock } from '../FitText.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
@@ -74,12 +75,9 @@ function BoardCardFlyout({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
-          <span
-            className="font-bold text-purple-300 leading-tight flex-1 min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
-            style={{ fontSize: '11px' }}
-          >
+          <FitText className="font-bold text-purple-300 leading-tight flex-1 min-w-0">
             {card.name}
-          </span>
+          </FitText>
           <button
             onClick={onDismiss}
             onPointerDown={(e) => e.stopPropagation()}
@@ -102,9 +100,10 @@ function BoardCardFlyout({
 
         {/* Body */}
         <div className="flex flex-col items-stretch p-2 gap-1">
-          <p className="text-gray-300 leading-snug" style={{ fontSize: '10px' }}>
-            {card.description}
-          </p>
+          <FitTextBlock className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
+          {card.flavorText && (
+            <em className="text-gray-500 leading-snug" style={{ fontSize: '9px', display: 'block' }}>{card.flavorText}</em>
+          )}
           {isTraffic ? (
             <div className="flex gap-2 flex-shrink-0" style={{ fontSize: '10px' }}>
               <span className="text-yellow-400 font-mono">

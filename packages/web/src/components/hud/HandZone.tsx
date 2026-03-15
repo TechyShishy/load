@@ -3,56 +3,68 @@ import { createPortal } from 'react-dom';
 import { useDraggable } from '@dnd-kit/core';
 import type { ActionCard } from '@load/game-core';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
+import { FitText, FitTextBlock } from '../FitText.js';
+
+// ── Canonical card dimensions ─────────────────────────────────────────────────
+// All card surfaces (hand, flyout, deck-builder) render through ActionCardFace
+// at these dimensions. Scaled views apply a CSS transform on the outside.
+export const CARD_W = 180;
+export const CARD_H = 240;
+// Image height preserving the 160×100 SVG canvas aspect ratio at CARD_W.
+export const CARD_IMG_H = Math.round(CARD_W * (100 / 160)); // 112
 
 /**
- * Single-line text that auto-shrinks its font size to fit the container width.
- * Maximum is 10pt (≈ 13.33px); minimum is 6px.
+ * Canonical card face. Always rendered at CARD_W × CARD_H.
+ * Does not include a border — callers provide their own frame.
+ *
+ * `className`        — additional Tailwind classes. Must include a `bg-*` value.
+ * `titleSlot`        — optional element rendered in the right side of the title bar
+ *                     (e.g. a close button). FitText shrinks to accommodate it.
+ * `maxTitleFontSize` — max font size passed to FitText. Default 13.33 (≈ 10pt).
+ *                     When the card is inside a CSS scale-0.5 wrapper, pass 27
+ *                     so the visual size is still ~13 px after downscale.
  */
-function FitText({ children, className }: { children: string; className?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    // Reset to max before measuring
-    el.style.fontSize = '13.33px';
-    // Step down by 0.5px until it fits or we hit the floor
-    while (el.scrollWidth > el.offsetWidth && parseFloat(el.style.fontSize) > 6) {
-      el.style.fontSize = `${(parseFloat(el.style.fontSize) - 0.5).toFixed(2)}px`;
-    }
-  }, [children]);
+export function ActionCardFace({
+  card,
+  className = '',
+  titleSlot,
+  maxTitleFontSize = 13.33,
+}: {
+  card: ActionCard;
+  className?: string;
+  titleSlot?: React.ReactNode;
+  maxTitleFontSize?: number;
+}) {
   return (
-    <span
-      ref={ref}
-      className={className}
-      style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden' }}
+    <div
+      className={`flex flex-col ${className}`}
+      style={{ width: CARD_W, height: CARD_H }}
     >
-      {children}
-    </span>
-  );
-}
-
-/**
- * Multi-line text that auto-shrinks its font size to fit the container height.
- * Maximum is 11px; minimum is 6px. The wrapping div takes flex-1 so it fills
- * whatever height the parent flex layout allocates.
- */
-function FitTextBlock({ children, className }: { children: string; className?: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const text = textRef.current;
-    if (!container || !text) return;
-    text.style.fontSize = '11px';
-    while (text.scrollHeight > container.offsetHeight && parseFloat(text.style.fontSize) > 4) {
-      text.style.fontSize = `${(parseFloat(text.style.fontSize) - 0.5).toFixed(2)}px`;
-    }
-  }, [children]);
-  return (
-    <div ref={containerRef} className="flex-1 min-h-0 w-full">
-      <span ref={textRef} className={className} style={{ display: 'block' }}>
-        {children}
-      </span>
+      <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
+        <FitText className="font-bold text-purple-300 leading-tight flex-1 min-w-0" maxFontSize={maxTitleFontSize}>{card.name}</FitText>
+        {titleSlot}
+      </div>
+      <img
+        src={`./cards/${card.templateId}.svg`}
+        alt=""
+        aria-hidden="true"
+        className="w-full object-cover bg-purple-900/40"
+        style={{ height: CARD_IMG_H, imageRendering: 'pixelated' }}
+      />
+      <div className="flex flex-col flex-1 items-stretch p-2 min-h-0">
+        <FitTextBlock maxFontSize={22} className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
+        {card.flavorText && (
+          <em className="text-gray-500 leading-snug flex-shrink-0" style={{ fontSize: '9px', display: 'block' }}>
+            {card.flavorText}
+          </em>
+        )}
+        <span
+          className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
+          style={{ fontSize: '9px' }}
+        >
+          Cost: ${card.cost.toLocaleString()}
+        </span>
+      </div>
     </div>
   );
 }
@@ -106,9 +118,7 @@ function ExpandedCardFlyout({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onDismiss]);
 
-  const flyoutWidth = 180;
-  const flyoutHeight = 240;
-  const pos = computeFlyoutPosition(sourceRect, flyoutWidth, flyoutHeight);
+  const pos = computeFlyoutPosition(sourceRect, CARD_W, CARD_H);
 
   return createPortal(
     <>
@@ -127,34 +137,24 @@ function ExpandedCardFlyout({
         aria-label={`${card.name} details`}
         tabIndex={-1}
         {...listeners}
-        style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999, width: flyoutWidth, height: flyoutHeight, touchAction: 'none', opacity: isDragging ? 0 : 1 }}
-        className="flex flex-col border border-cyan-400 rounded bg-purple-950 shadow-2xl shadow-cyan-900/60 cursor-grab"
+        style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999, touchAction: 'none', opacity: isDragging ? 0 : 1 }}
+        className="rounded overflow-hidden border border-cyan-400 shadow-2xl shadow-cyan-900/60 cursor-grab"
       >
-        <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
-          <FitText className="font-bold text-purple-300 leading-tight flex-1 min-w-0">{card.name}</FitText>
-          <button
-            onClick={onDismiss}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Close card details"
-            className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"
-            style={{ fontSize: '14px' }}
-          >
-            ×
-          </button>
-        </div>
-        <img
-          src={`./cards/${card.templateId}.svg`}
-          alt=""
-          aria-hidden="true"
-          className="w-full object-cover bg-purple-900/40"
-          style={{ height: '112px', imageRendering: 'pixelated' }}
+        <ActionCardFace
+          card={card}
+          className="bg-purple-950"
+          titleSlot={
+            <button
+              onClick={onDismiss}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Close card details"
+              className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"
+              style={{ fontSize: '14px' }}
+            >
+              ×
+            </button>
+          }
         />
-        <div className="flex flex-col flex-1 items-stretch p-2 min-h-0">
-          <FitTextBlock className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
-          <span className="text-yellow-400 font-mono flex-shrink-0" style={{ fontSize: '11px' }}>
-            ${card.cost.toLocaleString()}
-          </span>
-        </div>
       </div>
     </>,
     document.body,
@@ -227,26 +227,19 @@ export function ActionCardPreview({ card, dragging = false }: { card: ActionCard
   return (
     <div
       className={`
-        flex flex-col w-[90px] h-[120px] flex-shrink-0
-        border rounded text-left select-none overflow-hidden
+        w-[90px] h-[120px] flex-shrink-0 rounded overflow-hidden transform-gpu
+        border select-none
         ${dragging
-          ? 'border-cyan-400 bg-purple-900 shadow-xl shadow-cyan-900/60 cursor-grabbing'
-          : 'border-purple-600 bg-purple-950'
+          ? 'border-cyan-400 shadow-xl shadow-cyan-900/60'
+          : 'border-purple-600'
         }
       `}
     >
-      <FitText className="font-bold text-purple-300 px-1 pt-0.5 border-b border-purple-700/30">{card.name}</FitText>
-      <img
-        src={`./cards/${card.templateId}.svg`}
-        alt=""
-        aria-hidden="true"
-        className="w-full h-[56px] object-cover bg-purple-900/40"
-        style={{ imageRendering: 'pixelated' }}
+      <ActionCardFace
+        card={card}
+        className={`scale-50 origin-top-left ${dragging ? 'bg-purple-900' : 'bg-purple-950'}`}
+        maxTitleFontSize={27}
       />
-      <div className="flex flex-col flex-1 items-start p-1 min-h-0">
-        <FitTextBlock className="text-gray-400 leading-tight">{card.description}</FitTextBlock>
-        <span className="text-yellow-400 font-mono flex-shrink-0" style={{ fontSize: '5px' }}>${card.cost.toLocaleString()}</span>
-      </div>
     </div>
   );
 }
@@ -313,28 +306,27 @@ function ActionCardView({ card, dragId, disabled, isExpanded, onActivate, onDeac
       aria-label={`${card.name} – Cost $${card.cost.toLocaleString()} – ${card.description}`}
       aria-disabled={disabled}
       className={`
-        flex flex-col w-[90px] h-[120px] flex-shrink-0
-        border rounded text-left select-none overflow-hidden
+        w-[90px] h-[120px] flex-shrink-0 rounded overflow-hidden transform-gpu
+        border select-none
         ${disabled
-          ? 'border-gray-700 bg-gray-900 opacity-40 cursor-not-allowed'
+          ? 'border-gray-700 opacity-40 cursor-not-allowed'
           : isExpanded && !isDragging
-            ? 'border-cyan-400 bg-purple-900 cursor-grab'
-            : 'border-purple-600 bg-purple-950 hover:border-purple-400 hover:bg-purple-900 cursor-grab'
+            ? 'border-cyan-400 cursor-grab'
+            : 'border-purple-600 hover:border-purple-400 cursor-grab group'
         }
       `}
     >
-      <FitText className="font-bold text-purple-300 px-1 pt-0.5 border-b border-purple-700/30">{card.name}</FitText>
-      <img
-        src={`./cards/${card.templateId}.svg`}
-        alt=""
-        aria-hidden="true"
-        className="w-full h-[56px] object-cover bg-purple-900/40"
-        style={{ imageRendering: 'pixelated' }}
+      <ActionCardFace
+        card={card}
+        className={`scale-50 origin-top-left ${
+          disabled
+            ? 'bg-gray-900'
+            : isExpanded && !isDragging
+              ? 'bg-purple-900'
+              : 'bg-purple-950 group-hover:bg-purple-900'
+        }`}
+        maxTitleFontSize={27}
       />
-      <div className="flex flex-col flex-1 items-start p-1 min-h-0">
-        <FitTextBlock className="text-gray-400 leading-tight">{card.description}</FitTextBlock>
-        <span className="text-yellow-400 font-mono flex-shrink-0" style={{ fontSize: '5px' }}>${card.cost.toLocaleString()}</span>
-      </div>
     </div>
   );
 }
