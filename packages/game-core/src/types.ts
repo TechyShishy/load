@@ -65,6 +65,7 @@ export abstract class EventCard {
   abstract readonly name: string;
   abstract readonly label: string;
   abstract readonly description: string;
+  readonly flavorText?: string;
   readonly type = CardType.Event as const;
 
   /**
@@ -102,6 +103,7 @@ export abstract class TrafficCard {
   abstract readonly name: string;
   abstract readonly revenue: number;
   abstract readonly description: string;
+  readonly flavorText?: string;
   readonly type = CardType.Traffic as const;
 
   /**
@@ -135,6 +137,7 @@ export abstract class ActionCard {
   abstract readonly name: string;
   abstract readonly cost: number;
   abstract readonly description: string;
+  readonly flavorText?: string;
   abstract readonly allowedOnWeekend: boolean;
   abstract readonly validDropZones: readonly DropZoneTarget[];
   abstract readonly invalidZoneFeedback: string;
