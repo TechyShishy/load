@@ -1,0 +1,21 @@
+/** templateId → public URL for cards that have SVG art. Extend when adding new art. */
+export const CARD_ART: Partial<Record<string, string>> = {
+  'traffic-4k-stream': './cards/traffic-4k-stream.svg',
+  'traffic-cloud-backup': './cards/traffic-cloud-backup.svg',
+  'traffic-ddos': './cards/traffic-ddos.svg',
+  'traffic-iot-burst': './cards/traffic-iot-burst.svg',
+  'action-traffic-prioritization': './cards/action-traffic-prioritization.svg',
+  'action-security-patch': './cards/action-security-patch.svg',
+  'event-ddos-attack': './cards/event-ddos-attack.svg',
+  'event-aws-outage': './cards/event-aws-outage.svg',
+  'event-5g-activation': './cards/event-5g-activation.svg',
+  'event-false-alarm': './cards/event-false-alarm.svg',
+  'action-stream-compression': './cards/action-stream-compression.svg',
+  'action-bandwidth-upgrade': './cards/action-bandwidth-upgrade.svg',
+  'action-datacenter-expansion': './cards/action-datacenter-expansion.svg',
+  'action-work-order': './cards/action-work-order.svg',
+  'traffic-ai-inference': './cards/traffic-ai-inference.svg',
+  'traffic-viral-spike': './cards/traffic-viral-spike.svg',
+  'event-tier1-peering': './cards/event-tier1-peering.svg',
+  'action-redundant-link': './cards/action-redundant-link.svg',
+};

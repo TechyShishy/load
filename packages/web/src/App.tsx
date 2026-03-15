@@ -4,11 +4,15 @@ import { StartScreen } from './components/overlays/StartScreen.js';
 import type { StartScreenStep } from './components/overlays/StartScreen.js';
 import { SettingsModal } from './components/overlays/SettingsModal.js';
 import { DeckBuilderScreen } from './components/overlays/DeckBuilderScreen.js';
+import { LoadScreen } from './components/overlays/LoadScreen.js';
+import { DEFAULT_LOAD_TASKS } from './loadTasks.js';
 import { loadGame, clearSave } from './save.js';
 import { useAudio } from './audio/AudioContext.js';
 import type { ContractDef } from '@load/game-core';
 
 export function App() {
+  const [loadComplete, setLoadComplete] = useState(false);
+  const handleLoadComplete = useCallback(() => { setLoadComplete(true); }, []);
   const [hasSave, setHasSave] = useState(() => loadGame() !== null);
   const [gameStarted, setGameStarted] = useState(false);
   const [showDeckBuilder, setShowDeckBuilder] = useState(false);
@@ -29,12 +33,14 @@ export function App() {
   // Start title music when the start screen is visible; stop it when the game begins.
   // Note: browsers suspend AudioContext until the first user interaction — the music
   // will begin playing on the first click/keypress rather than immediately on mount.
+  // Gated on loadComplete so the music start races with StartScreen mount, not the
+  // load screen.
   useEffect(() => {
-    if (!gameStarted) {
+    if (loadComplete && !gameStarted) {
       audio.startMusic('titleTheme');
       return () => audio.stopMusic();
     }
-  }, [gameStarted, audio]);
+  }, [loadComplete, gameStarted, audio]);
 
   const handleStartContinue = useCallback(() => { setGameStarted(true); }, []);
   const handleStartNewGame = useCallback((contract: ContractDef) => {
@@ -105,14 +111,17 @@ export function App() {
 
   return (
     <div className="relative w-full h-full">
-      {gameStarted && (
+      {!loadComplete && (
+        <LoadScreen tasks={DEFAULT_LOAD_TASKS} onComplete={handleLoadComplete} />
+      )}
+      {loadComplete && gameStarted && (
         <GamePlayArea
           {...(selectedContract ? { contract: selectedContract } : {})}
           onReturnToMenu={handleReturnToMenu}
           onOpenSettings={() => setSettingsOpen(true)}
         />
       )}
-      {!gameStarted && (
+      {loadComplete && !gameStarted && (
         <StartScreen
           hasSave={hasSave}
           step={startStep}

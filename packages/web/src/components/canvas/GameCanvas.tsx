@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Application, Assets, Container, Graphics, Mesh, MeshGeometry, RenderTexture, Sprite, type Texture, Text, Ticker, TextStyle } from 'pixi.js';
+import { CARD_ART } from '../../cardArt.js';
 import {
   Period,
   getFilledTimeSlots,
@@ -155,28 +156,6 @@ function fitCardTitle(name: string, fill: number): Text {
 }
 
 // ── Card art ──────────────────────────────────────────────────────────────────
-/** templateId → public URL for cards that have SVG art. Extend when adding new art. */
-const CARD_ART: Partial<Record<string, string>> = {
-  'traffic-4k-stream': './cards/traffic-4k-stream.svg',
-  'traffic-cloud-backup': './cards/traffic-cloud-backup.svg',
-  'traffic-ddos': './cards/traffic-ddos.svg',
-  'traffic-iot-burst': './cards/traffic-iot-burst.svg',
-  'action-traffic-prioritization': './cards/action-traffic-prioritization.svg',
-  'action-security-patch': './cards/action-security-patch.svg',
-  'event-ddos-attack': './cards/event-ddos-attack.svg',
-  'event-aws-outage': './cards/event-aws-outage.svg',
-  'event-5g-activation': './cards/event-5g-activation.svg',
-  'event-false-alarm': './cards/event-false-alarm.svg',
-  'action-stream-compression': './cards/action-stream-compression.svg',
-  'action-bandwidth-upgrade': './cards/action-bandwidth-upgrade.svg',
-  'action-datacenter-expansion': './cards/action-datacenter-expansion.svg',
-  'action-work-order': './cards/action-work-order.svg',
-  'traffic-ai-inference': './cards/traffic-ai-inference.svg',
-  'traffic-viral-spike': './cards/traffic-viral-spike.svg',
-  'event-tier1-peering': './cards/event-tier1-peering.svg',
-  'action-redundant-link': './cards/action-redundant-link.svg',
-};
-
 /**
  * Returns a sized Sprite using a pre-loaded card art texture, or null if the
  * card has no art (or the asset wasn't loaded yet).
@@ -1250,18 +1229,6 @@ export function GameCanvas({
         autoDensity: true,
       })
       .then(async () => {
-        if (cancelled) {
-          app.destroy(true, { children: true });
-          return;
-        }
-        // Preload card art assets so texture creation functions can access them
-        // synchronously via Assets.get(). Each asset is loaded independently so a
-        // single missing file doesn't prevent the others from caching.
-        await Promise.allSettled(
-          Object.values(CARD_ART)
-            .filter((u): u is string => !!u)
-            .map((u) => Assets.load(u))
-        );
         if (cancelled) {
           app.destroy(true, { children: true });
           return;
