@@ -199,6 +199,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
           suppressedCardIds={suppressedCardIds}
           onCardArrived={markArrived}
           speedMult={speedMult}
+          reducedMotion={settings.reducedMotion}
         />
         <BoardDropZones context={context} containerRef={canvasRef} activeCard={activeCard} />
         <BoardCardOverlay context={context} containerRef={canvasRef} activeCard={activeCard} />

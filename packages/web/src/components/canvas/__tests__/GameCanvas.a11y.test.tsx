@@ -23,6 +23,7 @@ import { GameCanvas } from '../GameCanvas.js';
 const mocks = vi.hoisted(() => ({
   getFilledTimeSlots: vi.fn<[GameContext], TimeSlot[]>(),
   getTracks: vi.fn<[GameContext], TrackSlot[]>(),
+  meshGeometryCtor: vi.fn(),
 }));
 
 // ── Partially mock game-core to intercept view functions ──────────────────────
@@ -107,6 +108,26 @@ vi.mock('pixi.js', () => {
     destroy = noop;
   }
 
+  class FakeMesh {
+    visible = false;
+    texture: unknown = null;
+    constructor(_opts?: unknown) {}
+    destroy = noop;
+  }
+
+  class FakeMeshGeometry {
+    constructor(...args: unknown[]) {
+      mocks.meshGeometryCtor(...args);
+    }
+  }
+
+  class FakeRenderTexture {
+    static create(_opts?: unknown) {
+      return new FakeRenderTexture();
+    }
+    destroy = noop;
+  }
+
   const Assets = {
     get: () => undefined,
     load: (): Promise<Record<string, unknown>> => Promise.resolve({}),
@@ -117,6 +138,9 @@ vi.mock('pixi.js', () => {
     Assets,
     Container: FakeContainer,
     Graphics: FakeGraphics,
+    Mesh: FakeMesh,
+    MeshGeometry: FakeMeshGeometry,
+    RenderTexture: FakeRenderTexture,
     Sprite: FakeSprite,
     Text: FakeText,
     TextStyle: FakeTextStyle,
@@ -276,6 +300,68 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     const text = getLiveRegion(container).textContent ?? '';
     expect(text).toContain('Maintenance track: 1 open ticket');
     expect(text).not.toContain('1 open tickets');
+  });
+
+  it('does not spawn draw animations when reducedMotion is true', async () => {
+    mocks.meshGeometryCtor.mockClear();
+    const drawLog = {
+      traffic: [
+        {
+          card: { id: 'c1', templateId: 'WebSurge', name: 'WebSurge', type: 'Traffic', revenue: 5000, description: '' } as never,
+          period: Period.Morning,
+          slotIndex: 0,
+        },
+      ],
+      events: [],
+      action: [],
+    };
+    await act(async () => {
+      render(<GameCanvas context={makeCtx()} phase="scheduling" drawLog={drawLog} reducedMotion={true} />);
+    });
+    expect(mocks.meshGeometryCtor).not.toHaveBeenCalled();
+  });
+
+  it('spawns draw animations when reducedMotion is false', async () => {
+    mocks.meshGeometryCtor.mockClear();
+    const drawLog = {
+      traffic: [
+        {
+          card: { id: 'c1', templateId: 'WebSurge', name: 'WebSurge', type: 'Traffic', revenue: 5000, description: '' } as never,
+          period: Period.Morning,
+          slotIndex: 0,
+        },
+      ],
+      events: [],
+      action: [],
+    };
+    await act(async () => {
+      render(<GameCanvas context={makeCtx()} phase="scheduling" drawLog={drawLog} reducedMotion={false} />);
+    });
+    expect(mocks.meshGeometryCtor).toHaveBeenCalled();
+  });
+
+  it('spawns draw animations via drawLog effect when PixiJS is already initialised (round 2+)', async () => {
+    // Render without a drawLog first so the app init completes with no pending draw.
+    const { rerender } = render(<GameCanvas context={makeCtx()} phase="scheduling" reducedMotion={false} />);
+    // Flush the async init chain (app.init → Promise.allSettled → .then body).
+    await act(async () => {});
+    mocks.meshGeometryCtor.mockClear();
+
+    const drawLog = {
+      traffic: [
+        {
+          card: { id: 'c2', templateId: 'WebSurge', name: 'WebSurge', type: 'Traffic', revenue: 5000, description: '' } as never,
+          period: Period.Morning,
+          slotIndex: 0,
+        },
+      ],
+      events: [],
+      action: [],
+    };
+    act(() => {
+      rerender(<GameCanvas context={makeCtx()} phase="scheduling" drawLog={drawLog} reducedMotion={false} />);
+    });
+    expect(mocks.meshGeometryCtor).toHaveBeenCalled();
   });
 
   it('updates the summary when context changes', () => {

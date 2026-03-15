@@ -50,6 +50,8 @@ interface GameCanvasProps {
   containerWidth?: number;
   /** Animation speed multiplier — 1.5× on round 1, 1× otherwise. */
   speedMult?: number;
+  /** When true, card fly-in animations are suppressed (respects prefers-reduced-motion). */
+  reducedMotion?: boolean;
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -1193,6 +1195,7 @@ export function GameCanvas({
   onCardArrived,
   containerWidth: containerWidthProp,
   speedMult,
+  reducedMotion,
 }: GameCanvasProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? internalRef;
@@ -1218,11 +1221,13 @@ export function GameCanvas({
   // Mirror props that the init .then() needs to read after async app startup.
   const drawLogRef = useRef<DrawLog | null | undefined>(undefined);
   const speedMultRef = useRef<number>(speedMult ?? 1);
+  const reducedMotionRef = useRef<boolean>(reducedMotion ?? false);
   suppressedCardIdsRef.current = suppressedCardIds ?? new Set();
   onCardArrivedRef.current = onCardArrived;
   contextRef.current = context;
   drawLogRef.current = drawLog;
   speedMultRef.current = speedMult ?? 1;
+  reducedMotionRef.current = reducedMotion ?? false;
 
   // Initialise PixiJS once.
   // Strategy: let PixiJS create its own <canvas> and append it to our div.
@@ -1282,7 +1287,7 @@ export function GameCanvas({
         // If a drawLog arrived before PixiJS was ready (e.g. round 1 on first mount),
         // spawn its animations now that the app and animLayer are both initialised.
         const pendingDl = drawLogRef.current;
-        if (pendingDl?.traffic.length || pendingDl?.events.length || pendingDl?.action.length) {
+        if (!reducedMotionRef.current && (pendingDl?.traffic.length || pendingDl?.events.length || pendingDl?.action.length)) {
           spawnDrawAnimations(
             app, animLayer, animJobsRef.current,
             pendingDl, contextRef.current,
@@ -1388,9 +1393,14 @@ export function GameCanvas({
   // Spawn card fly-in animations when a new draw log is received.
   // Note: on the very first render PixiJS may not be ready yet; the init
   // .then() callback handles that case by reading drawLogRef directly.
+  // TODO-0019: if reducedMotion flips false→true mid-flight, in-flight jobs
+  // continue to completion and onCardArrived still fires. useDrawAnimationState
+  // handles this correctly (machine still advances), but a brief animation flash
+  // is visible during the round where the setting was toggled.
   useEffect(() => {
     const app = appRef.current;
     const animLayer = animLayerRef.current;
+    if (reducedMotion) return;
     if (!app || !animLayer || (!drawLog?.traffic.length && !drawLog?.events.length && !drawLog?.action.length)) return;
     spawnDrawAnimations(
       app, animLayer, animJobsRef.current,
@@ -1398,7 +1408,7 @@ export function GameCanvas({
       containerWidthProp ?? app.screen.width,
       speedMult ?? 1,
     );
-  }, [drawLog]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [drawLog, reducedMotion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Repaint slot card chips whenever the suppressed-card set changes.
   // This drives the progressive board reveal as cards arrive at their slots.
