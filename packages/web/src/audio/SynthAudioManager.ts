@@ -5,9 +5,9 @@ import { playOverload } from './sounds/overload.js';
 import { playWin } from './sounds/win.js';
 import { playLose } from './sounds/lose.js';
 import { playAdvance } from './sounds/advance.js';
-import { startTitleTheme } from './music/titleTheme.js';
-import { startTutorialTheme } from './music/tutorialTheme.js';
-import { startContractTheme } from './music/contractTheme.js';
+import { startTitleTheme, scheduleFullLoop as titleFullLoop, LOOP_BEATS as TITLE_LOOP_BEATS, BEAT_DURATION_SEC as TITLE_BEAT } from './music/titleTheme.js';
+import { startTutorialTheme, scheduleFullLoop as tutorialFullLoop, LOOP_BEATS as TUTORIAL_LOOP_BEATS, BEAT_DURATION_SEC as TUTORIAL_BEAT } from './music/tutorialTheme.js';
+import { startContractTheme, scheduleFullLoop as contractFullLoop, LOOP_BEATS as CONTRACT_LOOP_BEATS, BEAT_DURATION_SEC as CONTRACT_BEAT } from './music/contractTheme.js';
 
 /**
  * Procedural audio manager backed by the Web Audio API.
@@ -36,6 +36,9 @@ export class SynthAudioManager implements IAudioManager {
   private stopCurrentTrack: (() => void) | null = null;
   // Track deferred until the first user gesture unlocks the AudioContext.
   private pendingTrackId: string | null = null;
+  // Pre-rendered AudioBuffers, keyed by trackId. Populated by warmUp().
+  // Protected (not private) so test subclasses can assert on stored buffers.
+  protected renderedBuffers = new Map<string, AudioBuffer>();
 
   private getCtx(): { ctx: AudioContext; master: GainNode } {
     if (!this.ctx) {
@@ -114,6 +117,25 @@ export class SynthAudioManager implements IAudioManager {
     const { ctx, music } = this.getMusicGain();
     music.gain.cancelScheduledValues(ctx.currentTime);
     music.gain.setValueAtTime(this.musicVolume, ctx.currentTime);
+
+    // Prefer pre-rendered buffer. Falls back to live scheduler if not yet rendered
+    // or if OfflineAudioContext was unavailable during warmUp.
+    const rendered = this.renderedBuffers.get(trackId);
+    if (rendered) {
+      const source = ctx.createBufferSource();
+      source.buffer = rendered;
+      source.loop = true;
+      source.loopStart = 0;
+      source.loopEnd = rendered.duration;
+      source.connect(music);
+      source.start();
+      this.stopCurrentTrack = (): void => {
+        try { source.stop(); } catch { /* node may already have stopped */ }
+        source.disconnect();
+      };
+      return;
+    }
+
     switch (trackId) {
       case 'titleTheme':
         this.stopCurrentTrack = startTitleTheme(ctx, music);
@@ -128,6 +150,47 @@ export class SynthAudioManager implements IAudioManager {
         console.warn(`SynthAudioManager: unknown music track "${trackId}"`);
         break;
     }
+  }
+
+  /**
+   * Pre-renders one track to an AudioBuffer using OfflineAudioContext.
+   * Silently no-ops if OfflineAudioContext is unavailable (e.g. in tests).
+   */
+  async preRenderTrack(trackId: string): Promise<void> {
+    if (typeof OfflineAudioContext === 'undefined') return;
+    type TrackConfig = {
+      scheduleLoop: (ctx: BaseAudioContext, music: GainNode) => void;
+      loopBeats: number;
+      beatDuration: number;
+    };
+    const configs: Record<string, TrackConfig> = {
+      titleTheme:    { scheduleLoop: titleFullLoop,    loopBeats: TITLE_LOOP_BEATS,    beatDuration: TITLE_BEAT },
+      tutorialTheme: { scheduleLoop: tutorialFullLoop, loopBeats: TUTORIAL_LOOP_BEATS, beatDuration: TUTORIAL_BEAT },
+      contractTheme: { scheduleLoop: contractFullLoop, loopBeats: CONTRACT_LOOP_BEATS, beatDuration: CONTRACT_BEAT },
+    };
+    const config = configs[trackId];
+    if (!config) return;
+    const sampleRate = 44100;
+    const sampleCount = Math.ceil(config.loopBeats * config.beatDuration * sampleRate);
+    const offlineCtx = new OfflineAudioContext(2, sampleCount, sampleRate);
+    const musicGain = offlineCtx.createGain();
+    musicGain.gain.value = 1;
+    musicGain.connect(offlineCtx.destination);
+    config.scheduleLoop(offlineCtx, musicGain);
+    const buffer = await offlineCtx.startRendering();
+    this.renderedBuffers.set(trackId, buffer);
+  }
+
+  /** Pre-renders all three tracks concurrently. */
+  async preRenderAllTracks(): Promise<void> {
+    await Promise.all(
+      ['titleTheme', 'tutorialTheme', 'contractTheme'].map((id) => this.preRenderTrack(id)),
+    );
+  }
+
+  /** IAudioManager warmUp hook — called by the load screen task. */
+  async warmUp(): Promise<void> {
+    await this.preRenderAllTracks();
   }
 
   stopMusic(): void {
@@ -162,6 +225,7 @@ export class SynthAudioManager implements IAudioManager {
   destroy(): void {
     this.stopCurrentTrack?.();
     this.stopCurrentTrack = null;
+    this.renderedBuffers.clear();
     void this.ctx?.close().catch(() => undefined);
     this.ctx = null;
     this.masterGain = null;

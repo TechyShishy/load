@@ -21,6 +21,12 @@ export interface IAudioManager {
   unlock(): void;
   /** Close the AudioContext and release all audio resources. Call once on unmount. */
   destroy(): void;
+  /**
+   * Pre-render all music tracks to AudioBuffers so playback uses a single
+   * AudioBufferSourceNode loop instead of a live scheduler. Optional — if not
+   * implemented, startMusic falls back to the live scheduler.
+   */
+  warmUp?(): Promise<void>;
 }
 
 /**

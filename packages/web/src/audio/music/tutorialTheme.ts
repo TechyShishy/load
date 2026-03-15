@@ -24,6 +24,9 @@ const BEAT = 60 / BPM; // 0.625 s per beat
 const STEPS = 64;
 const HAT_DENSITY = 1 as const; // fire a hat on every step — accent logic in scheduleHat differentiates beats 1&3 from 2&4
 
+export const LOOP_BEATS = STEPS;
+export const BEAT_DURATION_SEC = BEAT;
+
 // ── Patterns (64 entries; null = rest) ──────────────────────────────────────
 //
 // Index formula: (bar - 1) * 4 + (beat - 1)   [bar 1–16, beat 1–4]
@@ -116,7 +119,7 @@ const KICK_PATTERN = (() => {
 // ── Instrument functions ─────────────────────────────────────────────────────
 
 function scheduleBass(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   music: GainNode,
   midi: number,
   t: number,
@@ -145,7 +148,7 @@ function scheduleBass(
 }
 
 function scheduleMelody(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   music: GainNode,
   midi: number,
   t: number,
@@ -184,7 +187,7 @@ function scheduleMelody(
 // Pad: 3 detuned sawtooth oscillators per chord tone, slow swell to fill the space.
 // Called once per section boundary; dur = 16 beats + PAD_OVERLAP.
 function schedulePad(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   music: GainNode,
   notes: number[],
   t: number,
@@ -222,7 +225,7 @@ function schedulePad(
   }
 }
 
-function scheduleKick(ctx: AudioContext, music: GainNode, t: number): void {
+function scheduleKick(ctx: BaseAudioContext, music: GainNode, t: number): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
@@ -240,7 +243,7 @@ function scheduleKick(ctx: AudioContext, music: GainNode, t: number): void {
 }
 
 function scheduleHat(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   music: GainNode,
   t: number,
   step: number,
@@ -269,6 +272,58 @@ function scheduleHat(
 
 // ── Scheduler ────────────────────────────────────────────────────────────────
 
+// loopEnd caps pad duration so the last section fades to silence at the loop
+// boundary. Pass Infinity for the live scheduler (no capping needed).
+function scheduleStep(
+  ctx: BaseAudioContext,
+  music: GainNode,
+  step: number,
+  t: number,
+  loopEnd: number,
+): void {
+  // ── Bass ──────────────────────────────────────────────────────────────
+  const bassMidi = BASS_PATTERN[step];
+  if (bassMidi !== null && bassMidi !== undefined) {
+    scheduleBass(ctx, music, bassMidi, t);
+  }
+
+  // ── Melody ────────────────────────────────────────────────────────────
+  const melodyMidi = MELODY_PATTERN[step];
+  if (melodyMidi !== null && melodyMidi !== undefined) {
+    scheduleMelody(ctx, music, melodyMidi, t);
+  }
+
+  // ── Kick ──────────────────────────────────────────────────────────────
+  if (KICK_PATTERN[step] === true) {
+    scheduleKick(ctx, music, t);
+  }
+
+  // ── Hi-hat (every 8th note — every other step) ────────────────────────
+  if (step % HAT_DENSITY === 0) {
+    scheduleHat(ctx, music, t, step);
+  }
+
+  // ── Pad (fires once per section boundary) ─────────────────────────────
+  if (step % 16 === 0) {
+    const chord = PAD_CHORDS[step];
+    if (chord !== undefined) {
+      const padDur = Math.min(16 * BEAT + PAD_OVERLAP, loopEnd - t);
+      schedulePad(ctx, music, chord, t, padDur);
+    }
+  }
+}
+
+/**
+ * Synchronously schedules one full loop cycle on a BaseAudioContext.
+ * Intended for use with OfflineAudioContext during pre-rendering.
+ */
+export function scheduleFullLoop(ctx: BaseAudioContext, music: GainNode): void {
+  const loopEnd = STEPS * BEAT;
+  for (let step = 0; step < STEPS; step++) {
+    scheduleStep(ctx, music, step, step * BEAT, loopEnd);
+  }
+}
+
 /**
  * Starts the "First Packet" tutorial theme. Returns a stop function.
  * @param ctx   AudioContext — provided by SynthAudioManager
@@ -278,41 +333,9 @@ export function startTutorialTheme(ctx: AudioContext, music: GainNode): () => vo
   let currentStep = 0;
   let nextNoteTime = ctx.currentTime + 0.05;
 
-  function scheduleStep(step: number, t: number): void {
-    // ── Bass ──────────────────────────────────────────────────────────────
-    const bassMidi = BASS_PATTERN[step];
-    if (bassMidi !== null && bassMidi !== undefined) {
-      scheduleBass(ctx, music, bassMidi, t);
-    }
-
-    // ── Melody ────────────────────────────────────────────────────────────
-    const melodyMidi = MELODY_PATTERN[step];
-    if (melodyMidi !== null && melodyMidi !== undefined) {
-      scheduleMelody(ctx, music, melodyMidi, t);
-    }
-
-    // ── Kick ──────────────────────────────────────────────────────────────
-    if (KICK_PATTERN[step] === true) {
-      scheduleKick(ctx, music, t);
-    }
-
-    // ── Hi-hat (every 8th note — every other step) ────────────────────────
-    if (step % HAT_DENSITY === 0) {
-      scheduleHat(ctx, music, t, step);
-    }
-
-    // ── Pad (fires once per section boundary) ─────────────────────────────
-    if (step % 16 === 0) {
-      const chord = PAD_CHORDS[step];
-      if (chord !== undefined) {
-        schedulePad(ctx, music, chord, t, 16 * BEAT + PAD_OVERLAP);
-      }
-    }
-  }
-
   const timerId = setInterval(() => {
     while (nextNoteTime < ctx.currentTime + LOOK_AHEAD) {
-      scheduleStep(currentStep % STEPS, nextNoteTime);
+      scheduleStep(ctx, music, currentStep % STEPS, nextNoteTime, Infinity);
       nextNoteTime += BEAT;
       currentStep++;
     }

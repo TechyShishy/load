@@ -13,6 +13,9 @@ const BEAT = 60 / BPM; // 0.8333 s
 const STEPS = 64;
 const PAD_OVERLAP = 0.5; // s: each chord bleeds past its section boundary into the next attack
 
+export const LOOP_BEATS = STEPS;
+export const BEAT_DURATION_SEC = BEAT;
+
 // ── Patterns (64 entries each; null = rest) ──────────────────────────────────
 //
 // Index formula: (bar - 1) * 4 + (beat - 1)   [bar 1-16, beat 1-4]
@@ -106,7 +109,7 @@ const PAD_CHORDS: Partial<Record<number, number[]>> = {
 
 // ── Instrument functions ─────────────────────────────────────────────────────
 
-function scheduleBass(ctx: AudioContext, music: GainNode, midi: number, t: number): void {
+function scheduleBass(ctx: BaseAudioContext, music: GainNode, midi: number, t: number): void {
   const dur = BEAT * 1.5;
   const osc = ctx.createOscillator();
   const filt = ctx.createBiquadFilter();
@@ -132,7 +135,7 @@ function scheduleBass(ctx: AudioContext, music: GainNode, midi: number, t: numbe
 
 // dur is caller-supplied: sparse steps use BEAT * 1.8 for the long sustain;
 // dense steps use BEAT * 0.75 so each note articulates cleanly at 72 BPM.
-function scheduleMelody(ctx: AudioContext, music: GainNode, midi: number, t: number, dur: number): void {
+function scheduleMelody(ctx: BaseAudioContext, music: GainNode, midi: number, t: number, dur: number): void {
   const osc = ctx.createOscillator();
   const lfo = ctx.createOscillator();
   const lfoGain = ctx.createGain();
@@ -162,7 +165,7 @@ function scheduleMelody(ctx: AudioContext, music: GainNode, midi: number, t: num
 
 // Soft kick drum: sine frequency-drop transient. Gentle enough not to
 // overpower the mood — just enough to lock the pulse during the dense section.
-function scheduleKick(ctx: AudioContext, music: GainNode, t: number): void {
+function scheduleKick(ctx: BaseAudioContext, music: GainNode, t: number): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
@@ -181,7 +184,7 @@ function scheduleKick(ctx: AudioContext, music: GainNode, t: number): void {
 
 // Pads: schedule each chord tone with 3 detuned oscillators for warmth.
 // Called once per section boundary; dur = 16 beats.
-function schedulePad(ctx: AudioContext, music: GainNode, notes: number[], t: number, dur: number): void {
+function schedulePad(ctx: BaseAudioContext, music: GainNode, notes: number[], t: number, dur: number): void {
   const detunes = [-8, 0, 8]; // ±8 cent spread
   const vol = 0.055; // per-oscillator; incoherent sum of 9-12 OSCs stays reasonable
 
@@ -216,6 +219,61 @@ function schedulePad(ctx: AudioContext, music: GainNode, notes: number[], t: num
 
 // ── Scheduler ────────────────────────────────────────────────────────────────
 
+// loopEnd is used to cap pad duration so the last section fades to silence
+// at exactly the buffer boundary (clean loop point for pre-rendered playback).
+// Pass Infinity for the live scheduler (no capping needed).
+function scheduleStep(
+  ctx: BaseAudioContext,
+  music: GainNode,
+  step: number,
+  t: number,
+  loopEnd: number,
+): void {
+  // ── Bass ──────────────────────────────────────────────────────────────
+  const bassMidi = BASS_PATTERN[step];
+  if (bassMidi !== null && bassMidi !== undefined) {
+    scheduleBass(ctx, music, bassMidi, t);
+  }
+
+  // ── Melody ────────────────────────────────────────────────────────────
+  // Active section (bars 9–16 = steps 32–63): notes every 2 beats, sustain fills ~1.5 beats;
+  // sparse opening: long sustain so notes bloom and linger.
+  // Cap by loopEnd - t so the last melody note doesn't extend past the buffer
+  // boundary (which would cause a waveform discontinuity at the loop point).
+  const melodyDur = Math.min(step >= 32 ? BEAT * 1.5 : BEAT * 1.8, loopEnd - t);
+  const melodyMidi = MELODY_PATTERN[step];
+  if (melodyMidi !== null && melodyMidi !== undefined) {
+    scheduleMelody(ctx, music, melodyMidi, t, melodyDur);
+  }
+
+  // ── Kick ──────────────────────────────────────────────────────────────
+  if (KICK_PATTERN[step] === true) {
+    scheduleKick(ctx, music, t);
+  }
+
+  // ── Pad (fires once per section, at the boundary step) ────────────────
+  if (step % 16 === 0) {
+    const chord = PAD_CHORDS[step];
+    if (chord !== undefined) {
+      // Cap pad duration so it doesn't extend past the loop boundary.
+      const padDur = Math.min(16 * BEAT + PAD_OVERLAP, loopEnd - t);
+      schedulePad(ctx, music, chord, t, padDur);
+    }
+  }
+}
+
+/**
+ * Synchronously schedules one full loop cycle on a BaseAudioContext.
+ * Intended for use with OfflineAudioContext during pre-rendering.
+ * All STEPS beats are scheduled at t=0, t=BEAT, t=2*BEAT, …
+ */
+export function scheduleFullLoop(ctx: BaseAudioContext, music: GainNode): void {
+  const loopEnd = STEPS * BEAT;
+  for (let step = 0; step < STEPS; step++) {
+    scheduleStep(ctx, music, step, step * BEAT, loopEnd);
+  }
+}
+
 /**
  * Starts the Nocturne title-screen track. Returns a stop function.
  * @param ctx   AudioContext — provided by SynthAudioManager
@@ -225,39 +283,9 @@ export function startTitleTheme(ctx: AudioContext, music: GainNode): () => void 
   let currentStep = 0;
   let nextNoteTime = ctx.currentTime + 0.05;
 
-  function scheduleStep(step: number, t: number): void {
-    // ── Bass ──────────────────────────────────────────────────────────────
-    const bassMidi = BASS_PATTERN[step];
-    if (bassMidi !== null && bassMidi !== undefined) {
-      scheduleBass(ctx, music, bassMidi, t);
-    }
-
-    // ── Melody ────────────────────────────────────────────────────────────
-    // Active section (bars 9–16 = steps 32–63): notes every 2 beats, sustain fills ~1.5 beats;
-    // sparse opening: long sustain so notes bloom and linger.
-    const melodyDur = step >= 32 ? BEAT * 1.5 : BEAT * 1.8;
-    const melodyMidi = MELODY_PATTERN[step];
-    if (melodyMidi !== null && melodyMidi !== undefined) {
-      scheduleMelody(ctx, music, melodyMidi, t, melodyDur);
-    }
-
-    // ── Kick ──────────────────────────────────────────────────────────────
-    if (KICK_PATTERN[step] === true) {
-      scheduleKick(ctx, music, t);
-    }
-
-    // ── Pad (fires once per section, at the boundary step) ────────────────
-    if (step % 16 === 0) {
-      const chord = PAD_CHORDS[step];
-      if (chord !== undefined) {
-        schedulePad(ctx, music, chord, t, 16 * BEAT + PAD_OVERLAP);
-      }
-    }
-  }
-
   const timerId = setInterval(() => {
     while (nextNoteTime < ctx.currentTime + LOOK_AHEAD) {
-      scheduleStep(currentStep % STEPS, nextNoteTime);
+      scheduleStep(ctx, music, currentStep % STEPS, nextNoteTime, Infinity);
       nextNoteTime += BEAT;
       currentStep++;
     }

@@ -1,5 +1,6 @@
 import { Assets, Application } from 'pixi.js';
 import { CARD_ART } from './cardArt.js';
+import type { IAudioManager } from './audio/AudioManager.js';
 
 export interface LoadTask {
   label: string;
@@ -26,4 +27,19 @@ const cardArtTask: LoadTask = {
   },
 };
 
-export const DEFAULT_LOAD_TASKS: LoadTask[] = [pixiWarmUpTask, cardArtTask];
+/**
+ * Returns the list of load-screen tasks for the given audio manager.
+ * If the manager implements warmUp, a music pre-render task is included
+ * and runs concurrently with the other tasks.
+ */
+export function makeLoadTasks(audio: IAudioManager): LoadTask[] {
+  const tasks: LoadTask[] = [pixiWarmUpTask, cardArtTask];
+  if (audio.warmUp) {
+    const warmUp = audio.warmUp.bind(audio);
+    tasks.push({
+      label: 'Pre-rendering music',
+      run: warmUp,
+    });
+  }
+  return tasks;
+}
