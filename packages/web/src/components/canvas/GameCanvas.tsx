@@ -132,6 +132,12 @@ const CARD_TITLE_ZONE_H = 14;
 const CARD_TITLE_MAX_FONT = 10;
 /** Available width for the title text (card inner width – small horizontal inset). */
 const CARD_TITLE_MAX_W = SLOT_W - CARD_PADDING * 2 - 4;
+/** Height reserved for the flavor text zone when a card has flavorText. */
+const FLAVOR_ZONE_H = 14;
+/** Minimum font size in px for description text step-down. */
+const DESC_FONT_MIN = 4;
+/** Minimum font size in px for flavor text step-down. */
+const FLAVOR_FONT_MIN = 3;
 
 const CARD_COST_STYLE = new TextStyle({
   fill: 0xfbbf24,
@@ -153,6 +159,56 @@ function fitCardTitle(name: string, fill: number): Text {
     t = new Text({ text: name, style: new TextStyle({ fill, fontSize, fontFamily: 'Courier New' }) });
   }
   return t;
+}
+
+/**
+ * Creates a sized description Text node (grey, word-wrapped) and adds it to container.
+ * Steps font down from 6 px until the text fits within maxH, minimum 4 px.
+ * No-ops when maxH ≤ 0.
+ */
+function fitDescText(
+  text: string,
+  x: number,
+  y: number,
+  maxH: number,
+  container: Container,
+): void {
+  if (maxH <= 0) return;
+  const innerW = SLOT_W - CARD_PADDING * 2;
+  let fontSize = 6;
+  let t = new Text({ text, style: new TextStyle({ fill: 0x9ca3af, fontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: innerW - 2 }) });
+  while (t.height > maxH && fontSize > DESC_FONT_MIN) {
+    fontSize -= 0.5;
+    t.destroy();
+    t = new Text({ text, style: new TextStyle({ fill: 0x9ca3af, fontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: innerW - 2 }) });
+  }
+  t.x = x;
+  t.y = y;
+  container.addChild(t);
+}
+
+/**
+ * Creates a sized flavor Text node (grey italic, word-wrapped) and adds it to
+ * container. Attempts to step font down from 5 px until the text fits within
+ * FLAVOR_ZONE_H; stops at FLAVOR_FONT_MIN px regardless.
+ */
+function fitFlavorText(
+  text: string,
+  x: number,
+  y: number,
+  container: Container,
+): void {
+  const innerW = SLOT_W - CARD_PADDING * 2;
+  let fontSize = 5;
+  let t = new Text({ text, style: new TextStyle({ fill: 0x6b7280, fontSize, fontFamily: 'Courier New', fontStyle: 'italic', wordWrap: true, wordWrapWidth: innerW - 2 }) });
+  while (t.height > FLAVOR_ZONE_H && fontSize > FLAVOR_FONT_MIN) {
+    fontSize -= 0.5;
+    t.destroy();
+    t = new Text({ text, style: new TextStyle({ fill: 0x6b7280, fontSize, fontFamily: 'Courier New', fontStyle: 'italic', wordWrap: true, wordWrapWidth: innerW - 2 }) });
+  }
+  t.x = x;
+  t.y = y;
+  container.addChild(t);
 }
 
 // ── Card art ──────────────────────────────────────────────────────────────────
@@ -728,22 +784,14 @@ function paintSlotCards(
   revenueText.y = pricingY;
   container.addChild(revenueText);
 
-  // Description text below the art image, leaving room for the pricing row.
+  // Description text below the art image, leaving room for the flavor/pricing rows.
   const descY = artY + artImgH + CARD_PADDING;
-  const descMaxH = pricingY - descY - CARD_PADDING;
-  let descFontSize = 6;
-  let descText = new Text({ text: card.description, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
-  while (descText.height > descMaxH && descFontSize > 4) {
-    descFontSize -= 0.5;
-    descText.destroy();
-    descText = new Text({ text: card.description, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
-  }
-  if (descMaxH > 0) {
-    descText.x = slotX + CARD_PADDING + 1;
-    descText.y = descY;
-    container.addChild(descText);
-  } else {
-    descText.destroy();
+  const flavorH = card.flavorText ? FLAVOR_ZONE_H : 0;
+  const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
+  fitDescText(card.description, slotX + CARD_PADDING + 1, descY, descMaxH, container);
+  if (card.flavorText) {
+    const flavorY = pricingY - CARD_PADDING - flavorH;
+    fitFlavorText(card.flavorText, slotX + CARD_PADDING + 1, flavorY, container);
   }
 }
 
@@ -786,6 +834,7 @@ function paintPile(
   topDiscardDescription?: string,
   topDiscardCost?: number,
   topCardTitleColor?: number,
+  topDiscardFlavorText?: string,
 ): void {
   const layers = Math.min(5, Math.ceil(count / 10));
 
@@ -844,20 +893,13 @@ function paintPile(
     }
     if (topDiscardDescription !== undefined) {
       const descY = artY + artImgH + CARD_PADDING;
-      const descMaxH = (pileY + SLOT_H - CARD_PADDING - (costText !== null ? costText.height + CARD_PADDING : 0)) - descY;
-      let descFontSize = 6;
-      let descText = new Text({ text: topDiscardDescription, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
-      while (descText.height > descMaxH && descFontSize > 4) {
-        descFontSize -= 0.5;
-        descText.destroy();
-        descText = new Text({ text: topDiscardDescription, style: new TextStyle({ fill: 0x9ca3af, fontSize: descFontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: SLOT_W - CARD_PADDING * 2 - 2 }) });
-      }
-      if (descMaxH > 0) {
-        descText.x = pileX + CARD_PADDING + 1;
-        descText.y = descY;
-        container.addChild(descText);
-      } else {
-        descText.destroy();
+      const costBase = pileY + SLOT_H - CARD_PADDING - (costText !== null ? costText.height + CARD_PADDING : 0);
+      const flavorH = topDiscardFlavorText ? FLAVOR_ZONE_H : 0;
+      const descMaxH = costBase - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
+      fitDescText(topDiscardDescription, pileX + CARD_PADDING + 1, descY, descMaxH, container);
+      if (topDiscardFlavorText) {
+        const flavorY = costBase - flavorH;
+        fitFlavorText(topDiscardFlavorText, pileX + CARD_PADDING + 1, flavorY, container);
       }
     }
   } else {
@@ -896,7 +938,7 @@ function buildDeckPiles(
   const eventDiscard = getEventDiscard(ctx);
   const actionDeck = getActionDeck(ctx);
   const actionDiscard = getActionDiscard(ctx);
-  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined; topDiscardTemplateId: string | undefined; topDiscardDescription?: string | undefined; topDiscardCost?: number | undefined }> = [
+  const deckDefs: Array<{ key: DeckType; drawCount: number; discardCount: number; topDiscardName: string | undefined; topDiscardTemplateId: string | undefined; topDiscardDescription?: string | undefined; topDiscardCost?: number | undefined; topDiscardFlavorText?: string | undefined }> = [
     {
       key: 'traffic',
       drawCount: trafficDeck.length,
@@ -905,6 +947,7 @@ function buildDeckPiles(
       topDiscardTemplateId: trafficDiscard.at(-1)?.templateId,
       topDiscardDescription: trafficDiscard.at(-1)?.description,
       topDiscardCost: trafficDiscard.at(-1)?.revenue,
+      topDiscardFlavorText: trafficDiscard.at(-1)?.flavorText,
     },
     {
       key: 'event',
@@ -913,6 +956,7 @@ function buildDeckPiles(
       topDiscardName: eventDiscard.at(-1)?.name,
       topDiscardTemplateId: eventDiscard.at(-1)?.templateId,
       topDiscardDescription: eventDiscard.at(-1)?.description,
+      topDiscardFlavorText: eventDiscard.at(-1)?.flavorText,
     },
     {
       key: 'action',
@@ -922,6 +966,7 @@ function buildDeckPiles(
       topDiscardTemplateId: actionDiscard.at(-1)?.templateId,
       topDiscardDescription: actionDiscard.at(-1)?.description,
       topDiscardCost: actionDiscard.at(-1)?.cost,
+      topDiscardFlavorText: actionDiscard.at(-1)?.flavorText,
     },
   ];
 
@@ -950,7 +995,7 @@ function buildDeckPiles(
     // Discard pile.
     const discardContainer = new Container();
     const discardRect = computeDeckPileRect(di, 'discard', app.screen.width);
-    paintPile(discardContainer, discardRect.x, discardRect.y, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId, def.topDiscardDescription, def.topDiscardCost, def.key === 'traffic' ? 0x00f5ff : undefined);
+    paintPile(discardContainer, discardRect.x, discardRect.y, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId, def.topDiscardDescription, def.topDiscardCost, def.key === 'traffic' ? 0x00f5ff : undefined, def.topDiscardFlavorText);
     board.addChild(discardContainer);
     const discardLabel = new Text({ text: 'DISCARD', style: PILE_LABEL_STYLE });
     discardLabel.x = discardRect.x;
@@ -1013,20 +1058,20 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
       const arr = pile.pileType === 'draw' ? getTrafficDeck(ctx) : getTrafficDiscard(ctx);
       const top = arr.at(-1);
       const topDesc = top?.description;
-      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc, topCost: top?.revenue };
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc, topCost: top?.revenue, topFlavorText: top?.flavorText };
     } else if (pile.deckType === 'event') {
       const arr = pile.pileType === 'draw' ? getEventDeck(ctx) : getEventDiscard(ctx);
       const top = arr.at(-1);
-      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: undefined as number | undefined };
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: undefined as number | undefined, topFlavorText: top?.flavorText };
     } else {
       const arr = pile.pileType === 'draw' ? getActionDeck(ctx) : getActionDiscard(ctx);
       const top = arr.at(-1);
-      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: top?.cost };
+      return { count: arr.length, topName: top?.name, topTemplateId: top?.templateId, topDesc: top?.description, topCost: top?.cost, topFlavorText: top?.flavorText };
     }
   };
   const prev = getInfo(prevCtx);
   const next = getInfo(nextCtx);
-  if (prev.count === next.count && prev.topName === next.topName && prev.topTemplateId === next.topTemplateId && prev.topDesc === next.topDesc && prev.topCost === next.topCost) return;
+  if (prev.count === next.count && prev.topName === next.topName && prev.topTemplateId === next.topTemplateId && prev.topDesc === next.topDesc && prev.topCost === next.topCost && prev.topFlavorText === next.topFlavorText) return;
   const colors = PILE_COLORS[pile.deckType];
   const deckLabel = pile.deckType.toUpperCase();
   for (const child of pile.container.children) {
@@ -1047,6 +1092,7 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
     next.topDesc,
     next.topCost,
     pile.deckType === 'traffic' ? 0x00f5ff : undefined,
+    next.topFlavorText,
   );
 }
 
