@@ -1274,7 +1274,7 @@ export function GameCanvas({
         resolution: window.devicePixelRatio ?? 1,
         autoDensity: true,
       })
-      .then(async () => {
+      .then(() => {
         if (cancelled) {
           app.destroy(true, { children: true });
           return;

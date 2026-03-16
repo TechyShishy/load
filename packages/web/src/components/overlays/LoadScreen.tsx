@@ -60,8 +60,8 @@ export function LoadScreen({ tasks, onComplete }: LoadScreenProps) {
     });
     // One-shot: re-running on tasks prop change would restart loading, which is never
     // desired. This screen is mounted once and unmounted when loading completes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const progressValue = total > 0 ? completedCount / total : 0;
