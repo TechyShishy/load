@@ -19,7 +19,7 @@ module.exports = {
   },
   ignorePatterns: ['**/dist/**', 'packages/web/e2e/**'],
   rules: {
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     'react/react-in-jsx-scope': 'off',
   },
   overrides: [
