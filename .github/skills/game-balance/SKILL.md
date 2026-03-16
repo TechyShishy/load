@@ -117,7 +117,7 @@ Events should fall into one of two categories, not both simultaneously:
 - **Budget-hit** — deducts a dollar amount from `budget` (possibly also skips a draw)
 - **SLA-threat** — spawns traffic cards or issues tickets that risk overloading the board
 
-Combining both categories in one event with no mitigation path is unbalanced. If an event is in both categories, it must have a clear and accessible mitigation card (read `SecurityPatchCard.ts` for the pattern).
+Combining both categories in one event with no mitigation path is unbalanced. If an event is in both categories, it must have a clear and accessible mitigation card (read `NullRouteCard.ts` for the pattern).
 
 ### 4 — Action card cost-benefit framing
 

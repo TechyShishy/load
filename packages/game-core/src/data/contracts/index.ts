@@ -42,7 +42,7 @@ export const STANDARD_CONTRACT: ContractDef = {
  * fixedSeed: every play-through deals identical cards in identical order.
  * Bump the seed suffix (v1 → v2) if deck composition ever changes.
  *
- * actionDeck: Security Patch is replaced with extra Work Orders. Security Patch
+ * actionDeck: Null Route is replaced with extra Work Orders. Null Route
  * is only useful against DDoS events, which do not appear in this contract —
  * keeping it in the hand would permanently block 3 of the player's 7 card slots.
  * Extra Work Orders pair with the 5G Activation ticket to teach the ticket loop.
@@ -69,7 +69,7 @@ export const LOCAL_ISP_CONTRACT: ContractDef = {
     { templateId: 'event-tier1-peering', count: 3 },
   ],
   // TODO-0015 resolved: actionDeck removed — DEFAULT_ACTION_DECK was updated to
-  // match the tutorial composition (Work Order ×6, Security Patch removed).
+  // match the tutorial composition (Work Order ×6, Null Route removed).
   startingBudget: 700_000,
   slaLimit: 5,
 };

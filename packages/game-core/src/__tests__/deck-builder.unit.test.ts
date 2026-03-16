@@ -57,8 +57,8 @@ describe('DEFAULT_ACTION_DECK', () => {
     expect(entry?.count).toBe(6);
   });
 
-  it('does not include Security Patch', () => {
-    const entry = DEFAULT_ACTION_DECK.find((e) => e.templateId === 'action-security-patch');
+  it('does not include Null Route', () => {
+    const entry = DEFAULT_ACTION_DECK.find((e) => e.templateId === 'action-null-route');
     expect(entry).toBeUndefined();
   });
 });
@@ -67,21 +67,21 @@ describe('buildActionDeck with custom deckSpec', () => {
   it('builds deck from the provided spec', () => {
     const spec: DeckSpec[] = [
       { templateId: 'action-work-order', count: 3 },
-      { templateId: 'action-security-patch', count: 2 },
+      { templateId: 'action-null-route', count: 2 },
     ];
     const deck = buildActionDeck(makeRng('custom-spec'), spec);
     expect(deck).toHaveLength(5);
     expect(deck.filter((c) => c.templateId === 'action-work-order')).toHaveLength(3);
-    expect(deck.filter((c) => c.templateId === 'action-security-patch')).toHaveLength(2);
+    expect(deck.filter((c) => c.templateId === 'action-null-route')).toHaveLength(2);
   });
 });
 
 describe('createInitialContext deckSpec parameter', () => {
   it('uses the provided deckSpec when no contract is given', () => {
-    const spec: DeckSpec[] = [{ templateId: 'action-security-patch', count: 29 }];
+    const spec: DeckSpec[] = [{ templateId: 'action-null-route', count: 29 }];
     const ctx = createInitialContext('spec-seed', undefined, spec);
     const actionCards = Object.values(ctx.cardInstances).filter((c) => c.type === CardType.Action);
-    expect(actionCards.every((c) => c.templateId === 'action-security-patch')).toBe(true);
+    expect(actionCards.every((c) => c.templateId === 'action-null-route')).toBe(true);
     expect(actionCards).toHaveLength(29);
   });
 
@@ -89,9 +89,9 @@ describe('createInitialContext deckSpec parameter', () => {
     const ctx = createInitialContext('fallback-seed');
     const actionCards = Object.values(ctx.cardInstances).filter((c) => c.type === CardType.Action);
     const workOrders = actionCards.filter((c) => c.templateId === 'action-work-order');
-    const securityPatches = actionCards.filter((c) => c.templateId === 'action-security-patch');
+    const nullRoutes = actionCards.filter((c) => c.templateId === 'action-null-route');
     expect(workOrders).toHaveLength(6);
-    expect(securityPatches).toHaveLength(0);
+    expect(nullRoutes).toHaveLength(0);
   });
 
   it('contract.actionDeck takes priority over deckSpec', () => {
@@ -105,7 +105,7 @@ describe('createInitialContext deckSpec parameter', () => {
       startingBudget: 500_000,
       slaLimit: 3,
     };
-    const spec: DeckSpec[] = [{ templateId: 'action-security-patch', count: 25 }];
+    const spec: DeckSpec[] = [{ templateId: 'action-null-route', count: 25 }];
     const ctx = createInitialContext('priority-seed', contract, spec);
     const actionCards = Object.values(ctx.cardInstances).filter((c) => c.type === CardType.Action);
     expect(actionCards.every((c) => c.templateId === 'action-bandwidth-upgrade')).toBe(true);

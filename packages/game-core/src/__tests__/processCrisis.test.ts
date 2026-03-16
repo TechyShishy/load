@@ -20,14 +20,14 @@ const ddosEvent = EVENT_CARDS.find((c) => c.id === 'event-ddos-attack')!;
 const activationEvent = EVENT_CARDS.find((c) => c.id === 'event-5g-activation')!;
 const falseAlarmEvent = EVENT_CARDS.find((c) => c.id === 'event-false-alarm')!;
 const emMaint = ACTION_CARDS.find((c) => c.id === 'action-work-order')!;
-const secPatch = ACTION_CARDS.find((c) => c.id === 'action-security-patch')!;
+const nullRoute = ACTION_CARDS.find((c) => c.id === 'action-null-route')!;
 const trafficPrio = ACTION_CARDS.find((c) => c.id === 'action-traffic-prioritization')!;
 const bwUpgrade = ACTION_CARDS.find((c) => c.id === 'action-bandwidth-upgrade')!;
 
-/** Base crisis context with emMaint and secPatch in hand. */
+/** Base crisis context with emMaint and nullRoute in hand. */
 function makeCtx() {
   return ctxWithHandCardsFixedIds(
-    [emMaint, secPatch],
+    [emMaint, nullRoute],
     safeContext('test-seed', { activePhase: PhaseId.Crisis }),
   );
 }
@@ -35,20 +35,20 @@ function makeCtx() {
 describe('playActionCard', () => {
   it('deducts cost from budget', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, secPatch);
-    expect(updated.budget).toBe(500_000 - secPatch.cost);
+    const updated = playActionCard(ctx, nullRoute);
+    expect(updated.budget).toBe(500_000 - nullRoute.cost);
   });
 
   it('removes the card from hand', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, secPatch);
-    expect(updated.handOrder).not.toContain(secPatch.id);
+    const updated = playActionCard(ctx, nullRoute);
+    expect(updated.handOrder).not.toContain(nullRoute.id);
   });
 
   it('adds card to playedThisRound', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, secPatch);
-    expect(updated.playedThisRoundOrder).toContain(secPatch.id);
+    const updated = playActionCard(ctx, nullRoute);
+    expect(updated.playedThisRoundOrder).toContain(nullRoute.id);
   });
 
   it('ClearTicket removes first ticket from the target track', () => {
@@ -135,7 +135,7 @@ describe('playActionCard', () => {
 
   it('MitigateDDoS adds event id to mitigatedEventIds', () => {
     const ctx = makeCtx();
-    const updated = playActionCard(ctx, secPatch, ddosEvent.id);
+    const updated = playActionCard(ctx, nullRoute, ddosEvent.id);
     expect(updated.mitigatedEventIds).toContain(ddosEvent.id);
   });
 

@@ -1,19 +1,20 @@
 import { ActionCard, type GameContext } from '../../types.js';
 import { getPendingEvents } from '../../cardPositionViews.js';
 
-export class SecurityPatchCard extends ActionCard {
-  readonly templateId = 'action-security-patch';
-  readonly name = 'Security Patch';
+export class NullRouteCard extends ActionCard {
+  readonly templateId = 'action-null-route';
+  readonly name = 'Null Route';
   readonly cost = 25_000;
   readonly description =
     'Mitigate 1 DDoS-type Event, cancelling its financial penalty and preventing the incident ticket from being filed.';
+  override readonly flavorText = '/dev/tcp > /dev/null';
   readonly allowedOnWeekend = true;
   override readonly crisisOnly = true as const;
   override readonly validForEventTemplateIds = ['event-ddos-attack'] as const;
   readonly validDropZones = [] as const;
-  override readonly invalidZoneFeedback = 'Security Patch can only be used during a crisis.';
+  override readonly invalidZoneFeedback = 'Null Route can only be deployed during a crisis.';
 
-  constructor(public readonly id: string = 'action-security-patch') {
+  constructor(public readonly id: string = 'action-null-route') {
     super();
   }
 

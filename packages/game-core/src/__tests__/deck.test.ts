@@ -155,7 +155,7 @@ describe('buildActionDeck', () => {
     expect(counts.get('action-datacenter-expansion')).toBe(3);
     expect(counts.get('action-stream-compression')).toBe(3);
     expect(counts.get('action-redundant-link')).toBe(2);
-    expect(counts.has('action-security-patch')).toBe(false);
+    expect(counts.has('action-null-route')).toBe(false);
   });
 
   it('all card IDs are unique', () => {

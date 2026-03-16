@@ -372,26 +372,26 @@ describe('gameMachine weekend mechanics', () => {
     expect(weekendTrafficOnBoard).toBeLessThanOrEqual(MAX_WEEKEND_TRAFFIC_DRAW);
   });
 
-  it('allows Security Patch (MitigateDDoS) during weekend crisis', () => {
-    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+  it('allows Null Route (MitigateDDoS) during weekend crisis', () => {
+    const nullRoute = ACTION_CARDS.find(c => c.templateId === 'action-null-route')!;
     const base = ctxWithPendingEvents(
       [new DDoSAttackCard('ev-1')],
       safeContext('test-seed', { round: 6, activePhase: PhaseId.Crisis }),
     );
-    const ctx = ctxWithHandCardsFixedIds([securityPatch], base);
+    const ctx = ctxWithHandCardsFixedIds([nullRoute], base);
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
     expect(actor.getSnapshot().value).toBe('crisis');
 
-    // Should accept Security Patch
-    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-1' });
+    // Should accept Null Route
+    actor.send({ type: 'PLAY_ACTION', card: nullRoute, targetEventId: 'ev-1' });
     expect(actor.getSnapshot().context.mitigatedEventIds).toContain('ev-1');
   });
 
-  it('rejects Security Patch during scheduling (crisis-only card)', () => {
-    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+  it('rejects Null Route during scheduling (crisis-only card)', () => {
+    const nullRoute = ACTION_CARDS.find(c => c.templateId === 'action-null-route')!;
     const ctx = ctxWithHandCardsFixedIds(
-      [securityPatch],
+      [nullRoute],
       safeContext('test-seed', { round: 1, budget: 100_000 }),
     );
     const actor = createActor(gameMachine, { input: ctx });
@@ -399,56 +399,56 @@ describe('gameMachine weekend mechanics', () => {
     actor.send({ type: 'DRAW_COMPLETE' });
     expect(actor.getSnapshot().value).toBe('scheduling');
 
-    actor.send({ type: 'PLAY_ACTION', card: securityPatch });
+    actor.send({ type: 'PLAY_ACTION', card: nullRoute });
     // Card must not be played — hand and budget unchanged
     expect(actor.getSnapshot().context.playedThisRoundOrder).toHaveLength(0);
     expect(actor.getSnapshot().context.handOrder).toHaveLength(1);
     expect(actor.getSnapshot().context.budget).toBe(100_000);
   });
 
-  it('allows Security Patch during weekday crisis', () => {
-    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+  it('allows Null Route during weekday crisis', () => {
+    const nullRoute = ACTION_CARDS.find(c => c.templateId === 'action-null-route')!;
     const base = ctxWithPendingEvents(
       [new DDoSAttackCard('ev-2')],
       safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis }),
     );
-    const ctx = ctxWithHandCardsFixedIds([securityPatch], base);
+    const ctx = ctxWithHandCardsFixedIds([nullRoute], base);
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
     expect(actor.getSnapshot().value).toBe('crisis');
 
-    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-2' });
+    actor.send({ type: 'PLAY_ACTION', card: nullRoute, targetEventId: 'ev-2' });
     expect(actor.getSnapshot().context.mitigatedEventIds).toContain('ev-2');
   });
 
-  it('rejects Security Patch against AWS Outage event', () => {
-    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+  it('rejects Null Route against AWS Outage event', () => {
+    const nullRoute = ACTION_CARDS.find(c => c.templateId === 'action-null-route')!;
     const base = ctxWithPendingEvents(
       [new AWSOutageCard('ev-aws')],
       safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis, budget: 100_000 }),
     );
-    const ctx = ctxWithHandCardsFixedIds([securityPatch], base);
+    const ctx = ctxWithHandCardsFixedIds([nullRoute], base);
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
     expect(actor.getSnapshot().value).toBe('crisis');
 
-    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-aws' });
+    actor.send({ type: 'PLAY_ACTION', card: nullRoute, targetEventId: 'ev-aws' });
     expect(actor.getSnapshot().context.playedThisRoundOrder).toHaveLength(0);
     expect(actor.getSnapshot().context.budget).toBe(100_000);
   });
 
-  it('rejects Security Patch against 5G Tower event', () => {
-    const securityPatch = ACTION_CARDS.find(c => c.templateId === 'action-security-patch')!;
+  it('rejects Null Route against 5G Tower event', () => {
+    const nullRoute = ACTION_CARDS.find(c => c.templateId === 'action-null-route')!;
     const base = ctxWithPendingEvents(
       [new FiveGActivationCard('ev-5g')],
       safeContext('test-seed', { round: 1, activePhase: PhaseId.Crisis, budget: 100_000 }),
     );
-    const ctx = ctxWithHandCardsFixedIds([securityPatch], base);
+    const ctx = ctxWithHandCardsFixedIds([nullRoute], base);
     const actor = createActor(gameMachine, { input: ctx });
     actor.start();
     expect(actor.getSnapshot().value).toBe('crisis');
 
-    actor.send({ type: 'PLAY_ACTION', card: securityPatch, targetEventId: 'ev-5g' });
+    actor.send({ type: 'PLAY_ACTION', card: nullRoute, targetEventId: 'ev-5g' });
     expect(actor.getSnapshot().context.playedThisRoundOrder).toHaveLength(0);
     expect(actor.getSnapshot().context.budget).toBe(100_000);
   });

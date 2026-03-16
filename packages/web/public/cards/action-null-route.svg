@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background — deep void black -->
+  <rect width="160" height="100" fill="#050810"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Approaching packets (4×5, top-right notch, solid red) ── -->
+    <!-- Packet A — upper, far left -->
+    <rect x="1"  y="7"  width="4" height="5" fill="#ff2020"/>
+    <rect x="4"  y="7"  width="1" height="1" fill="#050810"/>
+    <!-- Packet B — lower, mid-left -->
+    <rect x="3"  y="19" width="4" height="5" fill="#ff2020"/>
+    <rect x="6"  y="19" width="1" height="1" fill="#050810"/>
+    <!-- Packet C — middle distance -->
+    <rect x="10" y="13" width="4" height="5" fill="#dd1010"/>
+    <rect x="13" y="13" width="1" height="1" fill="#050810"/>
+
+    <!-- ── Ghost packet (dotted outline, 4×5, top-right notch) ── -->
+    <!-- 13 perimeter pixels clockwise, every-other = 7 dots -->
+    <rect x="17" y="12" width="1" height="1" fill="#ff2020"/>
+    <rect x="19" y="12" width="1" height="1" fill="#ff2020"/>
+    <rect x="20" y="13" width="1" height="1" fill="#ff2020"/>
+    <rect x="20" y="15" width="1" height="1" fill="#ff2020"/>
+    <rect x="19" y="16" width="1" height="1" fill="#ff2020"/>
+    <rect x="17" y="16" width="1" height="1" fill="#ff2020"/>
+    <rect x="17" y="14" width="1" height="1" fill="#ff2020"/>
+
+    <!-- ── Black hole (right-center) ── -->
+    <!-- Outermost glow layer (faint purple) -->
+    <rect x="20" y="7"  width="12" height="18" fill="#140828"/>
+    <!-- Corner cuts for outermost -->
+    <rect x="20" y="7"  width="2"  height="2"  fill="#050810"/>
+    <rect x="30" y="7"  width="2"  height="2"  fill="#050810"/>
+    <rect x="20" y="23" width="2"  height="2"  fill="#050810"/>
+    <rect x="30" y="23" width="2"  height="2"  fill="#050810"/>
+
+    <!-- Mid glow ring (brighter purple) -->
+    <rect x="21" y="8"  width="10" height="16" fill="#2a0848"/>
+    <!-- Corner cuts for mid ring -->
+    <rect x="21" y="8"  width="2"  height="2"  fill="#140828"/>
+    <rect x="29" y="8"  width="2"  height="2"  fill="#140828"/>
+    <rect x="21" y="22" width="2"  height="2"  fill="#140828"/>
+    <rect x="29" y="22" width="2"  height="2"  fill="#140828"/>
+
+    <!-- Inner void (pure black) -->
+    <rect x="22" y="9"  width="8"  height="14" fill="#000000"/>
+    <!-- Corner cuts for inner void -->
+    <rect x="22" y="9"  width="2"  height="2"  fill="#2a0848"/>
+    <rect x="28" y="9"  width="2"  height="2"  fill="#2a0848"/>
+    <rect x="22" y="21" width="2"  height="2"  fill="#2a0848"/>
+    <rect x="28" y="21" width="2"  height="2"  fill="#2a0848"/>
+
+  </g>
+</svg>

@@ -5,7 +5,7 @@ export const CARD_ART: Partial<Record<string, string>> = {
   'traffic-ddos': './cards/traffic-ddos.svg',
   'traffic-iot-burst': './cards/traffic-iot-burst.svg',
   'action-traffic-prioritization': './cards/action-traffic-prioritization.svg',
-  'action-security-patch': './cards/action-security-patch.svg',
+  'action-null-route': './cards/action-null-route.svg',
   'event-ddos-attack': './cards/event-ddos-attack.svg',
   'event-aws-outage': './cards/event-aws-outage.svg',
   'event-5g-activation': './cards/event-5g-activation.svg',

@@ -98,7 +98,7 @@ export function validateDeckSpec(spec: ReadonlyArray<DeckSpec>): { valid: boolea
  * Canonical action-deck composition.
  * Each entry specifies how many copies of a given template to include.
  * Total: 29 cards (WorkOrder×6, TrafficPrioritization×12, Bandwidth×3, DataCenter×3, StreamCompression×3, RedundantLink×2).
- * Security Patch is intentionally absent — it is crisisOnly and DDoS-specific;
+ * Null Route is intentionally absent — it is crisisOnly and DDoS-specific;
  * players who want it should add it via the Deck Builder.
  */
 export const DEFAULT_ACTION_DECK: ReadonlyArray<DeckSpec> = [
