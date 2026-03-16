@@ -39,6 +39,12 @@ describe('playActionCard', () => {
     expect(updated.budget).toBe(500_000 - nullRoute.cost);
   });
 
+  it('increments pendingActionSpend by card cost', () => {
+    const ctx = makeCtx();
+    const updated = playActionCard(ctx, nullRoute);
+    expect(updated.pendingActionSpend).toBe(nullRoute.cost);
+  });
+
   it('removes the card from hand', () => {
     const ctx = makeCtx();
     const updated = playActionCard(ctx, nullRoute);
@@ -223,6 +229,12 @@ describe('processCrisis', () => {
     const ctx = ctxWithPendingEvents([activationEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
     expect(context.budget).toBe(500_000 - 15_000);
+  });
+
+  it('accumulates pendingCrisisPenalty from event budget deductions', () => {
+    const ctx = ctxWithPendingEvents([activationEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
+    const { context } = processCrisis(ctx);
+    expect(context.pendingCrisisPenalty).toBe(15_000);
   });
 
   it('issues a Projects ticket when 5G Activation is unmitigated', () => {

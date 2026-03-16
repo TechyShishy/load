@@ -16,11 +16,33 @@ const iotCard = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-iot-burst')!
 const cloudCard = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-cloud-backup')!;
 
 describe('resolveRound', () => {
-  it('applies pendingRevenue as budgetDelta without modifying budget', () => {
+  it('budgetDelta reflects all pending accumulators; does not modify budget', () => {
     const ctx = safeContext('test-seed', { activePhase: PhaseId.Resolution, pendingRevenue: iotCard.revenue });
     const { context, summary } = resolveRound(ctx);
     expect(context.budget).toBe(500_000); // budget not modified during resolveRound
     expect(summary.budgetDelta).toBe(iotCard.revenue);
+  });
+
+  it('subtracts pendingActionSpend from budgetDelta and resets it to 0', () => {
+    const ctx = safeContext('test-seed', {
+      activePhase: PhaseId.Resolution,
+      pendingRevenue: 10_000,
+      pendingActionSpend: 25_000,
+    });
+    const { summary, context } = resolveRound(ctx);
+    expect(summary.budgetDelta).toBe(-15_000);
+    expect(context.pendingActionSpend).toBe(0);
+  });
+
+  it('subtracts pendingCrisisPenalty from budgetDelta and resets it to 0', () => {
+    const ctx = safeContext('test-seed', {
+      activePhase: PhaseId.Resolution,
+      pendingRevenue: 20_000,
+      pendingCrisisPenalty: 15_000,
+    });
+    const { summary, context } = resolveRound(ctx);
+    expect(summary.budgetDelta).toBe(5_000);
+    expect(context.pendingCrisisPenalty).toBe(0);
   });
 
   it('resolvedCount captures all slot cards; failedCount and slaCount reflect slot-card resolution', () => {

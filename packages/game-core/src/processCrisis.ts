@@ -32,6 +32,7 @@ export function playActionCard(
     return {
       ...ctx,
       budget: ctx.budget - card.cost,
+      pendingActionSpend: ctx.pendingActionSpend + card.cost,
       handOrder: ctx.handOrder.filter((id) => id !== card.id),
       playedThisRoundOrder: [...ctx.playedThisRoundOrder, card.id],
     };
@@ -63,6 +64,7 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     ...context,
     eventDiscardOrder: [...context.eventDiscardOrder, ...eventsToDiscard],
     pendingEventsOrder: [],
+    pendingCrisisPenalty: context.pendingCrisisPenalty + penaltiesApplied,
   };
 
   return { context, penaltiesApplied };

@@ -72,8 +72,11 @@ export function createInitialContext(seed?: string, contract?: ContractDef, deck
     mitigatedEventIds: [],
     activePhase: PhaseId.Draw,
     lastRoundSummary: null,
+    roundHistory: [],
     loseReason: null,
     pendingRevenue: 0,
+    pendingActionSpend: 0,
+    pendingCrisisPenalty: 0,
     seed: resolvedSeed,
     skipNextTrafficDraw: false,
     revenueBoostMultiplier: 1,
@@ -290,7 +293,7 @@ export const gameMachine = setup({
       }
 
       const { context: resolved, summary } = resolveRound(resolveCtx, spawnCount, spawnedIds);
-      enqueue.assign({ ...resolved, lastRoundSummary: { ...summary }, activePhase: PhaseId.Resolution });
+      enqueue.assign({ ...resolved, lastRoundSummary: { ...summary }, roundHistory: [...resolved.roundHistory, { ...summary }], activePhase: PhaseId.Resolution });
     }),
 
     performEnd: enqueueActions(({ context, enqueue }) => {

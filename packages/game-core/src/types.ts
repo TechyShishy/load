@@ -233,8 +233,14 @@ export interface SerializedGameContext {
   mitigatedEventIds: string[];
   activePhase: PhaseId;
   lastRoundSummary: RoundSummary | null;
+  /** Ordered history of all completed round summaries, oldest first. */
+  roundHistory: RoundSummary[];
   loseReason: LoseReason | null;
   pendingRevenue: number;
+  /** Cumulative cost of action cards played this round. Reset by resolveRound. */
+  pendingActionSpend: number;
+  /** Cumulative budget penalties applied by crisis events this round. Reset by resolveRound. */
+  pendingCrisisPenalty: number;
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
   skipNextTrafficDraw: boolean;
@@ -369,10 +375,16 @@ export interface GameContext {
   activePhase: PhaseId;
   /** Round summary populated during Resolution phase */
   lastRoundSummary: RoundSummary | null;
+  /** Ordered history of all completed round summaries, oldest first. */
+  roundHistory: RoundSummary[];
   /** Cause of game loss */
   loseReason: LoseReason | null;
   /** Revenue collected by traffic card removals during the current round. */
   pendingRevenue: number;
+  /** Cumulative cost of action cards played this round. Reset by resolveRound. */
+  pendingActionSpend: number;
+  /** Cumulative budget penalties applied by crisis events this round. Reset by resolveRound. */
+  pendingCrisisPenalty: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
