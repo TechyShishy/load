@@ -1,0 +1,484 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 500" shape-rendering="crispEdges">
+  <defs>
+    <!-- Scanline overlay pattern -->
+    <pattern id="scanlines" patternUnits="userSpaceOnUse" width="4" height="4">
+      <rect width="4" height="2" fill="#000" opacity="0.18"/>
+    </pattern>
+    <!-- CRT vignette gradient -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="65%">
+      <stop offset="0%"   stop-color="#000" stop-opacity="0"/>
+      <stop offset="85%"  stop-color="#000" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.7"/>
+    </radialGradient>
+    <!-- Danger red glow for overloaded board -->
+    <radialGradient id="danger-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#ff3b30" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ff3b30" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ══ Base background ═══════════════════════════════════════════════ -->
+  <rect width="630" height="500" fill="#0a0e1a"/>
+
+  <!-- Ambient danger glow -->
+  <rect width="630" height="500" fill="url(#danger-glow)"/>
+
+  <!-- ══ Tilted game board "screenshot" ════════════════════════════════ -->
+  <!-- Board is 920×560, centered at (460,280).                          -->
+  <!-- Scale 0.80 (vs 1.15 in 1024px) to fill the 630px frame.          -->
+  <!-- Lighter rotation (12° vs 15°) suits the narrower canvas.          -->
+  <g transform="translate(315,250) rotate(12) scale(0.80) translate(-460,-280)">
+
+    <!-- Board backdrop (dark gray-blue app area) -->
+    <rect x="0" y="0" width="920" height="560" rx="8" fill="#111827"/>
+
+    <!-- ── HUD bar top ─────────────────────────────────────────── -->
+    <rect x="0" y="0" width="920" height="36" rx="8" fill="#1f2937"/>
+    <!-- Phase: CRISIS in red -->
+    <rect x="16" y="8" width="80" height="20" rx="4" fill="#3a0000"/>
+    <!-- CRISIS pixel text -->
+    <!-- C -->
+    <rect x="23" y="13" width="1" height="10" fill="#ff4444"/>
+    <rect x="24" y="13" width="5" height="1" fill="#ff4444"/>
+    <rect x="24" y="22" width="5" height="1" fill="#ff4444"/>
+    <!-- R -->
+    <rect x="31" y="13" width="1" height="10" fill="#ff4444"/>
+    <rect x="32" y="13" width="5" height="1" fill="#ff4444"/>
+    <rect x="32" y="18" width="5" height="1" fill="#ff4444"/>
+    <rect x="36" y="13" width="1" height="5" fill="#ff4444"/>
+    <rect x="34" y="19" width="3" height="1" fill="#ff4444"/>
+    <rect x="36" y="20" width="1" height="3" fill="#ff4444"/>
+    <!-- I -->
+    <rect x="40" y="13" width="1" height="10" fill="#ff4444"/>
+    <!-- S -->
+    <rect x="44" y="13" width="5" height="1" fill="#ff4444"/>
+    <rect x="44" y="13" width="1" height="5" fill="#ff4444"/>
+    <rect x="44" y="18" width="5" height="1" fill="#ff4444"/>
+    <rect x="48" y="18" width="1" height="5" fill="#ff4444"/>
+    <rect x="44" y="22" width="5" height="1" fill="#ff4444"/>
+    <!-- I -->
+    <rect x="52" y="13" width="1" height="10" fill="#ff4444"/>
+    <!-- S -->
+    <rect x="56" y="13" width="5" height="1" fill="#ff4444"/>
+    <rect x="56" y="13" width="1" height="5" fill="#ff4444"/>
+    <rect x="56" y="18" width="5" height="1" fill="#ff4444"/>
+    <rect x="60" y="18" width="1" height="5" fill="#ff4444"/>
+    <rect x="56" y="22" width="5" height="1" fill="#ff4444"/>
+
+    <!-- Budget bar (critical - red) -->
+    <rect x="120" y="8" width="140" height="20" rx="4" fill="#1a0808"/>
+    <rect x="120" y="8" width="140" height="20" rx="4" fill="none" stroke="#ef4444" stroke-width="1" opacity="0.6"/>
+    <rect x="125" y="14" width="28" height="8" fill="#ef4444" opacity="0.3"/>
+    <rect x="158" y="14" width="30" height="8" rx="2" fill="#ef4444" opacity="0.7"/>
+
+    <!-- SLA meter (2/3 filled - danger) -->
+    <rect x="280" y="8" width="100" height="20" rx="4" fill="#1a0808"/>
+    <rect x="314" y="13" width="10" height="10" rx="2" fill="#ef4444"/>
+    <rect x="328" y="13" width="10" height="10" rx="2" fill="#ef4444"/>
+    <rect x="342" y="13" width="10" height="10" rx="2" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+
+    <!-- Round indicator -->
+    <rect x="800" y="8" width="100" height="20" rx="4" fill="#1f2937" stroke="#4b5563" stroke-width="1" opacity="0.5"/>
+    <rect x="810" y="14" width="40" height="8" fill="#6b7280" opacity="0.3"/>
+
+    <!-- ── Track rows (right of deck cluster) ────────────────── -->
+    <!-- BreakFix track -->
+    <rect x="480" y="46" width="420" height="24" rx="4" fill="#111827" opacity="0.8" stroke="#ff375f" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="488" y="52" width="50" height="12" fill="#ff375f" opacity="0.25"/>
+    <rect x="546" y="51" width="36" height="14" rx="3" fill="#ff375f" opacity="0.5"/>
+    <rect x="586" y="51" width="36" height="14" rx="3" fill="#ff375f" opacity="0.5"/>
+    <rect x="626" y="51" width="36" height="14" rx="3" fill="#ff375f" opacity="0.5"/>
+    <rect x="666" y="51" width="36" height="14" rx="3" fill="#ff375f" opacity="0.5"/>
+    <rect x="706" y="51" width="36" height="14" rx="3" fill="#ff375f" opacity="0.5"/>
+
+    <!-- Projects track -->
+    <rect x="480" y="76" width="420" height="24" rx="4" fill="#111827" opacity="0.8" stroke="#30d158" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="488" y="82" width="50" height="12" fill="#30d158" opacity="0.25"/>
+    <rect x="546" y="81" width="36" height="14" rx="3" fill="#30d158" opacity="0.5"/>
+    <rect x="586" y="81" width="36" height="14" rx="3" fill="#30d158" opacity="0.5"/>
+
+    <!-- Maintenance track -->
+    <rect x="480" y="106" width="420" height="24" rx="4" fill="#111827" opacity="0.8" stroke="#ffd60a" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="488" y="112" width="50" height="12" fill="#ffd60a" opacity="0.25"/>
+    <rect x="546" y="111" width="36" height="14" rx="3" fill="#ffd60a" opacity="0.5"/>
+    <rect x="586" y="111" width="36" height="14" rx="3" fill="#ffd60a" opacity="0.5"/>
+    <rect x="626" y="111" width="36" height="14" rx="3" fill="#ffd60a" opacity="0.5"/>
+
+    <!-- ── Deck piles (top-left cluster) ─────────────────────── -->
+    <rect x="20" y="46" width="60" height="80" rx="4" fill="#003a5c" stroke="#005f8f" stroke-width="1" opacity="0.8"/>
+    <rect x="90" y="46" width="60" height="80" rx="4" fill="#003a5c" stroke="#005f8f" stroke-width="1" opacity="0.4"/>
+    <rect x="162" y="46" width="60" height="80" rx="4" fill="#5c0015" stroke="#ff375f" stroke-width="1" opacity="0.8"/>
+    <rect x="232" y="46" width="60" height="80" rx="4" fill="#5c0015" stroke="#ff375f" stroke-width="1" opacity="0.4"/>
+    <rect x="304" y="46" width="60" height="80" rx="4" fill="#013a05" stroke="#30d158" stroke-width="1" opacity="0.8"/>
+    <rect x="374" y="46" width="60" height="80" rx="4" fill="#013a05" stroke="#30d158" stroke-width="1" opacity="0.4"/>
+
+    <!-- ── Period columns (main board area) ──────────────────── -->
+    <!-- Morning -->
+    <rect x="20"  y="148" width="180" height="390" rx="8" fill="#1a3a4a" opacity="0.15" stroke="#00f5ff" stroke-width="1" stroke-opacity="0.2"/>
+    <rect x="36" y="156" width="60" height="10" fill="#00f5ff" opacity="0.3"/>
+    <!-- Afternoon -->
+    <rect x="208" y="148" width="180" height="390" rx="8" fill="#1a3a2a" opacity="0.15" stroke="#30d158" stroke-width="1" stroke-opacity="0.2"/>
+    <rect x="224" y="156" width="72" height="10" fill="#30d158" opacity="0.3"/>
+    <!-- Evening -->
+    <rect x="396" y="148" width="180" height="390" rx="8" fill="#2a1a3a" opacity="0.15" stroke="#bf5af2" stroke-width="1" stroke-opacity="0.2"/>
+    <rect x="412" y="156" width="56" height="10" fill="#bf5af2" opacity="0.3"/>
+    <!-- Overnight -->
+    <rect x="584" y="148" width="180" height="390" rx="8" fill="#1a1a2a" opacity="0.15" stroke="#005577" stroke-width="1" stroke-opacity="0.2"/>
+    <rect x="600" y="156" width="72" height="10" fill="#005577" opacity="0.3"/>
+    <!-- Gear column -->
+    <rect x="772" y="148" width="130" height="390" rx="8" fill="#1a1a1a" opacity="0.15" stroke="#888888" stroke-width="1" stroke-opacity="0.2"/>
+    <rect x="788" y="156" width="32" height="10" fill="#888888" opacity="0.3"/>
+
+    <!-- ══ SLOT CARDS — all overloaded with DDoS traffic ══════ -->
+
+    <!-- ── Morning slots (all overloaded) ── -->
+    <rect x="36" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="40" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="40" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="44" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="44" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="36" y="214" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="40" y="218" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="40" y="232" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="44" y="236" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="44" y="246" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="36" y="254" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="40" y="258" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="40" y="272" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="44" y="276" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="44" y="286" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="36" y="294" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="40" y="298" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="40" y="312" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="44" y="316" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="44" y="326" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="102" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="106" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="106" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="110" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="110" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <!-- ── Afternoon slots (all overloaded) ── -->
+    <rect x="224" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="228" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="228" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="232" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="232" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="224" y="214" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="228" y="218" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="228" y="232" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="232" y="236" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="232" y="246" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="224" y="254" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="228" y="258" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="228" y="272" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="232" y="276" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="232" y="286" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="224" y="294" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="228" y="298" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="228" y="312" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="232" y="316" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="232" y="326" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="290" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="294" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="294" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="298" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="298" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <!-- ── Evening slots (all overloaded) ── -->
+    <rect x="412" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="416" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="416" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="420" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="420" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="412" y="214" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="416" y="218" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="416" y="232" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="420" y="236" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="420" y="246" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="412" y="254" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="416" y="258" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="416" y="272" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="420" y="276" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="420" y="286" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="412" y="294" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="416" y="298" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="416" y="312" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="420" y="316" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="420" y="326" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="478" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="482" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="482" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="486" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="486" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <!-- ── Overnight slots (all overloaded) ── -->
+    <rect x="600" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="604" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="604" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="608" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="608" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="600" y="214" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="604" y="218" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="604" y="232" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="608" y="236" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="608" y="246" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="600" y="254" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="604" y="258" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="604" y="272" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="608" y="276" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="608" y="286" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="600" y="294" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="604" y="298" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="604" y="312" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="608" y="316" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="608" y="326" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <rect x="666" y="174" width="60" height="80" rx="3" fill="#3a0000" opacity="0.9" stroke="#ff4444" stroke-width="1" stroke-opacity="0.8"/>
+    <rect x="670" y="178" width="16" height="8" fill="#4b5563" opacity="0.5"/>
+    <rect x="670" y="192" width="52" height="26" rx="2" fill="#005f8f" opacity="0.9"/>
+    <rect x="674" y="196" width="44" height="6" fill="#ff9500" opacity="0.7"/>
+    <rect x="674" y="206" width="44" height="8" fill="#001828" opacity="0.5"/>
+
+    <!-- ── Hand zone (bottom area) ───────────────────────────── -->
+    <rect x="20" y="460" width="880" height="82" rx="8" fill="#111827" opacity="0.6" stroke="#374151" stroke-width="1" stroke-opacity="0.3"/>
+    <rect x="36"  y="468" width="60" height="68" rx="4" fill="#013a05" stroke="#30d158" stroke-width="1" opacity="0.7"/>
+    <rect x="104" y="468" width="60" height="68" rx="4" fill="#013a05" stroke="#30d158" stroke-width="1" opacity="0.7"/>
+    <rect x="172" y="468" width="60" height="68" rx="4" fill="#013a05" stroke="#30d158" stroke-width="1" opacity="0.7"/>
+
+    <!-- ── Pulsing red overload warning flashes ──────────────── -->
+    <rect x="0"   y="148" width="920" height="390" fill="#ff3b30" opacity="0.04"/>
+    <rect x="20"  y="148" width="180" height="390" rx="8" fill="#ff0000" opacity="0.06"/>
+    <rect x="208" y="148" width="180" height="390" rx="8" fill="#ff0000" opacity="0.06"/>
+    <rect x="396" y="148" width="180" height="390" rx="8" fill="#ff0000" opacity="0.06"/>
+    <rect x="584" y="148" width="180" height="390" rx="8" fill="#ff0000" opacity="0.06"/>
+  </g>
+
+  <!-- ══ Overlays applied after the tilted board ══════════════════════ -->
+
+  <!-- Scanline pattern overlay -->
+  <rect width="630" height="500" fill="url(#scanlines)"/>
+
+  <!-- CRT vignette darkening edges -->
+  <rect width="630" height="500" fill="url(#vignette)"/>
+
+  <!-- Faint horizontal glitch bars -->
+  <rect x="0" y="120" width="630" height="3" fill="#00f5ff" opacity="0.06"/>
+  <rect x="0" y="280" width="630" height="2" fill="#ff4444" opacity="0.08"/>
+  <rect x="0" y="375" width="630" height="4" fill="#00f5ff" opacity="0.04"/>
+
+  <!-- Corner brackets -->
+  <!-- Top-left -->
+  <rect x="16" y="16" width="40" height="3"  fill="#00b8d4" opacity="0.3"/>
+  <rect x="16" y="16" width="3"  height="40" fill="#00b8d4" opacity="0.3"/>
+  <!-- Top-right (right edge at 630: bar at 574, vertical post at 611) -->
+  <rect x="574" y="16" width="40" height="3"  fill="#00b8d4" opacity="0.3"/>
+  <rect x="611" y="16" width="3"  height="40" fill="#00b8d4" opacity="0.3"/>
+  <!-- Bottom-left (y=500: bar at y=481, vertical post at y=444) -->
+  <rect x="16" y="481" width="40" height="3"  fill="#00b8d4" opacity="0.3"/>
+  <rect x="16" y="444" width="3"  height="40" fill="#00b8d4" opacity="0.3"/>
+  <!-- Bottom-right -->
+  <rect x="574" y="481" width="40" height="3"  fill="#00b8d4" opacity="0.3"/>
+  <rect x="611" y="444" width="3"  height="40" fill="#00b8d4" opacity="0.3"/>
+
+  <!-- ══ "SYSTEM IN CRISIS!" overlay banner ════════════════════════════ -->
+  <!-- Dark backing strip — same y-band as feature graphic -->
+  <rect x="0" y="210" width="630" height="80" fill="#0a0000" opacity="0.85"/>
+  <!-- Red accent lines top and bottom -->
+  <rect x="0" y="210" width="630" height="2" fill="#ff4444" opacity="0.7"/>
+  <rect x="0" y="288" width="630" height="2" fill="#ff4444" opacity="0.7"/>
+  <!-- Inner glow lines -->
+  <rect x="0" y="212" width="630" height="1" fill="#ff9500" opacity="0.25"/>
+  <rect x="0" y="287" width="630" height="1" fill="#ff9500" opacity="0.25"/>
+
+  <!-- Pixel-art text: 2px per virtual pixel, same glyphs as feature graphic. -->
+  <!-- Text span 192–438px (246px wide), centred at x=315 for 630px canvas.  -->
+  <!-- All x values are original (feature graphic) minus 118.                -->
+
+  <!-- S (x=192) -->
+  <rect x="192" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="192" y="234" width="2"  height="8" fill="#ff4444"/>
+  <rect x="192" y="242" width="12" height="2" fill="#ff4444"/>
+  <rect x="202" y="242" width="2"  height="8" fill="#ff4444"/>
+  <rect x="192" y="248" width="12" height="2" fill="#ff4444"/>
+
+  <!-- Y (x=208) -->
+  <rect x="208" y="234" width="2"  height="6" fill="#ff4444"/>
+  <rect x="218" y="234" width="2"  height="6" fill="#ff4444"/>
+  <rect x="210" y="240" width="8"  height="2" fill="#ff4444"/>
+  <rect x="213" y="242" width="2"  height="8" fill="#ff4444"/>
+
+  <!-- S (x=224) -->
+  <rect x="224" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="224" y="234" width="2"  height="8" fill="#ff4444"/>
+  <rect x="224" y="242" width="12" height="2" fill="#ff4444"/>
+  <rect x="234" y="242" width="2"  height="8" fill="#ff4444"/>
+  <rect x="224" y="248" width="12" height="2" fill="#ff4444"/>
+
+  <!-- T (x=240) -->
+  <rect x="240" y="234" width="14" height="2" fill="#ff4444"/>
+  <rect x="246" y="236" width="2"  height="14" fill="#ff4444"/>
+
+  <!-- E (x=258) -->
+  <rect x="258" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="258" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="258" y="242" width="10" height="2" fill="#ff4444"/>
+  <rect x="258" y="248" width="12" height="2" fill="#ff4444"/>
+
+  <!-- M (x=274) -->
+  <rect x="274" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="286" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="276" y="236" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="284" y="236" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="278" y="238" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="282" y="238" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="280" y="240" width="2"  height="2"  fill="#ff4444"/>
+
+  <!-- I (x=300) -->
+  <rect x="300" y="234" width="10" height="2" fill="#ff4444"/>
+  <rect x="304" y="236" width="2"  height="12" fill="#ff4444"/>
+  <rect x="300" y="248" width="10" height="2" fill="#ff4444"/>
+
+  <!-- N (x=314) -->
+  <rect x="314" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="326" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="316" y="236" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="318" y="238" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="320" y="240" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="322" y="242" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="324" y="244" width="2"  height="2"  fill="#ff4444"/>
+
+  <!-- C (x=342) -->
+  <rect x="342" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="342" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="342" y="248" width="12" height="2" fill="#ff4444"/>
+
+  <!-- R (x=358) -->
+  <rect x="358" y="234" width="2"  height="16" fill="#ff4444"/>
+  <rect x="358" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="368" y="234" width="2"  height="8"  fill="#ff4444"/>
+  <rect x="358" y="242" width="12" height="2" fill="#ff4444"/>
+  <rect x="366" y="244" width="2"  height="2"  fill="#ff4444"/>
+  <rect x="368" y="246" width="2"  height="4"  fill="#ff4444"/>
+
+  <!-- I (x=374) -->
+  <rect x="374" y="234" width="10" height="2" fill="#ff4444"/>
+  <rect x="378" y="236" width="2"  height="12" fill="#ff4444"/>
+  <rect x="374" y="248" width="10" height="2" fill="#ff4444"/>
+
+  <!-- S (x=388) -->
+  <rect x="388" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="388" y="234" width="2"  height="8" fill="#ff4444"/>
+  <rect x="388" y="242" width="12" height="2" fill="#ff4444"/>
+  <rect x="398" y="242" width="2"  height="8" fill="#ff4444"/>
+  <rect x="388" y="248" width="12" height="2" fill="#ff4444"/>
+
+  <!-- I (x=404) -->
+  <rect x="404" y="234" width="10" height="2" fill="#ff4444"/>
+  <rect x="408" y="236" width="2"  height="12" fill="#ff4444"/>
+  <rect x="404" y="248" width="10" height="2" fill="#ff4444"/>
+
+  <!-- S (x=418) -->
+  <rect x="418" y="234" width="12" height="2" fill="#ff4444"/>
+  <rect x="418" y="234" width="2"  height="8" fill="#ff4444"/>
+  <rect x="418" y="242" width="12" height="2" fill="#ff4444"/>
+  <rect x="428" y="242" width="2"  height="8" fill="#ff4444"/>
+  <rect x="418" y="248" width="12" height="2" fill="#ff4444"/>
+
+  <!-- ! (x=436) -->
+  <rect x="436" y="234" width="2" height="10" fill="#ff4444"/>
+  <rect x="436" y="246" width="2" height="4"  fill="#ff4444"/>
+
+  <!-- Horizontal warning stripes flanking text.                          -->
+  <!-- Text occupies x=192–438; flanks leave a 10px gap on each side.    -->
+  <rect x="64"  y="240" width="118" height="2" fill="#ff4444" opacity="0.35"/>
+  <rect x="64"  y="244" width="118" height="2" fill="#ff9500" opacity="0.20"/>
+  <rect x="64"  y="248" width="118" height="2" fill="#ff4444" opacity="0.35"/>
+  <rect x="448" y="240" width="118" height="2" fill="#ff4444" opacity="0.35"/>
+  <rect x="448" y="244" width="118" height="2" fill="#ff9500" opacity="0.20"/>
+  <rect x="448" y="248" width="118" height="2" fill="#ff4444" opacity="0.35"/>
+
+  <!-- ══ LOAD logo — top-right corner ═════════════════════════════════ -->
+  <!-- 64×64 at x=550 (16px from right edge of 630px canvas)             -->
+  <g transform="translate(550,16)">
+    <!-- Logo background -->
+    <rect width="64" height="64" rx="6" fill="#001828"/>
+
+    <!-- Corner brackets -->
+    <rect x="2"  y="2"  width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+    <rect x="2"  y="2"  width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+    <rect x="54" y="2"  width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+    <rect x="61" y="2"  width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+    <rect x="2"  y="61" width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+    <rect x="2"  y="54" width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+    <rect x="54" y="61" width="8" height="1" fill="#00b8d4" opacity="0.50"/>
+    <rect x="61" y="54" width="1" height="8" fill="#00b8d4" opacity="0.50"/>
+
+    <!-- Down arrows -->
+    <rect x="13" y="6"  width="2" height="14" fill="#00f5ff" opacity="0.70"/>
+    <rect x="11" y="20" width="6" height="2"  fill="#00f5ff"/>
+    <rect x="12" y="22" width="4" height="2"  fill="#00f5ff"/>
+    <rect x="13" y="24" width="2" height="2"  fill="#00f5ff"/>
+    <rect x="31" y="6"  width="2" height="14" fill="#00f5ff" opacity="0.70"/>
+    <rect x="29" y="20" width="6" height="2"  fill="#00f5ff"/>
+    <rect x="30" y="22" width="4" height="2"  fill="#00f5ff"/>
+    <rect x="31" y="24" width="2" height="2"  fill="#00f5ff"/>
+    <rect x="49" y="6"  width="2" height="14" fill="#00f5ff" opacity="0.70"/>
+    <rect x="47" y="20" width="6" height="2"  fill="#00f5ff"/>
+    <rect x="48" y="22" width="4" height="2"  fill="#00f5ff"/>
+    <rect x="49" y="24" width="2" height="2"  fill="#00f5ff"/>
+
+    <!-- LOAD pixel text -->
+    <rect x="9"  y="26" width="2"  height="12" fill="#00f5ff"/>
+    <rect x="9"  y="36" width="10" height="2"  fill="#00f5ff"/>
+    <rect x="21" y="26" width="10" height="2"  fill="#00f5ff"/>
+    <rect x="21" y="36" width="10" height="2"  fill="#00f5ff"/>
+    <rect x="21" y="26" width="2"  height="12" fill="#00f5ff"/>
+    <rect x="29" y="26" width="2"  height="12" fill="#00f5ff"/>
+    <rect x="35" y="26" width="6"  height="2"  fill="#00f5ff"/>
+    <rect x="33" y="28" width="2"  height="10" fill="#00f5ff"/>
+    <rect x="41" y="28" width="2"  height="10" fill="#00f5ff"/>
+    <rect x="33" y="32" width="10" height="2"  fill="#00f5ff"/>
+    <rect x="45" y="26" width="2"  height="12" fill="#00f5ff"/>
+    <rect x="45" y="26" width="8"  height="2"  fill="#00f5ff"/>
+    <rect x="45" y="36" width="8"  height="2"  fill="#00f5ff"/>
+    <rect x="53" y="28" width="2"  height="8"  fill="#00f5ff"/>
+
+    <!-- Server rack -->
+    <polygon points="8,48 52,48 58,42 14,42" fill="#005577"/>
+    <polygon points="52,48 58,42 58,60 52,60" fill="#002244"/>
+    <rect x="8"  y="48" width="44" height="12" fill="#003355"/>
+    <rect x="8"  y="48" width="2"  height="12" fill="#002244"/>
+    <rect x="50" y="48" width="2"  height="12" fill="#002244"/>
+    <rect x="8"  y="48" width="44" height="1"  fill="#00f5ff" opacity="0.35"/>
+    <rect x="10" y="52" width="40" height="1"  fill="#001828"/>
+    <rect x="10" y="56" width="40" height="1"  fill="#001828"/>
+    <rect x="12" y="49" width="2" height="2" fill="#00f5ff"/>
+    <rect x="16" y="49" width="2" height="2" fill="#00f5ff"/>
+    <rect x="20" y="49" width="2" height="2" fill="#00f5ff" opacity="0.40"/>
+    <rect x="24" y="49" width="2" height="2" fill="#00f5ff"/>
+    <rect x="28" y="49" width="2" height="2" fill="#00f5ff"/>
+    <rect x="32" y="49" width="2" height="2" fill="#ffd60a"/>
+    <rect x="36" y="49" width="2" height="2" fill="#00f5ff"/>
+    <rect x="40" y="49" width="2" height="2" fill="#00f5ff" opacity="0.60"/>
+    <rect x="44" y="49" width="2" height="2" fill="#00f5ff"/>
+
+    <!-- Atmospheric scanline -->
+    <rect x="0" y="62" width="64" height="1" fill="#00f5ff" opacity="0.10"/>
+  </g>
+</svg>
