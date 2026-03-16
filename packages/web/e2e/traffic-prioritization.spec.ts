@@ -164,16 +164,18 @@ test.describe('Traffic Prioritization – slot-only targeting', () => {
     const containerBox = await canvasContainer.boundingBox();
     if (!containerBox) throw new Error('canvas container has no bounding box');
 
-    // Mirror computeTrackRect(0, containerWidth, 4) from canvasLayout.ts:
-    // y = BOARD_START_Y(40) + 24 + 4*(SLOT_H(60)+SLOT_GAP(8)) + 20 + 0*TRACK_ROW_GAP(36) = 356
-    // x = 20, w = containerWidth - 40, h = TRACK_H(28)
-    const trackY = containerBox.y + 40 + 24 + 4 * (60 + 8) + 20;
-    const trackX = containerBox.x + 20;
+    // Mirror computeTrackRect(0, containerWidth) from canvasLayout.ts:
+    // Tracks are now horizontal: y = PILES_ROW_Y(8), x = DECK_COLS_W(614) + 8 = 622.
+    // trackW = floor((containerWidth - DECK_COLS_W(614) - 28 - 2*TRACK_COL_GAP(8)) / 3)
+    // h = TRACK_H = SLOT_H(120)
+    const trackY = containerBox.y + 8;
+    const trackX = containerBox.x + 622;
+    const trackW = Math.floor((containerBox.width - 614 - 28 - 16) / 3);
     const trackTarget = {
       x: trackX,
       y: trackY,
-      width: containerBox.width - 40,
-      height: 28,
+      width: trackW,
+      height: 120,
     };
 
     await dragFromTo(page, cardBox, trackTarget);

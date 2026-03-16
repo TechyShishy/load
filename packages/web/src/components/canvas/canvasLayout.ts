@@ -6,6 +6,8 @@ export const SLOT_H = 120;
 export const SLOT_GAP = 8;
 /** Y-stride between consecutive slot rows within a period — half of SLOT_H so cards fan/stack visually. */
 export const STACK_STRIDE = Math.floor(SLOT_H / 2);
+/** X-stride between consecutive ticket cards within a track — half of SLOT_W so cards fan/overlap like a hand. */
+export const TICKET_STRIDE = Math.floor(SLOT_W / 2);
 export const PERIOD_PADDING = 16;
 export const CARD_PADDING = 4;
 
@@ -39,10 +41,19 @@ export function computeTracksYOffset(maxSlotCount: number): number {
 /** @deprecated Use computeTracksYOffset(maxSlotCount) for a dynamic board. Kept for back-compat. */
 export const TRACKS_Y_OFFSET = computeTracksYOffset(4);
 
-/** Visual height of a single track row background rect. */
-export const TRACK_H = 28;
+/** Visual height of a single track row background rect — matches SLOT_H so tracks fill the same vertical space as deck piles. */
+export const TRACK_H = SLOT_H;
 
-/** Vertical stride between consecutive track rows (includes row height + inter-row gap). */
+/** Gap between adjacent track columns when rendered side-by-side. */
+export const TRACK_COL_GAP = 8;
+
+/** Number of track rows rendered on the board. */
+export const TRACK_COUNT = 3;
+
+/**
+ * Vertical stride between consecutive track rows (includes row height + inter-row gap).
+ * @deprecated Tracks are now laid out horizontally; this constant is no longer used internally.
+ */
 export const TRACK_ROW_GAP = 36;
 
 /** Number of period columns rendered on the board. */
@@ -134,24 +145,34 @@ export function computePeriodRect(
 
 /**
  * Compute the pixel rect of a track row given the canvas container CSS width.
- * Tracks are rendered to the RIGHT of the deck cluster in the same top band as the piles.
+ * Tracks are distributed horizontally to the RIGHT of the deck cluster in the
+ * same top band as the piles — same Y, varying X.
  * @param trackIndex    0-based track index
  * @param containerWidth  clientWidth of the canvas container div
  * @param maxSlotCount  kept for API compatibility — no longer used
  */
 export function computeTrackRect(trackIndex: number, containerWidth: number, maxSlotCount = 4): SlotRect {
   void maxSlotCount;
+  // Divide the horizontal space right of the deck cluster equally among TRACK_COUNT tracks.
+  // Total available width = containerWidth - DECK_COLS_W - 8 (left gap) - 20 (right margin).
+  const availW = containerWidth - DECK_COLS_W - 28;
+  const trackW = Math.floor((availW - (TRACK_COUNT - 1) * TRACK_COL_GAP) / TRACK_COUNT);
+  // Note: with TICKET_STRIDE overlap, the rightmost ticket's PixiJS card art can
+  // extend visually past the track background at narrow viewports or with many tickets.
+  // The DOM hit zone is clamped to the track boundary in computeTicketRect so
+  // drop/click zones never bleed into adjacent track or period columns.
   return {
-    x: DECK_COLS_W + 8,
-    y: PILES_ROW_Y + trackIndex * TRACK_ROW_GAP,
-    w: containerWidth - DECK_COLS_W - 28,
+    x: DECK_COLS_W + 8 + trackIndex * (trackW + TRACK_COL_GAP),
+    y: PILES_ROW_Y,
+    w: trackW,
     h: TRACK_H,
   };
 }
 
 /**
- * Compute the pixel rect of an individual ticket pill within a track row.
- * Mirrors the tickX / tickY arithmetic in paintTrackTickets() in GameCanvas.tsx.
+ * Compute the pixel rect of an individual ticket card within a track row.
+ * Each ticket is rendered as a full card surface (SLOT_W × TRACK_H) starting
+ * at the left edge of the track (track label is rendered below the track).
  * @param trackIndex   0-based track index (same order as getTracks() returns)
  * @param ticketIndex  0-based position of the ticket within the track
  * @param containerWidth  clientWidth of the canvas container div
@@ -161,12 +182,15 @@ export function computeTicketRect(
   ticketIndex: number,
   containerWidth: number,
 ): SlotRect {
-  const { x: trackX, y: trackY } = computeTrackRect(trackIndex, containerWidth);
+  const { x: trackX, y: trackY, w: trackW } = computeTrackRect(trackIndex, containerWidth);
+  const ticketX = trackX + ticketIndex * TICKET_STRIDE;
   return {
-    x: trackX + 100 + ticketIndex * 80,
-    y: trackY + 4,
-    w: 70,
-    h: 20,
+    x: ticketX,
+    y: trackY,
+    // Clamp to the track right edge so hit zones never bleed past adjacent columns.
+    // Math.max(0, ...) guards against negative width when a ticket overflows the track boundary.
+    w: Math.max(0, Math.min(SLOT_W, trackX + trackW - ticketX)),
+    h: TRACK_H,
   };
 }
 

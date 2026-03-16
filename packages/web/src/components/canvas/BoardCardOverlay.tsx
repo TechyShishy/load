@@ -369,7 +369,10 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
 
         {/* Ticket hit zones — one per event ticket in tracks */}
         {tracks.flatMap((track, ti) =>
-          track.tickets.map((ticket, ki) => {
+          // Render back-to-front so ticket 0's div is last in DOM (on top) and
+          // intercepts pointer events in the overlapping region.
+          [...track.tickets].reverse().map((ticket, rii) => {
+            const ki = track.tickets.length - 1 - rii;
             const ticketRect = computeTicketRect(ti, ki, containerWidth);
             return (
               <TicketHitZone

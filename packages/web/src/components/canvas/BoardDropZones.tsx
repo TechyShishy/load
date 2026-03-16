@@ -107,9 +107,9 @@ function TicketDropZone({ ticketId, trackIndex, ticketIndex, containerWidth }: T
       style={{
         position: 'absolute',
         left: rect.x,
-        top: rect.y - 8,
+        top: rect.y,
         width: rect.w,
-        height: rect.h + 16,
+        height: rect.h,
         borderRadius: 6,
         pointerEvents: 'auto',
         zIndex: 2,
@@ -250,15 +250,20 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
         />
       ))}
       {showTicketZones && tracks.flatMap((track, ti) =>
-        track.tickets.map((ticket, ki) => (
-          <TicketDropZone
-            key={`ticket-${ticket.id}`}
-            ticketId={ticket.id}
-            trackIndex={ti}
-            ticketIndex={ki}
-            containerWidth={containerWidth}
-          />
-        ))
+        // Render back-to-front so ticket 0's div is last in DOM (on top) and
+        // intercepts pointer events in the overlapping region.
+        [...track.tickets].reverse().map((ticket, rii) => {
+          const ki = track.tickets.length - 1 - rii;
+          return (
+            <TicketDropZone
+              key={`ticket-${ticket.id}`}
+              ticketId={ticket.id}
+              trackIndex={ti}
+              ticketIndex={ki}
+              containerWidth={containerWidth}
+            />
+          );
+        })
       )}
     </div>
   );

@@ -28,6 +28,8 @@ import {
   CARD_PADDING,
   BOARD_START_Y,
   BOARD_COLUMN_COUNT,
+  TRACK_H,
+  TICKET_STRIDE,
   computeDeckPileRect,
   computeSlotRect,
   computeTrackRect,
@@ -106,7 +108,6 @@ const HEADER_STYLES: Record<Period, TextStyle> = {
 const GEAR_HEADER_STYLE = new TextStyle({ fill: 0x888888, fontSize: 11, fontFamily: 'Courier New' });
 
 const SLOT_LABEL_STYLE = new TextStyle({ fill: 0x4b5563, fontSize: 9, fontFamily: 'Courier New' });
-const TICKET_STYLE = new TextStyle({ fill: 0xfca5a5, fontSize: 8, fontFamily: 'Courier New' });
 const EMPTY_STYLE = new TextStyle({
   fill: 0x374151,
   fontSize: 9,
@@ -708,18 +709,19 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
 
     // Static background.
     const bg = new Graphics();
-    bg.roundRect(trackX, trackY, trackW, 28, 4);
+    bg.roundRect(trackX, trackY, trackW, TRACK_H, 4);
     bg.fill({ color: 0x111827, alpha: 0.8 });
     bg.stroke({ color: tColor, width: 1, alpha: 0.5 });
     board.addChild(bg);
 
-    // Static label.
+    // Static label — sits below the track (mirrors the DRAW/DISCARD pile labels).
     const label = new Text({
       text: track.track.toUpperCase(),
       style: getTrackLabelStyle(track.track),
     });
-    label.x = trackX + 8;
-    label.y = trackY + 9;
+    label.anchor.set(0.5, 0);
+    label.x = trackX + Math.floor(trackW / 2);
+    label.y = trackY + TRACK_H + 2;
     board.addChild(label);
 
     // Dynamic ticket container — rebuilt by patchTrack on change.
@@ -728,8 +730,8 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
 
     // "no tickets" placeholder — visibility toggled by patchTrack.
     const emptyText = new Text({ text: 'no tickets', style: EMPTY_STYLE });
-    emptyText.x = trackX + 100;
-    emptyText.y = trackY + 9;
+    emptyText.x = trackX + 8;
+    emptyText.y = trackY + Math.floor(TRACK_H / 2) - 5;
     emptyText.visible = track.tickets.length === 0;
     board.addChild(emptyText);
 
@@ -802,20 +804,50 @@ function paintTrackTickets(
   container: Container,
 ): void {
   const tColor = TRACK_COLORS[track.track] ?? 0xff0000;
-  for (let ki = 0; ki < track.tickets.length; ki++) {
+  // Paint back-to-front so card 0 (leftmost) renders on top in PixiJS child order.
+  for (let ki = track.tickets.length - 1; ki >= 0; ki--) {
     const ticket = track.tickets[ki]!;
-    const tickX = trackX + 100 + ki * 80;
+    const tickX = trackX + ki * TICKET_STRIDE;
+    const cardH = TRACK_H - CARD_PADDING * 2;
+    const cardY = trackY + CARD_PADDING;
 
+    // Background — event card colour with track accent border.
     const tickBg = new Graphics();
-    tickBg.roundRect(tickX, trackY + 4, 70, 20, 3);
-    tickBg.fill({ color: 0x3b0000, alpha: 0.9 });
+    tickBg.roundRect(tickX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 3);
+    tickBg.fill({ color: EVENT_COLOR, alpha: 0.9 });
     tickBg.stroke({ color: tColor, width: 1 });
     container.addChild(tickBg);
 
-    const tickText = new Text({ text: ticket.name, style: TICKET_STYLE });
-    tickText.x = tickX + 4;
-    tickText.y = trackY + 8;
-    container.addChild(tickText);
+    // Art image (or placeholder).
+    const artImgW = SLOT_W - CARD_PADDING * 2;
+    const artImgH = Math.floor(TRACK_H / 2) - CARD_PADDING;
+    const artY = cardY + CARD_TITLE_ZONE_H;
+    const art = cardArtSprite(ticket.templateId, tickX + CARD_PADDING, artY, artImgW, artImgH);
+    if (art) {
+      container.addChild(art);
+    } else {
+      const imgZone = new Graphics();
+      imgZone.roundRect(tickX + CARD_PADDING, artY, artImgW, artImgH, 2);
+      imgZone.fill({ color: tColor, alpha: 0.1 });
+      imgZone.stroke({ color: tColor, width: 1, alpha: 0.35 });
+      container.addChild(imgZone);
+    }
+
+    // Title.
+    const titleText = fitCardTitle(ticket.name, tColor);
+    titleText.x = tickX + CARD_PADDING + 2;
+    titleText.y = cardY + 2;
+    container.addChild(titleText);
+
+    // Description + optional flavor, anchored above card bottom.
+    const descY = artY + artImgH + CARD_PADDING;
+    const flavorH = ticket.flavorText ? FLAVOR_ZONE_H : 0;
+    const bottomY = cardY + cardH - CARD_PADDING;
+    const descMaxH = bottomY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
+    fitDescText(ticket.description, tickX + CARD_PADDING + 1, descY, descMaxH, container);
+    if (ticket.flavorText) {
+      fitFlavorText(ticket.flavorText, tickX + CARD_PADDING + 1, bottomY - flavorH, container);
+    }
   }
 }
 
