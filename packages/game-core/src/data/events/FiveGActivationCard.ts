@@ -8,6 +8,7 @@ export class FiveGActivationCard extends EventCard {
   readonly description =
     'New 5G towers demand a costly integration contract. Without mitigation, pay $15,000 and receive a Projects ticket. ' +
     'Requires 3 work cycles (Work Order plays) to close — finish in the same round it arrives to earn back $60,000.';
+  readonly flavorText = 'Not your fault. Not your call. Still your problem.';
 
   /** 3 Work Order plays to fully close this ticket. */
   override readonly requiredClears = 3;

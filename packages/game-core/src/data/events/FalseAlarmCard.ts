@@ -6,6 +6,7 @@ export class FalseAlarmCard extends EventCard {
   readonly label = 'ALL CLEAR';
   readonly description =
     'A monitoring alert fires, but all systems check out. No action required.';
+  readonly flavorText = 'All systems nominal. You may now unclench.';
 
   constructor(public readonly id: string = 'event-false-alarm') {
     super();

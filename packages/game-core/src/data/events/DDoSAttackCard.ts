@@ -8,6 +8,7 @@ export class DDoSAttackCard extends EventCard {
   readonly label = 'TRAFFIC SPIKE';
   readonly description =
     'A volumetric attack floods your edge nodes — one malicious traffic card drops into every period. Each can be cleared for $1,500, but ties up slots that legitimate traffic could fill.';
+  readonly flavorText = 'The bandwidth graphs went vertical. All of them. One very loud PagerDuty alert.';
 
   constructor(public readonly id: string = 'event-ddos-attack') {
     super();
