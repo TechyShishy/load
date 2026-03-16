@@ -9,7 +9,9 @@ test.describe('Contract selection', () => {
 
   test('NEW GAME opens the contract panel', async ({ page }) => {
     const dialog = page.getByRole('dialog', { name: 'LOAD' });
-    await expect(dialog).toBeVisible();
+    // Explicit 20s window covers the ~9s OfflineAudioContext music pre-render
+    // in the LoadScreen. The global expect.timeout (10s) has only ~1s margin.
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole('button', { name: 'NEW GAME' }).click();
 
