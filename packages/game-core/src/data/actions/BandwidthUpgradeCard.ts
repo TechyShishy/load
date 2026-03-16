@@ -6,6 +6,8 @@ export class BandwidthUpgradeCard extends ActionCard {
   readonly name = 'Bandwidth Upgrade';
   readonly cost = 20_000;
   readonly description = 'Add 1 permanent bonus slot to a Period.';
+  readonly flavorText =
+    'The first upgrade lasts six months. The second, three. The third, you order before the second lands.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['period'] as const;
   override readonly invalidZoneFeedback = 'Drop on a period column to boost its capacity.';

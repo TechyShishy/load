@@ -6,6 +6,7 @@ export class DataCenterExpansionCard extends ActionCard {
   readonly name = 'Data Center Expansion';
   readonly cost = 30_000;
   readonly description = 'Add 2 permanent bonus slots to a Period.';
+  readonly flavorText = 'More slots. More problems. Mostly cooling.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['period'] as const;
   override readonly invalidZoneFeedback = 'Drop on a period column to add slots.';
@@ -45,7 +46,10 @@ export class DataCenterExpansionCard extends ActionCard {
         if (occupantId !== undefined) {
           updatedTrafficSlotPositions = {
             ...updatedTrafficSlotPositions,
-            [occupantId]: { ...updatedTrafficSlotPositions[occupantId]!, slotType: SlotType.Normal },
+            [occupantId]: {
+              ...updatedTrafficSlotPositions[occupantId]!,
+              slotType: SlotType.Normal,
+            },
           };
         }
         return { ...s, slotType: SlotType.Normal };
@@ -61,6 +65,10 @@ export class DataCenterExpansionCard extends ActionCard {
       ];
     }
 
-    return { ...context, slotLayout: updatedSlotLayout, trafficSlotPositions: updatedTrafficSlotPositions };
+    return {
+      ...context,
+      slotLayout: updatedSlotLayout,
+      trafficSlotPositions: updatedTrafficSlotPositions,
+    };
   }
 }

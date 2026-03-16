@@ -8,6 +8,7 @@ export class WorkOrderCard extends ActionCard {
     'Assign 1 work cycle to a specific open ticket. Once all required cycles are ' +
     'complete the ticket closes and pays out up to the full clearRevenue — reduced ' +
     'by $3,000 for every round it aged.';
+  readonly flavorText = 'Priority: Critical. ETA: Next sprint.';
   readonly allowedOnWeekend = true;
   readonly validDropZones = ['ticket'] as const;
   override readonly invalidZoneFeedback = 'Drop on an open ticket to assign a work cycle.';

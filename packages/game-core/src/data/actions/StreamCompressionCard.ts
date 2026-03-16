@@ -8,6 +8,7 @@ export class StreamCompressionCard extends ActionCard {
   readonly cost = 5_000;
   readonly description =
     'Remove up to 3 instances of the most-duplicated Traffic type in a period, collecting their revenue. If no duplicates exist, removes 1 Traffic card instead.';
+  readonly flavorText = 'Taught the network to forget. Selectively.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['period'] as const;
   override readonly invalidZoneFeedback = 'Drop on a period column to compress traffic.';

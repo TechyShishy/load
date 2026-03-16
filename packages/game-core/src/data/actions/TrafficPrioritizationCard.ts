@@ -6,6 +6,7 @@ export class TrafficPrioritizationCard extends ActionCard {
   readonly name = 'Traffic Prioritization';
   readonly cost = 0;
   readonly description = 'Remove 1 Traffic card from the board, collecting its revenue.';
+  readonly flavorText = 'If everything is priority one, nothing is.';
   readonly allowedOnWeekend = false;
   readonly validDropZones = ['occupied-slot'] as const;
   override readonly invalidZoneFeedback = 'Drop on an occupied slot to remove a traffic card.';
