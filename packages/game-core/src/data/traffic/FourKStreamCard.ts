@@ -5,7 +5,7 @@ export class FourKStreamCard extends TrafficCard {
   readonly name = '4K Video Streams';
   readonly revenue = 5_000;
   readonly description = 'High-bandwidth traffic from streaming services.';
-  readonly flavorText = 'Six megabits per second, times everyone on the block, times the new season just dropped.';
+  override readonly flavorText = 'Six megabits per second, times everyone on the block, times the new season just dropped.';
   // Weeknight prime-time; weekend viewing starts earlier.
   override readonly weekTable = [
     Period.Evening,   // Mon

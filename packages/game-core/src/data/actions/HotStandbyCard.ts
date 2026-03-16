@@ -7,7 +7,7 @@ export class HotStandbyCard extends ActionCard {
   readonly cost = 15_000;
   readonly description =
     'Mitigate 1 AWS Outage event, waiving the $25,000 recovery cost and preventing the skipped traffic draw.';
-  readonly flavorText = 'It was ready the whole time. Probably.';
+  override readonly flavorText = 'It was ready the whole time. Probably.';
   readonly allowedOnWeekend = true;
   override readonly crisisOnly = true as const;
   override readonly validForEventTemplateIds = ['event-aws-outage'] as const;

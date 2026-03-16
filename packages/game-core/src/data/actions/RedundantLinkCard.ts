@@ -6,7 +6,7 @@ export class RedundantLinkCard extends ActionCard {
   readonly cost = 45_000;
   readonly description =
     'Emergency failover: forgive up to 2 SLA failures this resolution phase. Cannot reduce SLA failures already tallied.';
-  readonly flavorText =
+  override readonly flavorText =
     "Your backup path and your primary path share a fiber duct. You'll find out at 2 AM.";
   readonly allowedOnWeekend = true;
   readonly validDropZones = ['board'] as const;

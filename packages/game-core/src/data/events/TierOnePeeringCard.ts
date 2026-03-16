@@ -6,7 +6,7 @@ export class TierOnePeeringCard extends EventCard {
   readonly label = 'REVENUE BOOST';
   readonly description =
     'A major provider offers preferential routing terms. Until Monday, each traffic card you clear earns 50% more revenue.';
-  readonly flavorText = "BGP is watching. Don't announce a /0.";
+  override readonly flavorText = "BGP is watching. Don't announce a /0.";
 
   constructor(public readonly id: string = 'event-tier1-peering') {
     super();

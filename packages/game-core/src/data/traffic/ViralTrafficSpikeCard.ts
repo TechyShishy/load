@@ -7,7 +7,7 @@ export class ViralTrafficSpikeCard extends TrafficCard {
   readonly revenue = 6_000;
   readonly description =
     'A sudden viral moment floods CDN nodes. Clearing it early only propagates the spike — a copy immediately appears in the next period.';
-  readonly flavorText = "You just HAD TO clear it. Now look what you've done.";
+  override readonly flavorText = "You just HAD TO clear it. Now look what you've done.";
   // Viral content spreads during active daytime; Sunday morning is the exception (wholesome viral).
   override readonly weekTable = [
     Period.Afternoon, // Mon
