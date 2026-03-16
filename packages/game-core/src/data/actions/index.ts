@@ -6,6 +6,7 @@ import { NullRouteCard } from './NullRouteCard.js';
 import { DataCenterExpansionCard } from './DataCenterExpansionCard.js';
 import { StreamCompressionCard } from './StreamCompressionCard.js';
 import { RedundantLinkCard } from './RedundantLinkCard.js';
+import { HotStandbyCard } from './HotStandbyCard.js';
 
 export { WorkOrderCard } from './WorkOrderCard.js';
 export { TrafficPrioritizationCard } from './TrafficPrioritizationCard.js';
@@ -14,6 +15,7 @@ export { NullRouteCard } from './NullRouteCard.js';
 export { DataCenterExpansionCard } from './DataCenterExpansionCard.js';
 export { StreamCompressionCard } from './StreamCompressionCard.js';
 export { RedundantLinkCard } from './RedundantLinkCard.js';
+export { HotStandbyCard } from './HotStandbyCard.js';
 
 /** Registry mapping templateId → constructor for deserialization. */
 export const ACTION_CARD_REGISTRY = new Map<string, new (instanceId: string) => ActionCard>([
@@ -27,6 +29,7 @@ export const ACTION_CARD_REGISTRY = new Map<string, new (instanceId: string) => 
   ['action-datacenter-expansion', DataCenterExpansionCard],
   ['action-stream-compression', StreamCompressionCard],
   ['action-redundant-link', RedundantLinkCard],
+  ['action-hot-standby', HotStandbyCard],
 ]);
 
 /** Singleton template instances (id === templateId). Used by deck builder. */
@@ -38,4 +41,5 @@ export const ACTION_CARDS: ActionCard[] = [
   new DataCenterExpansionCard(),
   new StreamCompressionCard(),
   new RedundantLinkCard(),
+  new HotStandbyCard(),
 ];

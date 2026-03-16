@@ -18,4 +18,5 @@ export const CARD_ART: Partial<Record<string, string>> = {
   'traffic-viral-spike': './cards/traffic-viral-spike.svg',
   'event-tier1-peering': './cards/event-tier1-peering.svg',
   'action-redundant-link': './cards/action-redundant-link.svg',
+  'action-hot-standby': './cards/action-hot-standby.svg',
 };

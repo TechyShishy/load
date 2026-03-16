@@ -122,7 +122,11 @@ export const gameMachine = setup({
       const pending = getPendingEvents(context);
       const targetId =
         event.targetEventId ??
-        pending.find((e) => !context.mitigatedEventIds.includes(e.id))?.id;
+        pending.find(
+          (e) =>
+            !context.mitigatedEventIds.includes(e.id) &&
+            validForEventTemplateIds.includes(e.templateId),
+        )?.id;
       if (!targetId) return false;
       const targetEvent = pending.find((e) => e.id === targetId);
       if (!targetEvent) return false;
