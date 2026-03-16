@@ -181,7 +181,16 @@ Then update the key in `CARD_ART` from the old `templateId` to the new one.
 
 ---
 
-## Step 6 — Verify End-to-End
+## Step 6 — Write Flavor Text
+
+Invoke the `flavor-text` skill with `'<templateId>'` to generate and apply a quip.
+
+- If the card's `name` or `description` changed substantially, generate fresh flavor text even if `flavorText` already exists.
+- If only numbers or mechanics changed (not the card's concept), keep existing flavor text.
+
+---
+
+## Step 7 — Verify End-to-End
 
 1. Run all game-core tests: `yarn workspace @load/game-core test`
 2. Run web unit tests: `yarn workspace @load/web test`
@@ -240,5 +249,6 @@ Prefer **not** changing it. Changing `templateId` is a breaking save/load change
 - [ ] All prior tests still pass; updated assertions match new behavior
 - [ ] New test cases added for any new conditional branches
 - [ ] SVG art refreshed or renamed if card identity changed — `CARD_ART` entry updated
+- [ ] `flavorText` updated (or confirmed unchanged) via `flavor-text` skill
 - [ ] All tests green: `yarn workspace @load/game-core test && yarn workspace @load/web test`
 - [ ] Card visually confirmed in browser via dev server

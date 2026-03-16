@@ -267,7 +267,13 @@ The SVG skill handles:
 
 ---
 
-## Step 6 — Verify End-to-End
+## Step 6 — Write Flavor Text
+
+Invoke the `flavor-text` skill with `'<templateId>'` to generate and apply a punchy quip to the card's `flavorText` field.
+
+---
+
+## Step 7 — Verify End-to-End
 
 1. Run all game-core tests: `yarn workspace @load/game-core test`
 2. Run web unit tests: `yarn workspace @load/web test`
@@ -353,4 +359,5 @@ The SVG skill handles:
 - [ ] Unit test file created at `packages/game-core/src/__tests__/<kebab-name>.unit.test.ts`
 - [ ] All tests pass: `yarn workspace @load/game-core test`
 - [ ] SVG art created via `card-svg` skill and registered in `CARD_ART`
+- [ ] Flavor text written via `flavor-text` skill and `flavorText` field present in class
 - [ ] Card visually confirmed in browser via dev server
