@@ -5,6 +5,7 @@ export class CloudBackupCard extends TrafficCard {
   readonly name = 'Cloud Backup';
   readonly revenue = 7_000;
   readonly description = 'Scheduled data transfers to cloud storage.';
+  readonly flavorText = "The cloud doesn't back itself up. That's your problem now.";
   // Runs every night; Saturday job starts unusually at morning.
   override readonly weekTable = [
     Period.Overnight, // Mon

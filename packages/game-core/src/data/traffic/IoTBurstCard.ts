@@ -5,6 +5,7 @@ export class IoTBurstCard extends TrafficCard {
   readonly name = 'IoT Data Burst';
   readonly revenue = 3_000;
   readonly description = 'Sudden data surges from connected devices.';
+  readonly flavorText = 'Every smart device on the street published an MQTT packet to us at 7 AM. All of them. At once.';
   // Weekday morning sync; weekend devices run overnight (no commute).
   override readonly weekTable = [
     Period.Morning,   // Mon
