@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
@@ -15,6 +15,7 @@ import { PhaseIndicator } from './hud/PhaseIndicator.js';
 import { HandZone, ActionCardPreview } from './hud/HandZone.js';
 import { WinScreen, LoseScreen } from './overlays/EndScreens.js';
 import { EventModal } from './overlays/EventModal.js';
+import { CalendarModal } from './overlays/CalendarModal.js';
 import { ErrorBoundary } from 'react-error-boundary';
 import { SoftErrorFallback } from './overlays/ErrorFallbacks.js';
 
@@ -42,6 +43,8 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
   const pendingEvents = useMemo(() => getPendingEvents(context), [context]);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<ActionCard | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  useEffect(() => { if (isWon || isLost) setIsCalendarOpen(false); }, [isWon, isLost]);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -181,7 +184,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
         <BudgetBar budget={context.budget} />
         <SLAMeter slaCount={context.slaCount} slaLimit={context.slaLimit} />
         <div className="flex-1" />
-        <PhaseIndicator currentPhase={phase} round={context.round} />
+        <PhaseIndicator currentPhase={phase} round={context.round} onOpenCalendar={() => setIsCalendarOpen(true)} />
         <button
           onClick={onOpenSettings}
           aria-label="Open settings"
@@ -244,6 +247,13 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
       )}
       {isWon && <WinScreen context={context} onPlayAgain={handlePlayAgain} />}
       {isLost && <LoseScreen context={context} onPlayAgain={handlePlayAgain} />}
+      {isCalendarOpen && (
+        <CalendarModal
+          roundHistory={context.roundHistory}
+          currentRound={context.round}
+          onClose={() => setIsCalendarOpen(false)}
+        />
+      )}
     </div>
     </ErrorBoundary>
     <DragOverlay dropAnimation={null} modifiers={[snapFlyoutToCursor]}>

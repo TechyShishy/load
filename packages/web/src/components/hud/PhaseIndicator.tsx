@@ -12,9 +12,10 @@ const PHASES: { id: string; label: string }[] = [
 interface PhaseIndicatorProps {
   currentPhase: string;
   round: number;
+  onOpenCalendar: () => void;
 }
 
-export function PhaseIndicator({ currentPhase, round }: PhaseIndicatorProps) {
+export function PhaseIndicator({ currentPhase, round, onOpenCalendar }: PhaseIndicatorProps) {
   const activePhase = PHASES.find((p) => p.id === currentPhase);
   const dayName = getDayName(round);
   const weekNum = getWeekNumber(round);
@@ -22,12 +23,13 @@ export function PhaseIndicator({ currentPhase, round }: PhaseIndicatorProps) {
 
   return (
     <div className="flex items-center gap-1">
-      <span
-        className={`text-xs mr-2 font-mono ${weekend ? 'text-amber-400 opacity-80' : 'opacity-50'}`}
-        aria-hidden="true"
+      <button
+        onClick={onOpenCalendar}
+        aria-label="Open round calendar"
+        className={`text-xs mr-2 font-mono rounded px-1 hover:bg-gray-800 transition-colors ${weekend ? 'text-amber-400 opacity-80' : 'opacity-50 hover:opacity-100'}`}
       >
         {dayName}, W{weekNum}
-      </span>
+      </button>
       {weekend && (
         <span className="text-xs px-1.5 py-0.5 rounded bg-amber-800 text-amber-200 font-mono mr-1" aria-hidden="true">
           Weekend
