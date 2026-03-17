@@ -17,7 +17,7 @@ test.describe('Contract selection', () => {
 
     await expect(page.getByText('Select Contract')).toBeVisible();
     await expect(page.getByText('LOCAL ISP')).toBeVisible();
-    await expect(page.getByText('STANDARD')).toBeVisible();
+    await expect(page.getByText('UNDER DDOS ATTACK')).toBeVisible();
   });
 
   test('BACK button returns to the main menu', async ({ page }) => {
@@ -32,9 +32,9 @@ test.describe('Contract selection', () => {
     await expect(contractPanel).toHaveAttribute('aria-hidden', 'true');
   });
 
-  test('selecting Standard starts the game with $500,000 budget', async ({ page }) => {
+  test('selecting Under DDoS Attack starts the game with $500,000 budget', async ({ page }) => {
     await page.getByRole('button', { name: 'NEW GAME' }).click();
-    await page.getByRole('button', { name: /^STANDARD/i }).click();
+    await page.getByRole('button', { name: /^UNDER DDOS ATTACK/i }).click();
 
     const dialog = page.getByRole('dialog', { name: 'LOAD' });
     await expect(dialog).not.toBeVisible();
@@ -64,13 +64,13 @@ test.describe('Contract selection', () => {
     await expect(page.getByText('0/5')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('Standard contract HUD shows 3 SLA dots', async ({ page }) => {
+  test('Under DDoS Attack contract HUD shows 3 SLA dots', async ({ page }) => {
     await page.getByRole('button', { name: 'NEW GAME' }).click();
-    await page.getByRole('button', { name: /^STANDARD/i }).click();
+    await page.getByRole('button', { name: /^UNDER DDOS ATTACK/i }).click();
 
     await expect(page.getByRole('dialog', { name: 'LOAD' })).not.toBeVisible();
 
-    // SLAMeter shows "0/3" for Standard's slaLimit=3
+    // SLAMeter shows "0/3" for Under DDoS Attack's slaLimit=3
     await expect(page.getByText('0/3')).toBeVisible({ timeout: 5_000 });
   });
 

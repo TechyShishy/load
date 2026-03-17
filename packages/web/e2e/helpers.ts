@@ -11,10 +11,10 @@ export async function clearSave(page: Page) {
 
 /**
  * If the Start Screen is showing, dismiss it by clicking NEW GAME and then
- * selecting the Standard contract. Pass `contractName` to choose a different
+ * selecting the Under DDoS Attack contract. Pass `contractName` to choose a different
  * contract (matched against button text, case-insensitive).
  */
-export async function dismissContinueModal(page: Page, contractName = 'STANDARD') {
+export async function dismissContinueModal(page: Page, contractName = 'UNDER DDOS ATTACK') {
   const screen = page.getByRole('dialog', { name: 'LOAD' });
   // isVisible() is an instant DOM check — it does NOT wait. Use waitFor() with
   // a 20s window so we block until the LoadScreen finishes and the StartScreen

@@ -4,16 +4,16 @@ import {
   type ContractDef,
 } from '../../types.js';
 
-/** Standard contract — today's hardcoded defaults wrapped in the ContractDef type.
+/** Under DDoS Attack contract — today's hardcoded defaults wrapped in the ContractDef type.
  * These spec arrays deliberately duplicate DEFAULT_TRAFFIC_DECK / DEFAULT_EVENT_DECK
  * from deck.ts to avoid a circular import chain:
  *   contracts/index.ts → deck.ts → data/index.ts → contracts/index.ts
  */
 export const STANDARD_CONTRACT: ContractDef = {
   id: 'standard',
-  name: 'Standard',
+  name: 'Under DDoS Attack',
   musicTrackId: 'contractTheme',
-  description: 'Balanced traffic mix with real crisis pressure. A solid starting point for experienced operators.',
+  description: 'Your network is under active DDoS bombardment. Manage legitimate traffic while Null-Routing the flood — every SLA failure costs you.',
   trafficDeck: [
     { templateId: 'traffic-4k-stream',    count: 6 },
     { templateId: 'traffic-iot-burst',    count: 5 },
