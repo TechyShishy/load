@@ -266,10 +266,9 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
           onClose={() => setIsCalendarOpen(false)}
         />
       )}
-      {isPnlOpen && (
+      {isPnlOpen && context.lastRoundSummary && (
         <ProfitLossPanel
-          lastRoundSummary={context.lastRoundSummary}
-          currentRound={context.round}
+          summary={context.lastRoundSummary}
           onClose={() => setIsPnlOpen(false)}
         />
       )}

@@ -99,4 +99,25 @@ describe('CalendarModal', () => {
     render(<CalendarModal roundHistory={history} currentRound={2} onClose={vi.fn()} />);
     expect(screen.getByText('+$2.5M')).toBeInTheDocument();
   });
+
+  it('opens the P&L flyout when a completed day cell is clicked', () => {
+    const history = [makeSummary(1, { budgetDelta: 12_000 })];
+    render(<CalendarModal roundHistory={history} currentRound={2} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'View Round 1 P&L' }));
+    expect(screen.getByText('Round 1 — P&L')).toBeInTheDocument();
+  });
+
+  it('closes the P&L flyout when its close button is clicked', () => {
+    const history = [makeSummary(1, { budgetDelta: 0 })];
+    render(<CalendarModal roundHistory={history} currentRound={2} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'View Round 1 P&L' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close P&L panel' }));
+    expect(screen.queryByText('Round 1 — P&L')).not.toBeInTheDocument();
+  });
+
+  it('does not make future or current round cells interactive', () => {
+    render(<CalendarModal roundHistory={[]} currentRound={3} onClose={vi.fn()} />);
+    // No completed rounds → no P&L buttons at all
+    expect(screen.queryByRole('button', { name: /View Round/ })).toBeNull();
+  });
 });

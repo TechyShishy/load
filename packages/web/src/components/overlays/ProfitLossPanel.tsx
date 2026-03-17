@@ -3,8 +3,7 @@ import FocusTrap from 'focus-trap-react';
 import type { LedgerEntry, RoundSummary } from '@load/game-core';
 
 interface ProfitLossPanelProps {
-  lastRoundSummary: RoundSummary | null;
-  currentRound: number;
+  summary: RoundSummary;
   onClose: () => void;
 }
 
@@ -29,21 +28,18 @@ const KIND_META: Record<LedgerEntry['kind'], { label: string; color: string; sig
   'crisis-penalty':  { label: 'Crisis',  color: 'text-red-400',   sign: -1 },
 };
 
-export function ProfitLossPanel({ lastRoundSummary, currentRound, onClose }: ProfitLossPanelProps) {
-  const prevRound = currentRound - 1;
-
+export function ProfitLossPanel({ summary, onClose }: ProfitLossPanelProps) {
   // Aggregate ledger by kind.
   const totals = React.useMemo(() => {
-    if (!lastRoundSummary) return null;
     const acc = { trafficRevenue: 0, ticketRevenue: 0, actionSpend: 0, crisisPenalty: 0 };
-    for (const entry of lastRoundSummary.ledger) {
+    for (const entry of summary.ledger) {
       if (entry.kind === 'traffic-revenue') acc.trafficRevenue += entry.amount;
       else if (entry.kind === 'ticket-revenue') acc.ticketRevenue += entry.amount;
       else if (entry.kind === 'action-spend') acc.actionSpend += entry.amount;
       else if (entry.kind === 'crisis-penalty') acc.crisisPenalty += entry.amount;
     }
     return acc;
-  }, [lastRoundSummary]);
+  }, [summary]);
 
   return (
     <FocusTrap focusTrapOptions={{ initialFocus: '#pnl-close-btn', escapeDeactivates: false }}>
@@ -65,7 +61,7 @@ export function ProfitLossPanel({ lastRoundSummary, currentRound, onClose }: Pro
               id="pnl-title"
               className="text-sm font-mono font-bold text-cyan-400 uppercase tracking-widest"
             >
-              {`Round ${prevRound} — P&L`}
+              {`Round ${summary.round} — P&L`}
             </h2>
             <button
               id="pnl-close-btn"
@@ -78,36 +74,31 @@ export function ProfitLossPanel({ lastRoundSummary, currentRound, onClose }: Pro
           </div>
 
           {/* No prior round */}
-          {!lastRoundSummary || currentRound <= 1 ? (
-            <p className="text-xs font-mono text-gray-500 py-4 text-center">
-              No previous round data.
-            </p>
-          ) : (
-            <>
+          <>
               {/* Summary totals */}
               <div className="grid grid-cols-2 gap-1 mb-3">
                 <div className="rounded bg-gray-900 border border-gray-800 p-2">
                   <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Traffic revenue</div>
                   <div className="text-sm font-mono font-bold text-green-400">
-                    {totals ? formatAmount(totals.trafficRevenue) : '—'}
+                    {formatAmount(totals.trafficRevenue)}
                   </div>
                 </div>
                 <div className="rounded bg-gray-900 border border-gray-800 p-2">
                   <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Ticket revenue</div>
                   <div className="text-sm font-mono font-bold text-cyan-400">
-                    {totals ? formatAmount(totals.ticketRevenue) : '—'}
+                    {formatAmount(totals.ticketRevenue)}
                   </div>
                 </div>
                 <div className="rounded bg-gray-900 border border-gray-800 p-2">
                   <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Action spend</div>
                   <div className="text-sm font-mono font-bold text-amber-400">
-                    {totals ? `-${formatAmount(totals.actionSpend)}` : '—'}
+                    {`-${formatAmount(totals.actionSpend)}`}
                   </div>
                 </div>
                 <div className="rounded bg-gray-900 border border-gray-800 p-2">
                   <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Crisis penalty</div>
                   <div className="text-sm font-mono font-bold text-red-400">
-                    {totals ? `-${formatAmount(totals.crisisPenalty)}` : '—'}
+                    {`-${formatAmount(totals.crisisPenalty)}`}
                   </div>
                 </div>
               </div>
@@ -117,23 +108,23 @@ export function ProfitLossPanel({ lastRoundSummary, currentRound, onClose }: Pro
                 <span className="text-[10px] font-mono text-gray-500 uppercase">Net</span>
                 <span
                   className={`text-sm font-mono font-bold tabular-nums ${
-                    lastRoundSummary.budgetDelta > 0
+                    summary.budgetDelta > 0
                       ? 'text-green-400'
-                      : lastRoundSummary.budgetDelta < 0
+                      : summary.budgetDelta < 0
                       ? 'text-red-400'
                       : 'text-gray-400'
                   }`}
                 >
-                  {formatDelta(lastRoundSummary.budgetDelta)}
+                  {formatDelta(summary.budgetDelta)}
                 </span>
               </div>
 
               {/* Per-entry play log */}
-              {lastRoundSummary.ledger.length > 0 && (
+              {summary.ledger.length > 0 && (
                 <div>
                   <div className="text-[10px] font-mono text-gray-600 uppercase mb-1">Play log</div>
                   <ul className="space-y-0.5 max-h-48 overflow-y-auto pr-1" aria-label="Round play log">
-                    {lastRoundSummary.ledger.map((entry, i) => {
+                    {summary.ledger.map((entry, i) => {
                       const meta = KIND_META[entry.kind]!;
                       const signed = meta.sign === 1
                         ? `+${formatAmount(entry.amount)}`
@@ -153,13 +144,12 @@ export function ProfitLossPanel({ lastRoundSummary, currentRound, onClose }: Pro
                 </div>
               )}
 
-              {lastRoundSummary.ledger.length === 0 && (
+              {summary.ledger.length === 0 && (
                 <p className="text-[10px] font-mono text-gray-600 text-center py-1">
                   No actions played this round.
                 </p>
               )}
-            </>
-          )}
+          </>
         </div>
       </div>
     </FocusTrap>

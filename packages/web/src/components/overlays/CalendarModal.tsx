@@ -2,6 +2,7 @@ import React from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { RoundSummary } from '@load/game-core';
 import { isWeekend, MAX_ROUNDS } from '@load/game-core';
+import { ProfitLossPanel } from './ProfitLossPanel.js';
 
 interface CalendarModalProps {
   roundHistory: RoundSummary[];
@@ -23,9 +24,11 @@ export function CalendarModal({ roundHistory, currentRound, onClose }: CalendarM
   const summaryByRound = new Map<number, RoundSummary>(
     roundHistory.map((s) => [s.round, s]),
   );
+  const [selectedSummary, setSelectedSummary] = React.useState<RoundSummary | null>(null);
 
   return (
-    <FocusTrap focusTrapOptions={{ initialFocus: '#calendar-modal-close-btn', escapeDeactivates: false }}>
+    <>
+    <FocusTrap focusTrapOptions={{ initialFocus: '#calendar-modal-close-btn', escapeDeactivates: false }} paused={selectedSummary !== null}>
       <div
         className="absolute inset-0 z-50 flex items-center justify-center bg-gray-950/90"
         role="dialog"
@@ -80,11 +83,16 @@ export function CalendarModal({ roundHistory, currentRound, onClose }: CalendarM
                 ? summary.newSlaCount - (prevSummary?.newSlaCount ?? 0)
                 : 0;
 
-              // TODO-0020 (#13): clicking a completed day should open a per-day round detail flyout
+              const isCompleted = !isCurrent && !isFuture && summary !== undefined;
 
               return (
                 <div
                   key={round}
+                  role={isCompleted ? 'button' : undefined}
+                  tabIndex={isCompleted ? 0 : undefined}
+                  aria-label={isCompleted ? `View Round ${round} P&L` : undefined}
+                  onClick={isCompleted ? () => { setSelectedSummary(summary); } : undefined}
+                  onKeyDown={isCompleted ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSummary(summary); } } : undefined}
                   className={[
                     'rounded p-1.5 min-h-[3.5rem] flex flex-col gap-0.5 border',
                     isCurrent
@@ -92,6 +100,7 @@ export function CalendarModal({ roundHistory, currentRound, onClose }: CalendarM
                       : isFuture
                       ? 'border-gray-800 bg-transparent'
                       : 'border-gray-800 bg-gray-900/60',
+                    isCompleted ? 'cursor-pointer hover:border-gray-600 hover:bg-gray-800/60 transition-colors' : '',
                   ].join(' ')}
                 >
                   <span
@@ -152,5 +161,12 @@ export function CalendarModal({ roundHistory, currentRound, onClose }: CalendarM
         </div>
       </div>
     </FocusTrap>
+    {selectedSummary && (
+      <ProfitLossPanel
+        summary={selectedSummary}
+        onClose={() => setSelectedSummary(null)}
+      />
+    )}
+    </>
   );
 }
