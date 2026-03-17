@@ -19,7 +19,7 @@ Read these files in full before any balance discussion:
 | File | What it contains |
 |---|---|
 | `packages/game-core/src/types.ts` | All game economy constants (`STARTING_BUDGET`, `BANKRUPT_THRESHOLD`, `MAX_SLA_FAILURES`, `MAX_ROUNDS`, `HAND_SIZE`, draw counts, `PERIOD_SLOT_COUNTS`, etc.) |
-| `packages/game-core/src/deck.ts` | `DEFAULT_TRAFFIC_DECK`, `DEFAULT_EVENT_DECK`, `DEFAULT_ACTION_DECK` — canonical deck compositions with `templateId` and `count` for every card |
+| `packages/game-core/src/deck.ts` | `FALLBACK_TRAFFIC_DECK`, `FALLBACK_EVENT_DECK`, `FALLBACK_ACTION_DECK` — canonical deck compositions with `templateId` and `count` for every card |
 | `packages/game-core/src/data/traffic/` | One `*Card.ts` file per traffic card — `revenue`, `description`, any `onPickUp`/`onPlace` hooks |
 | `packages/game-core/src/data/events/` | One `*Card.ts` file per event card — `label`, `description`, full `onCrisis` body |
 | `packages/game-core/src/data/actions/` | One `*Card.ts` file per action card — `cost`, `allowedOnWeekend`, `validDropZones`, full `apply` body |
@@ -127,7 +127,7 @@ Zero-cost action cards fundamentally change hand economics. Check the current de
 
 ### 5 — Deck count affects draw frequency
 
-Deck composition is the authoritative source in `DEFAULT_TRAFFIC_DECK`, `DEFAULT_EVENT_DECK`, `DEFAULT_ACTION_DECK` in `deck.ts`. Adding copies increases draw probability proportionally to `new_count / new_total`.
+Deck composition is the authoritative source in `FALLBACK_TRAFFIC_DECK`, `FALLBACK_EVENT_DECK`, `FALLBACK_ACTION_DECK` in `deck.ts`. Adding copies increases draw probability proportionally to `new_count / new_total`.
 
 General guidance for deck counts:
 - Rare, game-changing card: 1–2 copies
@@ -138,7 +138,7 @@ Never add a card at a very high count without reason — it dilutes interesting 
 
 ### 6 — SLA pressure is the tension dial
 
-Read the `onCrisis` bodies of all event cards to understand the current SLA pressure landscape. Events that spawn traffic or issue tickets create pressure; events with no effect or beneficial effects (like revenue boosts) relieve it. The ratio of pressure-relief to pressure-adding events in `DEFAULT_EVENT_DECK` should prevent the game from feeling relentless.
+Read the `onCrisis` bodies of all event cards to understand the current SLA pressure landscape. Events that spawn traffic or issue tickets create pressure; events with no effect or beneficial effects (like revenue boosts) relieve it. The ratio of pressure-relief to pressure-adding events in `FALLBACK_EVENT_DECK` should prevent the game from feeling relentless.
 
 When adding a new pressure-adding event, consider whether a corresponding mitigation card or relief event is needed to keep the dial in balance.
 
@@ -151,13 +151,13 @@ Weekend rounds use a smaller traffic draw range (read `MIN/MAX_WEEKEND_TRAFFIC_D
 ## Common Balancing Questions
 
 **Q: How do I find the strongest and weakest traffic cards?**
-Read all `*Card.ts` files in `packages/game-core/src/data/traffic/` and sort by `revenue`. Cross-reference with `count` in `DEFAULT_TRAFFIC_DECK` to see frequency.
+Read all `*Card.ts` files in `packages/game-core/src/data/traffic/` and sort by `revenue`. Cross-reference with `count` in `FALLBACK_TRAFFIC_DECK` to see frequency.
 
 **Q: How do I assess whether a new event penalty is too large?**
 Read all existing event `onCrisis` bodies. Find the current largest budget-hit and the current most disruptive SLA-threat event. A new penalty should be clearly comparable to (or smaller than) one of those existing events, or it needs a strong mitigation story.
 
 **Q: How do I assess the total action card economy?**
-Sum all `cost × count` entries in `DEFAULT_ACTION_DECK` to get the total cost mass available in one full deck cycle. Compare to total expected revenue from one deck cycle of traffic cards (sum `revenue × count` in `DEFAULT_TRAFFIC_DECK`). Revenue mass should substantially exceed cost mass.
+Sum all `cost × count` entries in `FALLBACK_ACTION_DECK` to get the total cost mass available in one full deck cycle. Compare to total expected revenue from one deck cycle of traffic cards (sum `revenue × count` in `FALLBACK_TRAFFIC_DECK`). Revenue mass should substantially exceed cost mass.
 
 **Q: How many copies of a new card should go in the deck?**
 Follow principle 5 above, and compare against existing cards of similar power level in `deck.ts`.

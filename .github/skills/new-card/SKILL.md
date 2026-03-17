@@ -18,7 +18,7 @@ Produces a fully working, tested, and rendered card: TypeScript class, deck regi
 
 Read these files before starting — they define the authoritative types and patterns:
 - `packages/game-core/src/types.ts` — `TrafficCard`, `EventCard`, `ActionCard` base classes and `GameContext`
-- `packages/game-core/src/deck.ts` — `DEFAULT_TRAFFIC_DECK`, `DEFAULT_EVENT_DECK`, `DEFAULT_ACTION_DECK`
+- `packages/game-core/src/deck.ts` — `FALLBACK_TRAFFIC_DECK`, `FALLBACK_EVENT_DECK`, `FALLBACK_ACTION_DECK`
 - `packages/game-core/src/data/<type>/index.ts` — card registries and `*_CARDS` arrays
 - An existing card of the same type (pick the most similar one)
 
@@ -34,7 +34,7 @@ Before writing any code, resolve all five design fields:
 | `name` | Human-readable, noun phrase | Human-readable, noun phrase | Human-readable, verb phrase |
 | `description` | What the traffic is / bandwidth flavor | What the incident does and when it fires | What the player does and the mechanical outcome |
 | Effect | `revenue` | `onCrisis()` body: spawns traffic, deducts budget, or issues a ticket | `apply()` body and valid drop zones |
-| Deck composition | How many copies go in `DEFAULT_TRAFFIC_DECK` | How many copies in `DEFAULT_EVENT_DECK` | How many copies in `DEFAULT_ACTION_DECK` + cost |
+| Deck composition | How many copies go in `FALLBACK_TRAFFIC_DECK` | How many copies in `FALLBACK_EVENT_DECK` | How many copies in `FALLBACK_ACTION_DECK` + cost |
 
 **`templateId` format rules:**
 - Prefix matches card type: `traffic-`, `event-`, `action-`
@@ -189,15 +189,15 @@ export const TRAFFIC_CARDS: TrafficCard[] = [
 
 Then open `packages/game-core/src/deck.ts` and add an entry to `DEFAULT_<TYPE>_DECK`:
 ```ts
-export const DEFAULT_TRAFFIC_DECK = [
+export const FALLBACK_TRAFFIC_DECK = [
   // ... existing ...
   { templateId: '<templateId>', count: <N> },
 ];
 ```
 
-For **action** cards — add to **both** `ACTION_CARDS` and `DEFAULT_ACTION_DECK` in the same way.
+For **action** cards — add to **both** `ACTION_CARDS` and `FALLBACK_ACTION_DECK` in the same way.
 
-**Spawned-only traffic cards** (cards created by events, never drawn): register in `TRAFFIC_CARD_REGISTRY` for save/load, but do **not** add to `TRAFFIC_CARDS` or `DEFAULT_TRAFFIC_DECK`.
+**Spawned-only traffic cards** (cards created by events, never drawn): register in `TRAFFIC_CARD_REGISTRY` for save/load, but do **not** add to `TRAFFIC_CARDS` or `FALLBACK_TRAFFIC_DECK`.
 
 ---
 
