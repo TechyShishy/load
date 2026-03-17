@@ -16,33 +16,40 @@ const iotCard = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-iot-burst')!
 const cloudCard = TRAFFIC_CARDS.find((c) => c.templateId === 'traffic-cloud-backup')!;
 
 describe('resolveRound', () => {
-  it('budgetDelta reflects all pending accumulators; does not modify budget', () => {
-    const ctx = safeContext('test-seed', { activePhase: PhaseId.Resolution, pendingRevenue: iotCard.revenue });
+  it('budgetDelta sums revenue ledger entries; does not modify budget', () => {
+    const ctx = safeContext('test-seed', {
+      activePhase: PhaseId.Resolution,
+      pendingLedger: [{ kind: 'traffic-revenue', amount: iotCard.revenue, label: 'IoT' }],
+    });
     const { context, summary } = resolveRound(ctx);
     expect(context.budget).toBe(500_000); // budget not modified during resolveRound
     expect(summary.budgetDelta).toBe(iotCard.revenue);
   });
 
-  it('subtracts pendingActionSpend from budgetDelta and resets it to 0', () => {
+  it('subtracts action-spend ledger entries from budgetDelta', () => {
     const ctx = safeContext('test-seed', {
       activePhase: PhaseId.Resolution,
-      pendingRevenue: 10_000,
-      pendingActionSpend: 25_000,
+      pendingLedger: [
+        { kind: 'traffic-revenue', amount: 10_000, label: 'Traffic' },
+        { kind: 'action-spend', amount: 25_000, label: 'Card' },
+      ],
     });
     const { summary, context } = resolveRound(ctx);
     expect(summary.budgetDelta).toBe(-15_000);
-    expect(context.pendingActionSpend).toBe(0);
+    expect(context.pendingLedger).toHaveLength(0);
   });
 
-  it('subtracts pendingCrisisPenalty from budgetDelta and resets it to 0', () => {
+  it('subtracts crisis-penalty ledger entries from budgetDelta', () => {
     const ctx = safeContext('test-seed', {
       activePhase: PhaseId.Resolution,
-      pendingRevenue: 20_000,
-      pendingCrisisPenalty: 15_000,
+      pendingLedger: [
+        { kind: 'traffic-revenue', amount: 20_000, label: 'Traffic' },
+        { kind: 'crisis-penalty', amount: 15_000, label: 'Event' },
+      ],
     });
     const { summary, context } = resolveRound(ctx);
     expect(summary.budgetDelta).toBe(5_000);
-    expect(context.pendingCrisisPenalty).toBe(0);
+    expect(context.pendingLedger).toHaveLength(0);
   });
 
   it('resolvedCount captures all slot cards; failedCount and slaCount reflect slot-card resolution', () => {
@@ -55,10 +62,13 @@ describe('resolveRound', () => {
     expect(context.slaCount).toBe(0);
   });
 
-  it('resets pendingRevenue to 0 after resolution', () => {
-    const ctx = safeContext('test-seed', { activePhase: PhaseId.Resolution, pendingRevenue: 12_000 });
+  it('resets pendingLedger to [] after resolution', () => {
+    const ctx = safeContext('test-seed', {
+      activePhase: PhaseId.Resolution,
+      pendingLedger: [{ kind: 'traffic-revenue', amount: 12_000, label: 'Traffic' }],
+    });
     const { context } = resolveRound(ctx);
-    expect(context.pendingRevenue).toBe(0);
+    expect(context.pendingLedger).toHaveLength(0);
   });
 
   it('overload slots are swept: each adds 1 SLA failure and cards go to trafficDiscardOrder', () => {
@@ -115,7 +125,10 @@ describe('resolveRound', () => {
   });
 
   it('populates lastRoundSummary', () => {
-    const base = safeContext('test-seed', { activePhase: PhaseId.Resolution, pendingRevenue: cloudCard.revenue });
+    const base = safeContext('test-seed', {
+      activePhase: PhaseId.Resolution,
+      pendingLedger: [{ kind: 'traffic-revenue', amount: cloudCard.revenue, label: 'Cloud' }],
+    });
     const ctx = ctxWithCardOnSlot(cloudCard, Period.Morning, 0, base);
     const { summary } = resolveRound(ctx);
     expect(summary.resolvedCount).toBe(1);

@@ -29,6 +29,7 @@ export enum CardType {
   Traffic = 'Traffic',
   Event = 'Event',
   Action = 'Action',
+  Vendor = 'Vendor',
 }
 
 export enum LoseReason {
@@ -50,7 +51,7 @@ export interface TrafficSlotPosition {
   slotType: SlotType;
 }
 
-export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'ticket' | 'board';
+export type DropZoneTarget = 'period' | 'slot' | 'occupied-slot' | 'track' | 'ticket' | 'board' | 'gear';
 
 // ─── Card Definitions ─────────────────────────────────────────────────────────
 
@@ -157,7 +158,56 @@ export abstract class ActionCard {
   ): GameContext;
 }
 
-export type Card = TrafficCard | EventCard | ActionCard;
+/**
+ * Base class for all vendor cards.
+ * Vendor cards are played from hand to a VendorSlot in the Gear panel.
+ * Once slotted they produce persistent effects each round until the run ends.
+ * Serialized form: { templateId, instanceId }.
+ */
+export abstract class VendorCard {
+  abstract readonly templateId: string;
+  abstract readonly id: string;
+  abstract readonly name: string;
+  abstract readonly cost: number;
+  abstract readonly description: string;
+  readonly flavorText?: string;
+  readonly type = CardType.Vendor as const;
+
+  /**
+   * Apply this vendor's persistent effect at the end of each resolution phase.
+   * Called by resolveRound for every occupied vendor slot.
+   *
+   * Contract: any change to `ctx.budget` MUST be accompanied by a corresponding
+   * `'vendor-revenue'` ledger entry appended to `ctx.pendingLedger`. Direct
+   * budget mutation without a ledger entry will not appear in the round P&L
+   * summary (`RoundSummary.budgetDelta`) and will silently mismatch the display.
+   *
+   * Fields that must NOT be mutated (each corrupts game state for a different
+   * reason — the machine does not guard against vendor-hook tampering):
+   * - `round`: propagates into performEnd's round increment, advancing the round
+   *   counter by the wrong amount.
+   * - `activePhase`: overridden to PhaseId.Resolution by the machine immediately
+   *   after resolveRound returns; changes are ignored.
+   * - `handOrder`, `playedThisRoundOrder`: propagate into performEnd's hand-draw
+   *   logic; changes corrupt the next hand.
+   *
+   * SLA forgiveness constraint: `slaForgivenessThisRound` is consumed and the
+   * SLA accounting is finalised BEFORE vendor `onResolve` hooks run.
+   * Setting `slaForgivenessThisRound` here has no effect on the current round —
+   * it is explicitly reset to 0 in the returned context regardless. If your
+   * vendor card needs to forgive SLA failures, grant forgiveness in `onCrisis`
+   * (which runs before SLA accounting) instead.
+   */
+  abstract onResolve(ctx: GameContext): GameContext;
+
+  /**
+   * Optional: apply an effect during the crisis phase.
+   * Called by processCrisis for every occupied vendor slot.
+   */
+  onCrisis?(ctx: GameContext): GameContext;
+}
+
+export type Card = TrafficCard | EventCard | ActionCard | VendorCard;
 
 // ─── Contract types ───────────────────────────────────────────────────────────
 
@@ -195,6 +245,12 @@ export interface SerializedCard {
   readonly instanceId: string;
 }
 
+/** Serialized form of a VendorSlot — card is reduced to { templateId, instanceId } | null. */
+export interface SerializedVendorSlot {
+  readonly index: number;
+  readonly card: SerializedCard | null;
+}
+
 /** GameContext shape as stored in JSON. */
 export interface SerializedGameContext {
   budget: number;
@@ -229,18 +285,13 @@ export interface SerializedGameContext {
   spawnedQueueOrder: string[];
   /** Permanent registry of all ever-spawned traffic card IDs (not drawn from the deck). */
   spawnedTrafficIds: string[];
-  vendorSlots: VendorSlot[];
+  vendorSlots: SerializedVendorSlot[];
   mitigatedEventIds: string[];
   activePhase: PhaseId;
   lastRoundSummary: RoundSummary | null;
   /** Ordered history of all completed round summaries, oldest first. */
   roundHistory: RoundSummary[];
   loseReason: LoseReason | null;
-  pendingRevenue: number;
-  /** Cumulative cost of action cards played this round. Reset by resolveRound. */
-  pendingActionSpend: number;
-  /** Cumulative budget penalties applied by crisis events this round. Reset by resolveRound. */
-  pendingCrisisPenalty: number;
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
   skipNextTrafficDraw: boolean;
@@ -284,10 +335,9 @@ export interface TrackSlot {
   tickets: EventCard[];
 }
 
-// TODO-0003 (#27): implement vendor mechanics (Vendor card purchasing, slot bonuses, etc.)
 export interface VendorSlot {
   readonly index: number;
-  card: null; // Vendor cards excluded from MVP
+  card: VendorCard | null;
 }
 
 // ─── Draw Log ─────────────────────────────────────────────────────────────────
@@ -367,8 +417,7 @@ export interface GameContext {
    */
   spawnedTrafficIds: string[];
 
-  // ── Vendor placeholder slots ─────────────────────────────────────────────────
-  /** TODO-0004 (#27): populate with vendor-mechanics effects once Vendor cards are implemented */
+  // ── Vendor slots ─────────────────────────────────────────────────────────────
   vendorSlots: VendorSlot[];
 
   /** Action cards that successfully mitigated a DDoS event this round */
@@ -381,12 +430,6 @@ export interface GameContext {
   roundHistory: RoundSummary[];
   /** Cause of game loss */
   loseReason: LoseReason | null;
-  /** Revenue collected by traffic card removals during the current round. */
-  pendingRevenue: number;
-  /** Cumulative cost of action cards played this round. Reset by resolveRound. */
-  pendingActionSpend: number;
-  /** Cumulative budget penalties applied by crisis events this round. Reset by resolveRound. */
-  pendingCrisisPenalty: number;
   /** Seed used to derive per-round RNG — enables deterministic replays. */
   seed: string;
   /** When true, the next round's traffic draw is skipped (AWS Outage carry-over effect). */
@@ -406,7 +449,9 @@ export interface GameContext {
 export type LedgerEntryKind =
   | 'traffic-revenue'
   | 'ticket-revenue'
+  | 'vendor-revenue'
   | 'action-spend'
+  | 'vendor-spend'
   | 'crisis-penalty';
 
 export interface LedgerEntry {
@@ -443,6 +488,8 @@ export const MAX_ROUNDS = 28;
 export const BANKRUPT_THRESHOLD = -100_000;
 export const MAX_SLA_FAILURES = 3;
 export const HAND_SIZE = 7;
+/** Number of gear slots that can hold a VendorCard. Equal to the length of GameContext.vendorSlots. */
+export const VENDOR_SLOT_COUNT = 4;
 export const MIN_WEEKDAY_TRAFFIC_DRAW = 1;
 export const MAX_WEEKDAY_TRAFFIC_DRAW = 6;
 export const WEEKDAY_EVENT_DRAW = 1;

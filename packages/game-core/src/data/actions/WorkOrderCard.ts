@@ -81,7 +81,6 @@ export class WorkOrderCard extends ActionCard {
         },
         eventDiscardOrder: [...context.eventDiscardOrder, targetId],
         budget: context.budget + revenue,
-        pendingRevenue: context.pendingRevenue + revenue,
         ...(revenue > 0 ? {
           pendingLedger: [
             ...context.pendingLedger,

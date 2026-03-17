@@ -39,10 +39,12 @@ describe('playActionCard', () => {
     expect(updated.budget).toBe(500_000 - nullRoute.cost);
   });
 
-  it('increments pendingActionSpend by card cost', () => {
+  it('appends an action-spend ledger entry by card cost', () => {
     const ctx = makeCtx();
     const updated = playActionCard(ctx, nullRoute);
-    expect(updated.pendingActionSpend).toBe(nullRoute.cost);
+    expect(updated.pendingLedger).toContainEqual(
+      expect.objectContaining({ kind: 'action-spend', amount: nullRoute.cost }),
+    );
   });
 
   it('removes the card from hand', () => {
@@ -82,7 +84,6 @@ describe('playActionCard', () => {
     const ctx = ctxWithCardOnSlot(trafficCard, Period.Morning, 0, base);
     const updated = playActionCard(ctx, trafficPrio, undefined, trafficCard.id);
     expect(updated.budget).toBe(500_000 - trafficPrio.cost + trafficCard.revenue);
-    expect(updated.pendingRevenue).toBe(trafficCard.revenue);
   });
 
   it('RemoveTrafficCard is a no-op when no targetTrafficCardId is given', () => {
@@ -231,10 +232,12 @@ describe('processCrisis', () => {
     expect(context.budget).toBe(500_000 - 15_000);
   });
 
-  it('accumulates pendingCrisisPenalty from event budget deductions', () => {
+  it('appends a crisis-penalty ledger entry from event budget deductions', () => {
     const ctx = ctxWithPendingEvents([activationEvent], safeContext('test-seed', { activePhase: PhaseId.Crisis }));
     const { context } = processCrisis(ctx);
-    expect(context.pendingCrisisPenalty).toBe(15_000);
+    expect(context.pendingLedger).toContainEqual(
+      expect.objectContaining({ kind: 'crisis-penalty', amount: 15_000 }),
+    );
   });
 
   it('issues a Projects ticket when 5G Activation is unmitigated', () => {
@@ -326,7 +329,6 @@ describe('Work Order multi-step ticket mechanic', () => {
     ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
     // Each play costs $5k; the 3rd play clears the ticket and credits $60k to budget.
-    expect(ctx.pendingRevenue).toBe(60_000);
     expect(ctx.budget).toBe(500_000 - 3 * 5_000 + 60_000);
   });
 
@@ -347,7 +349,7 @@ describe('Work Order multi-step ticket mechanic', () => {
     ctx = makeWorkOrderInHand('em-c', ctx);
     ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
-    expect(ctx.pendingRevenue).toBe(54_000);
+    expect(ctx.budget).toBe(500_000 - 3 * 5_000 + 54_000);
   });
 
   it('clamps clearRevenue to 0 when ticket is older than clearRevenue / revenueDecayPerRound rounds', () => {
@@ -367,7 +369,7 @@ describe('Work Order multi-step ticket mechanic', () => {
     ctx = makeWorkOrderInHand('em-z', ctx);
     ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
-    expect(ctx.pendingRevenue).toBe(0);
+    expect(ctx.budget).toBe(500_000 - 3 * 5_000); // revenue = 0; only action-spend deducted
   });
 
   it('preserves a second ticket on the same track when the first is worked', () => {
@@ -402,7 +404,7 @@ describe('Work Order multi-step ticket mechanic', () => {
     ctx = makeWorkOrderInHand('em-b3', ctx);
     ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
-    expect(ctx.pendingRevenue).toBe(90_000);
+    expect(ctx.budget).toBe(500_000 - 3 * 5_000 + 90_000);
   });
 
   it('fallback (no targetEventId) picks the first ticket on BreakFix when both BreakFix and Projects have tickets', () => {

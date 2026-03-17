@@ -9,6 +9,7 @@ export {
   EventCard,
   TrafficCard,
   ActionCard,
+  VendorCard,
   STARTING_BUDGET,
   MAX_ROUNDS,
   BANKRUPT_THRESHOLD,
@@ -39,6 +40,7 @@ export type {
   TimeSlotLayout,
   TrackSlot,
   VendorSlot,
+  SerializedVendorSlot,
   GameContext,
   LedgerEntry,
   LedgerEntryKind,
@@ -65,7 +67,10 @@ export type { GameEvent } from './machine.js';
 export {
   TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY,
   EVENT_CARDS, EVENT_CARD_REGISTRY,
-  ACTION_CARDS, ACTION_CARD_REGISTRY,  BUILT_IN_CONTRACTS, STANDARD_CONTRACT, LOCAL_ISP_CONTRACT,} from './data/index.js';
+  ACTION_CARDS, ACTION_CARD_REGISTRY,
+  VENDOR_CARDS, VENDOR_CARD_REGISTRY,
+  BUILT_IN_CONTRACTS, STANDARD_CONTRACT, LOCAL_ISP_CONTRACT,
+} from './data/index.js';
 
 // ── Deck constants & utilities ───────────────────────────────────────────────
 export { FALLBACK_ACTION_DECK, FALLBACK_TRAFFIC_DECK, FALLBACK_EVENT_DECK, MIN_DECK_SIZE, validateDeckSpec } from './deck.js';

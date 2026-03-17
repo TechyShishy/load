@@ -63,7 +63,6 @@ export class TrafficPrioritizationCard extends ActionCard {
       context = {
         ...context,
         budget: context.budget + boostedRevenue,
-        pendingRevenue: context.pendingRevenue + boostedRevenue,
         pendingLedger: [
           ...context.pendingLedger,
           { kind: 'traffic-revenue', amount: boostedRevenue, label: (removedCard as { name?: string }).name ?? 'Traffic' } satisfies LedgerEntry,

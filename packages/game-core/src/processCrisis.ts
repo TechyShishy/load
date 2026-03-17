@@ -32,7 +32,6 @@ export function playActionCard(
     return {
       ...ctx,
       budget: ctx.budget - card.cost,
-      pendingActionSpend: ctx.pendingActionSpend + card.cost,
       ...(card.cost > 0 ? {
         pendingLedger: [
           ...ctx.pendingLedger,
@@ -80,7 +79,6 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     ...context,
     eventDiscardOrder: [...context.eventDiscardOrder, ...eventsToDiscard],
     pendingEventsOrder: [],
-    pendingCrisisPenalty: context.pendingCrisisPenalty + penaltiesApplied,
   };
 
   return { context, penaltiesApplied };

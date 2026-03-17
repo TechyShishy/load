@@ -75,7 +75,10 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     (pos) => pos.slotType !== SlotType.Overloaded,
   ).length;
 
-  const budgetDelta = ctx.pendingRevenue - ctx.pendingActionSpend - ctx.pendingCrisisPenalty;
+  const budgetDelta = ctx.pendingLedger.reduce(
+    (sum, e) => sum + (e.kind === 'traffic-revenue' || e.kind === 'ticket-revenue' ? e.amount : -e.amount),
+    0,
+  );
 
   // Remove expired tickets from all tracking structures.
   const expiredSet = new Set(expiredTicketIds);
@@ -118,9 +121,6 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     eventDiscardOrder: [...ctx.eventDiscardOrder, ...expiredTicketIds],
     slaCount: newSlaCount,
     mitigatedEventIds: [],
-    pendingRevenue: 0,
-    pendingActionSpend: 0,
-    pendingCrisisPenalty: 0,
     pendingLedger: [],
     slaForgivenessThisRound: 0,
     lastRoundSummary: summary,

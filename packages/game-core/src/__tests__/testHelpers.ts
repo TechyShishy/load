@@ -17,9 +17,9 @@ import {
 // ─── Base context builder ─────────────────────────────────────────────────────
 
 type ScalarOverrides = Partial<Pick<GameContext,
-  'budget' | 'round' | 'slaCount' | 'slaLimit' | 'pendingRevenue' | 'seed' |
+  'budget' | 'round' | 'slaCount' | 'slaLimit' | 'seed' |
   'skipNextTrafficDraw' | 'revenueBoostMultiplier' | 'slaForgivenessThisRound' | 'activePhase' | 'mitigatedEventIds' |
-  'pendingActionSpend' | 'pendingCrisisPenalty' | 'pendingLedger'
+  'pendingLedger'
 >>;
 
 /**

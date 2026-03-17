@@ -1,9 +1,10 @@
 import {
-  type Card, type GameContext, type SerializedGameContext, type Track,
+  CardType, type Card, type GameContext, type SerializedGameContext, type SerializedVendorSlot, type Track, type VendorCard, type VendorSlot,
 } from './types.js';
 import { ACTION_CARD_REGISTRY } from './data/actions/index.js';
 import { EVENT_CARD_REGISTRY } from './data/events/index.js';
 import { TRAFFIC_CARD_REGISTRY } from './data/traffic/index.js';
+import { VENDOR_CARD_REGISTRY } from './data/vendors/index.js';
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -40,15 +41,17 @@ export function dehydrateContext(ctx: GameContext): SerializedGameContext {
     pendingEventsOrder: ctx.pendingEventsOrder,
     spawnedQueueOrder: ctx.spawnedQueueOrder,
     spawnedTrafficIds: ctx.spawnedTrafficIds,
-    vendorSlots: ctx.vendorSlots,
+    vendorSlots: ctx.vendorSlots.map((slot): SerializedVendorSlot => ({
+      index: slot.index,
+      card: slot.card !== null
+        ? { templateId: slot.card.templateId, instanceId: slot.card.id }
+        : null,
+    })),
     mitigatedEventIds: ctx.mitigatedEventIds,
     activePhase: ctx.activePhase,
     lastRoundSummary: ctx.lastRoundSummary,
     roundHistory: ctx.roundHistory,
     loseReason: ctx.loseReason,
-    pendingRevenue: ctx.pendingRevenue,
-    pendingActionSpend: ctx.pendingActionSpend,
-    pendingCrisisPenalty: ctx.pendingCrisisPenalty,
     pendingLedger: ctx.pendingLedger,
     seed: ctx.seed,
     skipNextTrafficDraw: ctx.skipNextTrafficDraw,
@@ -71,7 +74,20 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     if (actionCtor) { cardInstances[id] = new actionCtor(id); continue; }
     const eventCtor = EVENT_CARD_REGISTRY.get(templateId);
     if (eventCtor) { cardInstances[id] = new eventCtor(id); continue; }
+    const vendorCtor = VENDOR_CARD_REGISTRY.get(templateId);
+    if (vendorCtor) { cardInstances[id] = new vendorCtor(id); continue; }
     return null; // unknown templateId — save is stale
+  }
+
+  const hydratedVendorSlots: VendorSlot[] = [];
+  for (const slot of raw.vendorSlots) {
+    if (slot.card === null) {
+      hydratedVendorSlots.push({ index: slot.index, card: null });
+    } else {
+      const card = cardInstances[slot.card.instanceId];
+      if (card === undefined || card.type !== CardType.Vendor) return null;
+      hydratedVendorSlots.push({ index: slot.index, card: card as VendorCard });
+    }
   }
 
   return {
@@ -97,15 +113,12 @@ export function hydrateContext(raw: SerializedGameContext): GameContext | null {
     pendingEventsOrder: raw.pendingEventsOrder,
     spawnedQueueOrder: raw.spawnedQueueOrder,
     spawnedTrafficIds: raw.spawnedTrafficIds,
-    vendorSlots: raw.vendorSlots,
+    vendorSlots: hydratedVendorSlots,
     mitigatedEventIds: raw.mitigatedEventIds,
     activePhase: raw.activePhase,
     lastRoundSummary: raw.lastRoundSummary,
     roundHistory: raw.roundHistory ?? [],
     loseReason: raw.loseReason,
-    pendingRevenue: raw.pendingRevenue,
-    pendingActionSpend: raw.pendingActionSpend ?? 0,
-    pendingCrisisPenalty: raw.pendingCrisisPenalty ?? 0,
     pendingLedger: raw.pendingLedger ?? [],
     seed: raw.seed,
     skipNextTrafficDraw: raw.skipNextTrafficDraw,

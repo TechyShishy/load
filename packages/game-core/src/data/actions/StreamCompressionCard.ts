@@ -118,7 +118,6 @@ export class StreamCompressionCard extends ActionCard {
       context = {
         ...context,
         budget: context.budget + boostedRevenue,
-        pendingRevenue: context.pendingRevenue + boostedRevenue,
         pendingLedger: [
           ...context.pendingLedger,
           { kind: 'traffic-revenue', amount: boostedRevenue, label: `Stream Compression (×${removedCount})` } satisfies LedgerEntry,

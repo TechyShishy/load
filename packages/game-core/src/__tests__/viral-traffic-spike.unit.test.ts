@@ -78,7 +78,6 @@ describe('ViralTrafficSpikeCard — onPickUp', () => {
 
     const updated = playActionCard(ctx, trafficPrio, undefined, viral.id);
     expect(updated.budget).toBe(500_000 + viral.revenue);
-    expect(updated.pendingRevenue).toBe(viral.revenue);
   });
 
   it('spawns a copy immediately in the next period via Stream Compression', () => {

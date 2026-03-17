@@ -58,7 +58,6 @@ describe('StreamCompressionCard', () => {
 
     const expectedBudget = 500_000 - streamComp.cost + a.revenue + b.revenue;
     expect(updated.budget).toBe(expectedBudget);
-    expect(updated.pendingRevenue).toBe(a.revenue + b.revenue);
   });
 
   it('only removes the duplicated type when mixed types are present', () => {
@@ -165,7 +164,6 @@ describe('StreamCompressionCard', () => {
     expect(morningCards).toHaveLength(0);
     // Budget only decremented by cost; no revenue change
     expect(updated.budget).toBe(500_000 - streamComp.cost);
-    expect(updated.pendingRevenue).toBe(0);
   });
 
   it('is a no-op (other than cost) when targetPeriod is omitted', () => {
@@ -237,7 +235,6 @@ describe('revenueBoostMultiplier applied by StreamCompressionCard', () => {
     const updated = playActionCard(ctx, streamComp, undefined, undefined, Period.Morning);
     const expectedRevenue = Math.round((a.revenue + b.revenue) * 1.5);
     expect(updated.budget).toBe(500_000 - streamComp.cost + expectedRevenue);
-    expect(updated.pendingRevenue).toBe(expectedRevenue);
   });
 });
 
@@ -251,7 +248,6 @@ describe('revenueBoostMultiplier applied by TrafficPrioritizationCard', () => {
     const updated = playActionCard(ctx, trafficPrio, undefined, iot.id);
     const expectedRevenue = Math.round(iot.revenue * 1.5);
     expect(updated.budget).toBe(500_000 + expectedRevenue); // cost=0 for trafficPrio
-    expect(updated.pendingRevenue).toBe(expectedRevenue);
   });
 });
 
