@@ -30,12 +30,12 @@ export const SlotLayoutEntrySchema = z.object({
 });
 
 export const VendorSlotSchema = z.object({
-  index: z.number(),
-  card: z.null(),
+  index: z.number().int().min(0),
+  card: z.object({ templateId: z.string(), instanceId: z.string() }).nullable(),
 });
 
 export const LedgerEntrySchema = z.object({
-  kind: z.enum(['traffic-revenue', 'ticket-revenue', 'action-spend', 'vendor-spend', 'crisis-penalty']),
+  kind: z.enum(['traffic-revenue', 'ticket-revenue', 'vendor-revenue', 'action-spend', 'vendor-spend', 'crisis-penalty']),
   amount: z.number().min(0),
   label: z.string(),
 });

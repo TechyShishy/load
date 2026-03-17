@@ -75,8 +75,20 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     (pos) => pos.slotType !== SlotType.Overloaded,
   ).length;
 
-  const budgetDelta = ctx.pendingLedger.reduce(
-    (sum, e) => sum + (e.kind === 'traffic-revenue' || e.kind === 'ticket-revenue' ? e.amount : -e.amount),
+  // ── Vendor card persistent effects ───────────────────────────────────────────
+  // Runs after the full SLA-accounting and traffic sweep so vendors see the
+  // reconciled board state. Runs before budgetDelta is computed so any ledger
+  // entries appended by onResolve are captured in summary.ledger and included
+  // in the round P&L total.
+  let resolvedCtx = ctx;
+  for (const slot of ctx.vendorSlots) {
+    if (slot.card !== null) {
+      resolvedCtx = slot.card.onResolve(resolvedCtx);
+    }
+  }
+
+  const budgetDelta = resolvedCtx.pendingLedger.reduce(
+    (sum, e) => sum + (e.kind === 'traffic-revenue' || e.kind === 'ticket-revenue' || e.kind === 'vendor-revenue' ? e.amount : -e.amount),
     0,
   );
 
@@ -104,11 +116,11 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     forgivenCount,
     spawnedTrafficCount,
     expiredTicketCount,
-    ledger: ctx.pendingLedger,
+    ledger: resolvedCtx.pendingLedger,
   };
 
   const context: GameContext = {
-    ...ctx,
+    ...resolvedCtx,
     slotLayout,
     trafficDiscardOrder,
     trafficSlotPositions: newTrafficSlotPositions,
@@ -118,7 +130,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     ticketOrders: newTicketOrders,
     ticketProgress: newTicketProgress,
     ticketIssuedRound: newTicketIssuedRound,
-    eventDiscardOrder: [...ctx.eventDiscardOrder, ...expiredTicketIds],
+    eventDiscardOrder: [...resolvedCtx.eventDiscardOrder, ...expiredTicketIds],
     slaCount: newSlaCount,
     mitigatedEventIds: [],
     pendingLedger: [],

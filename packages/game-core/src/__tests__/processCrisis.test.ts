@@ -11,6 +11,8 @@ import {
   PhaseId,
   SlotType,
   Track,
+  VendorCard,
+  type GameContext,
 } from '../types.js';
 import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot, ctxWithPendingEvents } from './testHelpers.js';
 
@@ -432,3 +434,101 @@ describe('Work Order multi-step ticket mechanic', () => {
   });
 });
 
+// ─── Vendor onCrisis hooks ───────────────────────────────────────────────────
+
+class MockVendorCard extends VendorCard {
+  readonly templateId = 'vendor-mock';
+  readonly id: string;
+  readonly name = 'Mock Vendor';
+  readonly cost = 0;
+  readonly description = 'Test-only mock vendor';
+
+  constructor(id = 'vendor-mock-1') {
+    super();
+    this.id = id;
+  }
+
+  onResolve(ctx: GameContext): GameContext {
+    return ctx;
+  }
+}
+
+class MockVendorCardWithCrisis extends MockVendorCard {
+  override onCrisis(ctx: GameContext): GameContext {
+    return { ...ctx, budget: ctx.budget - 50 };
+  }
+}
+
+describe('vendor onCrisis hooks', () => {
+  it('empty vendor slots: no crash, context unchanged', () => {
+    const ctx = safeContext('test-seed', { budget: 500_000 });
+    const { context } = processCrisis(ctx);
+    expect(context.budget).toBe(500_000);
+  });
+
+  it('slot with onCrisis defined: called during crisis pass, budget mutation propagates', () => {
+    const mockCard = new MockVendorCardWithCrisis();
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => (s.index === 0 ? { ...s, card: mockCard } : s)),
+    };
+    const { context } = processCrisis(ctx);
+    expect(context.budget).toBe(499_950);
+  });
+
+  it('slot with onCrisis undefined (plain MockVendorCard): no crash', () => {
+    const mockCard = new MockVendorCard();
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => (s.index === 0 ? { ...s, card: mockCard } : s)),
+    };
+    const { context } = processCrisis(ctx);
+    expect(context.budget).toBe(500_000);
+  });
+
+  it('multiple occupied slots: all onCrisis calls fire and effects compose', () => {
+    const card0 = new MockVendorCardWithCrisis('vendor-0');
+    const card1 = new MockVendorCardWithCrisis('vendor-1');
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => {
+        if (s.index === 0) return { ...s, card: card0 };
+        if (s.index === 1) return { ...s, card: card1 };
+        return s;
+      }),
+    };
+    const { context } = processCrisis(ctx);
+    expect(context.budget).toBe(499_900);
+  });
+
+  it('onCrisis fires after event penalties (sees final post-crisis budget)', () => {
+    // 5G Activation deducts $15k before vendor hook fires.
+    const mockCard = new MockVendorCardWithCrisis();
+    const base = ctxWithPendingEvents(
+      [activationEvent],
+      safeContext('test-seed', { budget: 500_000, activePhase: PhaseId.Crisis }),
+    );
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => (s.index === 0 ? { ...s, card: mockCard } : s)),
+    };
+    const { context } = processCrisis(ctx);
+    // 500_000 - 15_000 (crisis penalty) - 50 (vendor onCrisis)
+    expect(context.budget).toBe(484_950);
+  });
+
+  it('vendor onCrisis cost does not inflate penaltiesApplied', () => {
+    const mockCard = new MockVendorCardWithCrisis();
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => (s.index === 0 ? { ...s, card: mockCard } : s)),
+    };
+    const { penaltiesApplied } = processCrisis(ctx);
+    // penaltiesApplied tracks event penalties only, not vendor effects
+    expect(penaltiesApplied).toBe(0);
+  });
+});

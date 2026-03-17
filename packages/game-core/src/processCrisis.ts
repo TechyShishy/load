@@ -81,6 +81,17 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     pendingEventsOrder: [],
   };
 
+  // ── Vendor card crisis hooks ─────────────────────────────────────────────────
+  // Called after all event penalties and discards are applied so vendor effects
+  // see the final post-crisis context. onCrisis is optional; slots that do not
+  // define it are safely skipped via optional method check.
+  const vendorSlotsSnapshot = context.vendorSlots;
+  for (const slot of vendorSlotsSnapshot) {
+    if (slot.card !== null && slot.card.onCrisis !== undefined) {
+      context = slot.card.onCrisis(context);
+    }
+  }
+
   return { context, penaltiesApplied };
 }
 

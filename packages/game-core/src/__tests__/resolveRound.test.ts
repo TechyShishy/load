@@ -9,6 +9,8 @@ import {
   PhaseId,
   SlotType,
   Track,
+  VendorCard,
+  type GameContext,
 } from '../types.js';
 import { safeContext, ctxWithCardOnSlot } from './testHelpers.js';
 
@@ -247,5 +249,106 @@ describe('checkWinCondition', () => {
   it('returns true when round >= MAX_ROUNDS even if budget < 0 (net-negative survival is still a win)', () => {
     const ctx = safeContext('test-seed', { round: MAX_ROUNDS, budget: -1 });
     expect(checkWinCondition(ctx)).toBe(true);
+  });
+});
+
+// ─── Vendor onResolve hooks ───────────────────────────────────────────────────
+
+class MockVendorCard extends VendorCard {
+  readonly templateId = 'vendor-mock';
+  readonly id: string;
+  readonly name = 'Mock Vendor';
+  readonly cost = 0;
+  readonly description = 'Test-only mock vendor';
+
+  constructor(id = 'vendor-mock-1') {
+    super();
+    this.id = id;
+  }
+
+  onResolve(ctx: GameContext): GameContext {
+    return {
+      ...ctx,
+      budget: ctx.budget + 100,
+      pendingLedger: [
+        ...ctx.pendingLedger,
+        { kind: 'vendor-revenue' as const, amount: 100, label: this.name },
+      ],
+    };
+  }
+}
+
+class MockVendorCardWithLedger extends VendorCard {
+  readonly templateId = 'vendor-mock-ledger';
+  readonly id: string;
+  readonly name = 'Mock Vendor Ledger';
+  readonly cost = 0;
+  readonly description = 'Test-only mock vendor that appends a ledger entry';
+
+  constructor(id = 'vendor-mock-ledger-1') {
+    super();
+    this.id = id;
+  }
+
+  onResolve(ctx: GameContext): GameContext {
+    return {
+      ...ctx,
+      budget: ctx.budget + 50,
+      pendingLedger: [
+        ...ctx.pendingLedger,
+        { kind: 'vendor-revenue' as const, amount: 50, label: 'Mock Vendor Bonus' },
+      ],
+    };
+  }
+}
+
+describe('vendor onResolve hooks', () => {
+  it('empty vendor slots: no crash, context budget unchanged', () => {
+    const ctx = safeContext('test-seed', { budget: 500_000 });
+    // All slots start with card: null in safeContext
+    const { context } = resolveRound(ctx);
+    expect(context.budget).toBe(500_000);
+  });
+
+  it('single occupied slot: onResolve called once, budget mutation propagates', () => {
+    const mockCard = new MockVendorCard();
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => (s.index === 0 ? { ...s, card: mockCard } : s)),
+    };
+    const { context } = resolveRound(ctx);
+    expect(context.budget).toBe(500_100);
+  });
+
+  it('multiple occupied slots: all onResolve calls fire and effects compose', () => {
+    const card0 = new MockVendorCard('vendor-0');
+    const card1 = new MockVendorCard('vendor-1');
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => {
+        if (s.index === 0) return { ...s, card: card0 };
+        if (s.index === 1) return { ...s, card: card1 };
+        return s;
+      }),
+    };
+    const { context } = resolveRound(ctx);
+    expect(context.budget).toBe(500_200);
+  });
+
+  it('vendor ledger entry is captured in summary.ledger and budgetDelta', () => {
+    const mockCard = new MockVendorCardWithLedger();
+    const base = safeContext('test-seed', { budget: 500_000 });
+    const ctx = {
+      ...base,
+      vendorSlots: base.vendorSlots.map((s) => (s.index === 0 ? { ...s, card: mockCard } : s)),
+    };
+    const { context, summary } = resolveRound(ctx);
+    expect(context.budget).toBe(500_050);
+    expect(summary.ledger).toContainEqual(
+      expect.objectContaining({ kind: 'vendor-revenue', amount: 50, label: 'Mock Vendor Bonus' }),
+    );
+    expect(summary.budgetDelta).toBe(50);
   });
 });
