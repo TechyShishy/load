@@ -25,17 +25,19 @@ const KIND_META: Record<LedgerEntry['kind'], { label: string; color: string; sig
   'traffic-revenue': { label: 'Traffic', color: 'text-green-400', sign: 1 },
   'ticket-revenue':  { label: 'Ticket',  color: 'text-cyan-400',  sign: 1 },
   'action-spend':    { label: 'Action',  color: 'text-amber-400', sign: -1 },
+  'vendor-spend':    { label: 'Vendor',  color: 'text-purple-400', sign: -1 },
   'crisis-penalty':  { label: 'Crisis',  color: 'text-red-400',   sign: -1 },
 };
 
 export function ProfitLossPanel({ summary, onClose }: ProfitLossPanelProps) {
   // Aggregate ledger by kind.
   const totals = React.useMemo(() => {
-    const acc = { trafficRevenue: 0, ticketRevenue: 0, actionSpend: 0, crisisPenalty: 0 };
+    const acc = { trafficRevenue: 0, ticketRevenue: 0, actionSpend: 0, vendorSpend: 0, crisisPenalty: 0 };
     for (const entry of summary.ledger) {
       if (entry.kind === 'traffic-revenue') acc.trafficRevenue += entry.amount;
       else if (entry.kind === 'ticket-revenue') acc.ticketRevenue += entry.amount;
       else if (entry.kind === 'action-spend') acc.actionSpend += entry.amount;
+      else if (entry.kind === 'vendor-spend') acc.vendorSpend += entry.amount;
       else if (entry.kind === 'crisis-penalty') acc.crisisPenalty += entry.amount;
     }
     return acc;
@@ -93,6 +95,12 @@ export function ProfitLossPanel({ summary, onClose }: ProfitLossPanelProps) {
                   <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Action spend</div>
                   <div className="text-sm font-mono font-bold text-amber-400">
                     {`-${formatAmount(totals.actionSpend)}`}
+                  </div>
+                </div>
+                <div className="rounded bg-gray-900 border border-gray-800 p-2">
+                  <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Vendor spend</div>
+                  <div className="text-sm font-mono font-bold text-purple-400">
+                    {`-${formatAmount(totals.vendorSpend)}`}
                   </div>
                 </div>
                 <div className="rounded bg-gray-900 border border-gray-800 p-2">

@@ -1,4 +1,4 @@
-import { type ActionCard, type GameContext, type LedgerEntry, type Period, type Track } from './types.js';
+import { type ActionCard, type GameContext, type LedgerEntry, type Period, type Track, type VendorCard } from './types.js';
 import { getPendingEvents } from './cardPositionViews.js';
 
 export interface CrisisResult {
@@ -82,5 +82,42 @@ export function processCrisis(ctx: GameContext): CrisisResult {
   };
 
   return { context, penaltiesApplied };
+}
+
+/**
+ * Play a vendor card from hand into a gear slot during the scheduling phase.
+ * Deducts the card's cost from budget and appends a 'vendor-spend' ledger entry
+ * when cost > 0 (zero-cost plays record no entry, matching action-spend behaviour).
+ * Returns the original context unchanged when any precondition fails — the
+ * machine guards are authoritative; this is a belt-and-suspenders fallback.
+ */
+export function playVendorCard(
+  ctx: GameContext,
+  card: VendorCard,
+  slotIndex: number,
+): GameContext {
+  if (!ctx.handOrder.includes(card.id)) return ctx;
+  const slot = ctx.vendorSlots[slotIndex];
+  if (slot == null || slot.card !== null) return ctx;
+  if (ctx.budget < card.cost) return ctx;
+
+  const newSlots = ctx.vendorSlots.map((s) =>
+    s.index === slotIndex ? { ...s, card } : s,
+  );
+
+  return {
+    ...ctx,
+    budget: ctx.budget - card.cost,
+    ...(card.cost > 0 ? {
+      pendingLedger: [
+        ...ctx.pendingLedger,
+        { kind: 'vendor-spend', amount: card.cost, label: card.name } satisfies LedgerEntry,
+      ],
+    } : {}),
+    handOrder: ctx.handOrder.filter((id) => id !== card.id),
+    vendorSlots: newSlots,
+    // Vendor cards do NOT enter playedThisRoundOrder or actionDiscardOrder —
+    // they remain in the slot for the duration of the run.
+  };
 }
 

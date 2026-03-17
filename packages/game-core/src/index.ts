@@ -75,6 +75,9 @@ export {
 // ── Deck constants & utilities ───────────────────────────────────────────────
 export { FALLBACK_ACTION_DECK, FALLBACK_TRAFFIC_DECK, FALLBACK_EVENT_DECK, MIN_DECK_SIZE, validateDeckSpec } from './deck.js';
 
+// ── Crisis / scheduling helpers ───────────────────────────────────────────────
+export { playVendorCard } from './processCrisis.js';
+
 // ── Card position view functions ──────────────────────────────────────────────
 export {
   getTrafficDeck,

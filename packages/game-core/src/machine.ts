@@ -5,7 +5,7 @@ import {
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
-  type ActionCard, type Card, type ContractDef, type DeckSpec, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard,
+  type ActionCard, type Card, type ContractDef, type DeckSpec, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard, type VendorCard,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';
 import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, shuffle } from './deck.js';
@@ -15,7 +15,7 @@ import {
   resetSlotLayout,
 } from './boardState.js';
 import { computeTrafficPlacements } from './autoFillTrafficSlots.js';
-import { playActionCard as applyPlayActionCard, processCrisis } from './processCrisis.js';
+import { playActionCard as applyPlayActionCard, playVendorCard as applyPlayVendorCard, processCrisis } from './processCrisis.js';
 import { checkLoseCondition, checkWinCondition, resolveRound } from './resolveRound.js';
 import { getPendingEvents } from './cardPositionViews.js';
 
@@ -89,6 +89,7 @@ export type GameEvent =
   | { type: 'ADVANCE' }
   | { type: 'DRAW_COMPLETE' }
   | { type: 'PLAY_ACTION'; card: ActionCard; targetEventId?: string; targetTrafficCardId?: string; targetPeriod?: Period; targetTrack?: Track }
+  | { type: 'PLAY_VENDOR'; card: VendorCard; slotIndex: number }
   | { type: 'RESET' };
 
 // ─── Machine ──────────────────────────────────────────────────────────────────
@@ -113,6 +114,18 @@ export const gameMachine = setup({
     isNotCrisisOnly: ({ event }) => {
       if (event.type !== 'PLAY_ACTION') return true;
       return event.card.crisisOnly !== true;
+    },
+    isVendorSlotEmpty: ({ context, event }) => {
+      if (event.type !== 'PLAY_VENDOR') return false;
+      return context.vendorSlots[event.slotIndex]?.card === null;
+    },
+    isVendorCardInHand: ({ context, event }) => {
+      if (event.type !== 'PLAY_VENDOR') return false;
+      return context.handOrder.includes(event.card.id);
+    },
+    canAffordVendor: ({ context, event }) => {
+      if (event.type !== 'PLAY_VENDOR') return false;
+      return context.budget >= event.card.cost;
     },
     isSavedScheduling: ({ context }) => context.activePhase === PhaseId.Scheduling,
     isSavedCrisis: ({ context }) => context.activePhase === PhaseId.Crisis,
@@ -342,6 +355,11 @@ export const gameMachine = setup({
       );
     }),
 
+    applyPlayVendor: assign(({ context, event }) => {
+      if (event.type !== 'PLAY_VENDOR') return context;
+      return applyPlayVendorCard(context, event.card, event.slotIndex);
+    }),
+
     markGameLost: assign(({ context }) => {
       const reason = checkLoseCondition(context);
       return {
@@ -393,6 +411,7 @@ export const gameMachine = setup({
     scheduling: {
       on: {
         PLAY_ACTION: { guard: 'isNotCrisisOnly', actions: 'applyPlayAction' },
+        PLAY_VENDOR: { guard: and(['isVendorSlotEmpty', 'isVendorCardInHand', 'canAffordVendor']), actions: 'applyPlayVendor' },
         ADVANCE: { target: 'crisis' },
       },
     },

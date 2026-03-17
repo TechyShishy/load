@@ -35,7 +35,7 @@ export const VendorSlotSchema = z.object({
 });
 
 export const LedgerEntrySchema = z.object({
-  kind: z.enum(['traffic-revenue', 'ticket-revenue', 'action-spend', 'crisis-penalty']),
+  kind: z.enum(['traffic-revenue', 'ticket-revenue', 'action-spend', 'vendor-spend', 'crisis-penalty']),
   amount: z.number().min(0),
   label: z.string(),
 });
