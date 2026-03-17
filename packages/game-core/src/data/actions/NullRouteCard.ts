@@ -6,7 +6,7 @@ export class NullRouteCard extends ActionCard {
   readonly name = 'Null Route';
   readonly cost = 25_000;
   readonly description =
-    'Mitigate 1 DDoS-type Event, cancelling its financial penalty and preventing the incident ticket from being filed.';
+    'Mitigate 1 DDoS Attack Event, preventing it from spawning one malicious traffic card into each of the four time periods.';
   override readonly flavorText = '/dev/tcp > /dev/null';
   readonly allowedOnWeekend = true;
   override readonly crisisOnly = true as const;
