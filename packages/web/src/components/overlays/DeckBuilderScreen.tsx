@@ -312,7 +312,7 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
                         data-flyout-interactive
                         onClick={() => adjust(card.templateId, 1)}
                         aria-label={`Add one ${card.name}`}
-                        // TODO-0016: cap this button by the player's owned count once card ownership is implemented
+                        // TODO-0016 (#22): cap this button by the player's owned count once card ownership is implemented
                         className="w-7 h-7 flex items-center justify-center rounded border border-purple-700 text-purple-300 hover:bg-purple-800 font-bold font-mono transition-colors"
                       >
                         +

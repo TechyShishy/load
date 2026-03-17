@@ -23,7 +23,7 @@ export const ACTION_CARD_REGISTRY = new Map<string, new (instanceId: string) => 
   ['action-traffic-prioritization', TrafficPrioritizationCard],
   ['action-bandwidth-upgrade', BandwidthUpgradeCard],
   ['action-null-route', NullRouteCard],
-  // TODO-0019: explicit test of the save-migration shim system — action-security-patch renamed to action-null-route.
+  // TODO-0019: explicit test of the save-migration shim — action-security-patch renamed to action-null-route.
   // Remove once save compatibility with pre-rename saves is no longer required.
   ['action-security-patch', NullRouteCard],
   ['action-datacenter-expansion', DataCenterExpansionCard],

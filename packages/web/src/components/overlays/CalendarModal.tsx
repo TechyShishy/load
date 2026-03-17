@@ -80,7 +80,7 @@ export function CalendarModal({ roundHistory, currentRound, onClose }: CalendarM
                 ? summary.newSlaCount - (prevSummary?.newSlaCount ?? 0)
                 : 0;
 
-              // TODO-0020: clicking a completed day should open a per-day round detail flyout
+              // TODO-0020 (#13): clicking a completed day should open a per-day round detail flyout
 
               return (
                 <div

@@ -1,4 +1,4 @@
-// TODO-0012: types.ts is growing large — consider splitting into domain-specific type files
+// TODO-0012 (#39): types.ts is growing large — consider splitting into domain-specific type files
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -282,7 +282,7 @@ export interface TrackSlot {
   tickets: EventCard[];
 }
 
-// TODO-0003: implement vendor mechanics (Vendor card purchasing, slot bonuses, etc.)
+// TODO-0003 (#27): implement vendor mechanics (Vendor card purchasing, slot bonuses, etc.)
 export interface VendorSlot {
   readonly index: number;
   card: null; // Vendor cards excluded from MVP
@@ -366,7 +366,7 @@ export interface GameContext {
   spawnedTrafficIds: string[];
 
   // ── Vendor placeholder slots ─────────────────────────────────────────────────
-  /** TODO-0004: populate with vendor-mechanics effects once Vendor cards are implemented */
+  /** TODO-0004 (#27): populate with vendor-mechanics effects once Vendor cards are implemented */
   vendorSlots: VendorSlot[];
 
   /** Action cards that successfully mitigated a DDoS event this round */

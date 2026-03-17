@@ -361,7 +361,7 @@ export const gameMachine = setup({
     resetGame: assign(({ context }) => {
       // Re-look up the contract by id so the reset preserves the contract's
       // fixed seed, custom action deck, and other spec fields.
-      // TODO-0017: resetGame loses any custom deckSpec the player configured via
+      // TODO-0017 (#37): resetGame loses any custom deckSpec the player configured via
       // the Deck Builder when the contract has no baked-in actionDeck. Store
       // deckSpec in GameContext and thread it through here once RESET is wired
       // to a UI "Play Again" element.

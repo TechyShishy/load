@@ -679,7 +679,7 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
   }
 
   // ── Gear block — stubbed 5th column ──────────────────────────────────────
-  // TODO-0010: implement Gear block mechanics
+  // TODO-0010 (#27): implement Gear block mechanics — part of vendor mechanics
   {
     const gearX = 20 + periodCols.length * colW;
     const gearBg = new Graphics();
@@ -1341,7 +1341,7 @@ export function GameCanvas({
         }
 
         // Ticker drives card fly-in animations each frame.
-        // TODO-0008: skip all pending animations immediately when the user clicks the canvas.
+        // TODO-0008 (#28): skip all pending animations immediately when the user clicks the canvas.
         const tickFn = (ticker: Ticker) => {
           const jobs = animJobsRef.current;
           const layer = animLayerRef.current;
@@ -1438,7 +1438,7 @@ export function GameCanvas({
   // Spawn card fly-in animations when a new draw log is received.
   // Note: on the very first render PixiJS may not be ready yet; the init
   // .then() callback handles that case by reading drawLogRef directly.
-  // TODO-0019: if reducedMotion flips false→true mid-flight, in-flight jobs
+  // TODO-0021: if reducedMotion flips false→true mid-flight, in-flight jobs
   // continue to completion and onCardArrived still fires. useDrawAnimationState
   // handles this correctly (machine still advances), but a brief animation flash
   // is visible during the round where the setting was toggled.
@@ -1492,7 +1492,7 @@ export function GameCanvas({
 
   if (initError) {
     return (
-      // TODO-0001: replace stub with a proper recovery/retry UI
+      // TODO-0001 (#33): replace stub with a proper recovery/retry UI
       <div className="flex h-full w-full items-center justify-center bg-red-900/80">
         <div className="text-center">
           <p className="text-lg font-bold text-red-200">Canvas failed to initialize</p>

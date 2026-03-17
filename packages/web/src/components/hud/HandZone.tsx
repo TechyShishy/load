@@ -277,7 +277,7 @@ function ActionCardView({ card, dragId, disabled, isExpanded, onActivate, onDeac
     }
   }, [isDragging, isExpanded, onDeactivate]);
 
-  // TODO-0009: Keyboard expand — pressing Enter/Space on a focused ActionCardView should open the
+  // TODO-0009 (#34): Keyboard expand — pressing Enter/Space on a focused ActionCardView should open the
   // ExpandedCardFlyout (DnD kit already spreads role="button" tabIndex={0}; add onKeyDown alongside onClick)
   // Allow flyout even when disabled (e.g. crisisOnly cards during scheduling) — drag is
   // separately blocked by passing disabled to useDraggable.

@@ -106,7 +106,7 @@ export class AudioManager implements IAudioManager {
     Howler.mute(muted);
   }
 
-  // TODO-0014: implement file-backed music when public/audio/music/ assets are added
+  // TODO-0014 (#41): implement file-backed music when public/audio/music/ assets are added
   startMusic(_trackId: string): void { /* no-op */ }
   stopMusic(): void { /* no-op */ }
   setMusicVolume(_volume: number): void { /* no-op until file-backed music is implemented */ }
