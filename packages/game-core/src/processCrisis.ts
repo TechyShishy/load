@@ -1,4 +1,4 @@
-import { type ActionCard, type GameContext, type Period, type Track } from './types.js';
+import { type ActionCard, type GameContext, type LedgerEntry, type Period, type Track } from './types.js';
 import { getPendingEvents } from './cardPositionViews.js';
 
 export interface CrisisResult {
@@ -33,6 +33,12 @@ export function playActionCard(
       ...ctx,
       budget: ctx.budget - card.cost,
       pendingActionSpend: ctx.pendingActionSpend + card.cost,
+      ...(card.cost > 0 ? {
+        pendingLedger: [
+          ...ctx.pendingLedger,
+          { kind: 'action-spend', amount: card.cost, label: card.name } satisfies LedgerEntry,
+        ],
+      } : {}),
       handOrder: ctx.handOrder.filter((id) => id !== card.id),
       playedThisRoundOrder: [...ctx.playedThisRoundOrder, card.id],
     };
@@ -52,7 +58,17 @@ export function processCrisis(ctx: GameContext): CrisisResult {
     const isMitigated = ctx.mitigatedEventIds.includes(event.id);
     const budgetBefore = context.budget;
     context = event.onCrisis(context, isMitigated);
-    penaltiesApplied += budgetBefore - context.budget;
+    const penalty = budgetBefore - context.budget;
+    penaltiesApplied += penalty;
+    if (penalty > 0) {
+      context = {
+        ...context,
+        pendingLedger: [
+          ...context.pendingLedger,
+          { kind: 'crisis-penalty', amount: penalty, label: event.name } satisfies LedgerEntry,
+        ],
+      };
+    }
   }
 
   // Events that issued a ticket during onCrisis are now in ticketOrders and

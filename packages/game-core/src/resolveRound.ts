@@ -101,6 +101,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     forgivenCount,
     spawnedTrafficCount,
     expiredTicketCount,
+    ledger: ctx.pendingLedger,
   };
 
   const context: GameContext = {
@@ -120,6 +121,7 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     pendingRevenue: 0,
     pendingActionSpend: 0,
     pendingCrisisPenalty: 0,
+    pendingLedger: [],
     slaForgivenessThisRound: 0,
     lastRoundSummary: summary,
   };

@@ -14,6 +14,7 @@ function makeSummary(round: number, overrides: Partial<RoundSummary> = {}): Roun
     forgivenCount: 0,
     spawnedTrafficCount: 0,
     expiredTicketCount: 0,
+    ledger: [],
     ...overrides,
   };
 }

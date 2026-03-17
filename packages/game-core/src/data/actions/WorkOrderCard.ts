@@ -1,4 +1,4 @@
-import { ActionCard, CardType, Period, Track, type GameContext } from '../../types.js';
+import { ActionCard, CardType, Period, Track, type GameContext, type LedgerEntry } from '../../types.js';
 
 export class WorkOrderCard extends ActionCard {
   readonly templateId = 'action-work-order';
@@ -80,7 +80,14 @@ export class WorkOrderCard extends ActionCard {
           [resolvedTrack]: (context.ticketOrders[resolvedTrack] ?? []).filter((id) => id !== targetId),
         },
         eventDiscardOrder: [...context.eventDiscardOrder, targetId],
+        budget: context.budget + revenue,
         pendingRevenue: context.pendingRevenue + revenue,
+        ...(revenue > 0 ? {
+          pendingLedger: [
+            ...context.pendingLedger,
+            { kind: 'ticket-revenue', amount: revenue, label: eventCard.name } satisfies LedgerEntry,
+          ],
+        } : {}),
         ticketProgress: newTicketProgress,
         ticketIssuedRound: newTicketIssuedRound,
       };

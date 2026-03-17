@@ -13,6 +13,7 @@ const EXAMPLE_SUMMARY: RoundSummary = {
   forgivenCount: 0,
   spawnedTrafficCount: 0,
   expiredTicketCount: 0,
+  ledger: [],
 };
 
 describe('roundHistory serialization', () => {

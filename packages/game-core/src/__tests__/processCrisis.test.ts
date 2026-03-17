@@ -325,9 +325,9 @@ describe('Work Order multi-step ticket mechanic', () => {
     ctx = makeWorkOrderInHand('em-3', ctx);
     ctx = playActionCard(ctx, em3, 'ticket-5g-test');
 
-    // Each play costs $5k; the 3rd play also adds $60k to pendingRevenue.
+    // Each play costs $5k; the 3rd play clears the ticket and credits $60k to budget.
     expect(ctx.pendingRevenue).toBe(60_000);
-    expect(ctx.budget).toBe(500_000 - 3 * 5_000);
+    expect(ctx.budget).toBe(500_000 - 3 * 5_000 + 60_000);
   });
 
   it('reduces clearRevenue by $3,000 per round of age', () => {

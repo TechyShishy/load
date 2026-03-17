@@ -77,6 +77,7 @@ export function createInitialContext(seed?: string, contract?: ContractDef, deck
     pendingRevenue: 0,
     pendingActionSpend: 0,
     pendingCrisisPenalty: 0,
+    pendingLedger: [],
     seed: resolvedSeed,
     skipNextTrafficDraw: false,
     revenueBoostMultiplier: 1,

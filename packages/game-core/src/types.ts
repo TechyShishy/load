@@ -248,6 +248,8 @@ export interface SerializedGameContext {
   revenueBoostMultiplier: number;
   /** Number of SLA failures to forgive during this round's resolution phase. Consumed and reset to 0 by resolveRound. */
   slaForgivenessThisRound: number;
+  /** Play-by-play ledger of financial events for the current round. Reset by resolveRound. */
+  pendingLedger: LedgerEntry[];
 
 }
 
@@ -393,8 +395,31 @@ export interface GameContext {
   revenueBoostMultiplier: number;
   /** Number of SLA failures to forgive during this round's resolution phase. Consumed and reset to 0 by resolveRound. */
   slaForgivenessThisRound: number;
+  /** Ledger entries accumulated during the current round. Reset to [] by resolveRound. */
+  pendingLedger: LedgerEntry[];
   /** Animation draw log — runtime only, not persisted. */
   drawLog: DrawLog | null;
+}
+
+// ─── Round ledger ────────────────────────────────────────────────────────────
+
+export type LedgerEntryKind =
+  | 'traffic-revenue'
+  | 'ticket-revenue'
+  | 'action-spend'
+  | 'crisis-penalty';
+
+export interface LedgerEntry {
+  /** Discriminator for the type of financial event. */
+  readonly kind: LedgerEntryKind;
+  /**
+   * Amount in dollars (always positive). Interpretation depends on `kind`:
+   * - revenue kinds: money gained
+   * - spend/penalty kinds: money spent or deducted
+   */
+  readonly amount: number;
+  /** Human-readable label for the source (card name, event name, etc.). */
+  readonly label: string;
 }
 
 export interface RoundSummary {
@@ -409,6 +434,8 @@ export interface RoundSummary {
   spawnedTrafficCount: number;
   /** Number of tickets that expired (clearRevenue hit $0) and auto-cleared this round, each costing 1 SLA. */
   expiredTicketCount: number;
+  /** Play-by-play ledger of all financial events that occurred this round. */
+  ledger: LedgerEntry[];
 }
 
 export const STARTING_BUDGET = 500_000;

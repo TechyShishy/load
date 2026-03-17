@@ -40,6 +40,8 @@ export type {
   TrackSlot,
   VendorSlot,
   GameContext,
+  LedgerEntry,
+  LedgerEntryKind,
   RoundSummary,
   DrawLog,
   DrawLogTrafficEntry,

@@ -16,6 +16,7 @@ import { HandZone, ActionCardPreview } from './hud/HandZone.js';
 import { WinScreen, LoseScreen } from './overlays/EndScreens.js';
 import { EventModal } from './overlays/EventModal.js';
 import { CalendarModal } from './overlays/CalendarModal.js';
+import { ProfitLossPanel } from './overlays/ProfitLossPanel.js';
 import { ErrorBoundary } from 'react-error-boundary';
 import { SoftErrorFallback } from './overlays/ErrorFallbacks.js';
 
@@ -44,7 +45,9 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<ActionCard | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isPnlOpen, setIsPnlOpen] = useState(false);
   useEffect(() => { if (isWon || isLost) setIsCalendarOpen(false); }, [isWon, isLost]);
+  useEffect(() => { if (isWon || isLost) setIsPnlOpen(false); }, [isWon, isLost]);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -185,6 +188,15 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
         <SLAMeter slaCount={context.slaCount} slaLimit={context.slaLimit} />
         <div className="flex-1" />
         <PhaseIndicator currentPhase={phase} round={context.round} onOpenCalendar={() => setIsCalendarOpen(true)} />
+        {phase === 'scheduling' && context.round > 1 && (
+          <button
+            onClick={() => setIsPnlOpen(true)}
+            aria-label="Open last round P&L"
+            className="text-xs font-mono px-2 py-1 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+          >
+            P&amp;L
+          </button>
+        )}
         <button
           onClick={onOpenSettings}
           aria-label="Open settings"
@@ -252,6 +264,13 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
           roundHistory={context.roundHistory}
           currentRound={context.round}
           onClose={() => setIsCalendarOpen(false)}
+        />
+      )}
+      {isPnlOpen && (
+        <ProfitLossPanel
+          lastRoundSummary={context.lastRoundSummary}
+          currentRound={context.round}
+          onClose={() => setIsPnlOpen(false)}
         />
       )}
     </div>

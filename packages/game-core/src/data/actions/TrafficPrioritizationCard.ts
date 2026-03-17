@@ -1,4 +1,4 @@
-import { ActionCard, Period, type GameContext } from '../../types.js';
+import { ActionCard, Period, type GameContext, type LedgerEntry } from '../../types.js';
 import { shiftTrafficSlotsAfterRemoval } from '../../boardState.js';
 
 export class TrafficPrioritizationCard extends ActionCard {
@@ -64,6 +64,10 @@ export class TrafficPrioritizationCard extends ActionCard {
         ...context,
         budget: context.budget + boostedRevenue,
         pendingRevenue: context.pendingRevenue + boostedRevenue,
+        pendingLedger: [
+          ...context.pendingLedger,
+          { kind: 'traffic-revenue', amount: boostedRevenue, label: (removedCard as { name?: string }).name ?? 'Traffic' } satisfies LedgerEntry,
+        ],
       };
     }
 

@@ -34,6 +34,12 @@ export const VendorSlotSchema = z.object({
   card: z.null(),
 });
 
+export const LedgerEntrySchema = z.object({
+  kind: z.enum(['traffic-revenue', 'ticket-revenue', 'action-spend', 'crisis-penalty']),
+  amount: z.number().min(0),
+  label: z.string(),
+});
+
 export const RoundSummarySchema = z.object({
   round: z.number(),
   budgetDelta: z.number(),
@@ -43,6 +49,7 @@ export const RoundSummarySchema = z.object({
   forgivenCount: z.number().default(0),
   spawnedTrafficCount: z.number(),
   expiredTicketCount: z.number().default(0),
+  ledger: z.array(LedgerEntrySchema).default([]),
 });
 
 // ─── SerializedGameContext Schema (= what lives in JSON storage) ──────────────
@@ -83,6 +90,7 @@ export const GameContextSchema = z.object({
   pendingRevenue: z.number(),
   pendingActionSpend: z.number().default(0),
   pendingCrisisPenalty: z.number().default(0),
+  pendingLedger: z.array(LedgerEntrySchema).default([]),
   seed: z.string(),
   skipNextTrafficDraw: z.boolean().default(false),
   revenueBoostMultiplier: z.number().default(1),
