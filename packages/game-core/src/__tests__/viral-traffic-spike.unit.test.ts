@@ -3,7 +3,7 @@ import { playActionCard } from '../processCrisis.js';
 import { ACTION_CARDS } from '../data/actions/index.js';
 import { TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY } from '../data/traffic/index.js';
 import { ViralTrafficSpikeCard } from '../data/traffic/ViralTrafficSpikeCard.js';
-import { DEFAULT_TRAFFIC_DECK } from '../deck.js';
+import { FALLBACK_TRAFFIC_DECK } from '../deck.js';
 import { getFilledTimeSlots } from '../cardPositionViews.js';
 import { Period, PhaseId, SlotType } from '../types.js';
 import { safeContext, ctxWithHandCardsFixedIds, ctxWithCardOnSlot } from './testHelpers.js';
@@ -46,8 +46,8 @@ describe('ViralTrafficSpikeCard — fields', () => {
     expect(instance.id).toBe('test-id');
   });
 
-  it('is present in DEFAULT_TRAFFIC_DECK with count 2', () => {
-    const entry = DEFAULT_TRAFFIC_DECK.find((e) => e.templateId === 'traffic-viral-spike');
+  it('is present in FALLBACK_TRAFFIC_DECK with count 2', () => {
+    const entry = FALLBACK_TRAFFIC_DECK.find((e) => e.templateId === 'traffic-viral-spike');
     expect(entry).toBeDefined();
     expect(entry!.count).toBe(2);
   });

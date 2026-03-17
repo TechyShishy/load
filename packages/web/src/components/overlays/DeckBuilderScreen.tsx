@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
-import { ACTION_CARDS, DEFAULT_ACTION_DECK, MIN_DECK_SIZE, validateDeckSpec } from '@load/game-core';
+import { ACTION_CARDS, FALLBACK_ACTION_DECK, MIN_DECK_SIZE, validateDeckSpec } from '@load/game-core';
 import type { ActionCard, DeckSpec } from '@load/game-core';
 import { ActionCardPreview, ActionCardFace, CARD_W, CARD_H } from '../hud/HandZone.js';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
@@ -163,7 +163,7 @@ interface DeckBuilderScreenProps {
 
 function initialCounts(): Record<string, number> {
   const saved = loadDeckConfig();
-  const spec = saved ?? DEFAULT_ACTION_DECK;
+  const spec = saved ?? FALLBACK_ACTION_DECK;
   // Seed every known card at zero so unrepresented entries still appear in the UI.
   const counts: Record<string, number> = {};
   for (const card of ACTION_CARDS) {
@@ -182,7 +182,7 @@ function defaultCounts(): Record<string, number> {
   for (const card of ACTION_CARDS) {
     counts[card.templateId] = 0;
   }
-  for (const entry of DEFAULT_ACTION_DECK) {
+  for (const entry of FALLBACK_ACTION_DECK) {
     counts[entry.templateId] = entry.count;
   }
   return counts;

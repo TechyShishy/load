@@ -31,7 +31,7 @@ export function useGame(contract?: ContractDef) {
   );
 
   // Build the initial game context for all new-game paths in one place.
-  // Order of priority: contract.actionDeck > savedDeckSpec > DEFAULT_ACTION_DECK
+  // Order of priority: contract.actionDeck > savedDeckSpec > FALLBACK_ACTION_DECK
   // (priority is enforced inside createInitialContext via contract?.actionDeck ?? deckSpec).
   const [gameInput] = useState<ReturnType<typeof createInitialContext> | undefined>(() => {
     if (savedContext) return undefined;

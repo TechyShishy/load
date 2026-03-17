@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ACTION_CARDS, DEFAULT_ACTION_DECK, MIN_DECK_SIZE } from '@load/game-core';
+import { ACTION_CARDS, FALLBACK_ACTION_DECK, MIN_DECK_SIZE } from '@load/game-core';
 import type { DeckSpec } from '@load/game-core';
 import { DeckBuilderScreen } from '../DeckBuilderScreen.js';
 
@@ -21,7 +21,7 @@ const defaultProps = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockLoadDeckConfig.mockReturnValue(null); // default: use DEFAULT_ACTION_DECK
+  mockLoadDeckConfig.mockReturnValue(null); // default: use FALLBACK_ACTION_DECK
 });
 
 describe('DeckBuilderScreen — card catalog', () => {
@@ -32,8 +32,8 @@ describe('DeckBuilderScreen — card catalog', () => {
     }
   });
 
-  it('shows running total equal to DEFAULT_ACTION_DECK total when no saved config', () => {
-    const expectedTotal = DEFAULT_ACTION_DECK.reduce((s, e) => s + e.count, 0);
+  it('shows running total equal to FALLBACK_ACTION_DECK total when no saved config', () => {
+    const expectedTotal = FALLBACK_ACTION_DECK.reduce((s, e) => s + e.count, 0);
     render(<DeckBuilderScreen {...defaultProps} />);
     expect(screen.getByText(new RegExp(`^${expectedTotal} CARDS`))).toBeInTheDocument();
   });
@@ -62,8 +62,8 @@ describe('DeckBuilderScreen — counter controls', () => {
 
     await user.click(addBtn); // count → 1 (above default)
     await user.click(removeBtn);
-    // back to default value from DEFAULT_ACTION_DECK
-    const defaultEntry = DEFAULT_ACTION_DECK.find((e) => e.templateId === 'action-work-order');
+    // back to default value from FALLBACK_ACTION_DECK
+    const defaultEntry = FALLBACK_ACTION_DECK.find((e) => e.templateId === 'action-work-order');
     expect(
       screen.getByLabelText(`${defaultEntry!.count} copies of ${workOrder.name}`),
     ).toBeInTheDocument();
@@ -128,12 +128,12 @@ describe('DeckBuilderScreen — Save action', () => {
 });
 
 describe('DeckBuilderScreen — Reset to Default', () => {
-  it('restores DEFAULT_ACTION_DECK counts', async () => {
+  it('restores FALLBACK_ACTION_DECK counts', async () => {
     const user = userEvent.setup();
     render(<DeckBuilderScreen {...defaultProps} />);
 
     const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
-    const defaultEntry = DEFAULT_ACTION_DECK.find((e) => e.templateId === 'action-work-order')!;
+    const defaultEntry = FALLBACK_ACTION_DECK.find((e) => e.templateId === 'action-work-order')!;
 
     // Bump Work Order count
     await user.click(screen.getByRole('button', { name: `Add one ${workOrder.name}` }));

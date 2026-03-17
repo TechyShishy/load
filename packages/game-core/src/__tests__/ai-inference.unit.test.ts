@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AiInferenceCard } from '../data/traffic/AiInferenceCard.js';
 import { TRAFFIC_CARDS, TRAFFIC_CARD_REGISTRY } from '../data/traffic/index.js';
-import { DEFAULT_TRAFFIC_DECK } from '../deck.js';
+import { FALLBACK_TRAFFIC_DECK } from '../deck.js';
 
 describe('AiInferenceCard', () => {
   it('has the expected templateId', () => {
@@ -38,8 +38,8 @@ describe('AiInferenceCard', () => {
     expect(instance.id).toBe('test-id');
   });
 
-  it('is present in DEFAULT_TRAFFIC_DECK', () => {
-    const entry = DEFAULT_TRAFFIC_DECK.find((e) => e.templateId === 'traffic-ai-inference');
+  it('is present in FALLBACK_TRAFFIC_DECK', () => {
+    const entry = FALLBACK_TRAFFIC_DECK.find((e) => e.templateId === 'traffic-ai-inference');
     expect(entry).toBeDefined();
     expect(entry!.count).toBeGreaterThan(0);
   });

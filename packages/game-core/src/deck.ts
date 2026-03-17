@@ -24,10 +24,10 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
 }
 
 /**
- * Canonical traffic-deck composition.
+ * Fallback traffic-deck composition used when no contract spec is provided.
  * Total: 21 cards (FourKStream×6, IoTBurst×5, CloudBackup×5, AiInference×3, ViralTrafficSpike×2).
  */
-export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<DeckSpec> = [
+export const FALLBACK_TRAFFIC_DECK: ReadonlyArray<DeckSpec> = [
   { templateId: 'traffic-4k-stream',    count: 6 },
   { templateId: 'traffic-iot-burst',    count: 5 },
   { templateId: 'traffic-cloud-backup', count: 5 },
@@ -37,11 +37,11 @@ export const DEFAULT_TRAFFIC_DECK: ReadonlyArray<DeckSpec> = [
 
 /**
  * Build the Traffic deck.
- * Composition is defined by DEFAULT_TRAFFIC_DECK unless overridden by `spec`.
+ * Composition falls back to FALLBACK_TRAFFIC_DECK when no `spec` is provided.
  */
 export function buildTrafficDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): TrafficCard[] {
   const traffic: TrafficCard[] = [];
-  for (const { templateId, count } of (spec ?? DEFAULT_TRAFFIC_DECK)) {
+  for (const { templateId, count } of (spec ?? FALLBACK_TRAFFIC_DECK)) {
     const Ctor = TRAFFIC_CARD_REGISTRY.get(templateId)!;
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
@@ -52,10 +52,10 @@ export function buildTrafficDeck(rng: Rng = Math.random, spec?: ReadonlyArray<De
 }
 
 /**
- * Canonical event-deck composition.
+ * Fallback event-deck composition used when no contract spec is provided.
  * Total: 14 cards (DDoSAttack×3, AWSOutage×3, FiveGActivation×2, FalseAlarm×4, TierOnePeering×2).
  */
-export const DEFAULT_EVENT_DECK: ReadonlyArray<DeckSpec> = [
+export const FALLBACK_EVENT_DECK: ReadonlyArray<DeckSpec> = [
   { templateId: 'event-ddos-attack',    count: 3 },
   { templateId: 'event-aws-outage',     count: 3 },
   { templateId: 'event-5g-activation',  count: 2 },
@@ -65,11 +65,11 @@ export const DEFAULT_EVENT_DECK: ReadonlyArray<DeckSpec> = [
 
 /**
  * Build the Event deck.
- * Composition is defined by DEFAULT_EVENT_DECK unless overridden by `spec`.
+ * Composition falls back to FALLBACK_EVENT_DECK when no `spec` is provided.
  */
 export function buildEventDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): EventCard[] {
   const events: EventCard[] = [];
-  for (const { templateId, count } of (spec ?? DEFAULT_EVENT_DECK)) {
+  for (const { templateId, count } of (spec ?? FALLBACK_EVENT_DECK)) {
     const Ctor = EVENT_CARD_REGISTRY.get(templateId)!;
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
@@ -95,13 +95,13 @@ export function validateDeckSpec(spec: ReadonlyArray<DeckSpec>): { valid: boolea
 }
 
 /**
- * Canonical action-deck composition.
+ * Fallback action-deck composition used when no contract spec is provided.
  * Each entry specifies how many copies of a given template to include.
  * Total: 29 cards (WorkOrder×6, TrafficPrioritization×12, Bandwidth×3, DataCenter×3, StreamCompression×3, RedundantLink×2).
  * Null Route is intentionally absent — it is crisisOnly and DDoS-specific;
  * players who want it should add it via the Deck Builder.
  */
-export const DEFAULT_ACTION_DECK: ReadonlyArray<DeckSpec> = [
+export const FALLBACK_ACTION_DECK: ReadonlyArray<DeckSpec> = [
   { templateId: 'action-work-order',             count: 6 },
   { templateId: 'action-traffic-prioritization', count: 12 },
   { templateId: 'action-bandwidth-upgrade',      count: 3 },
@@ -112,16 +112,16 @@ export const DEFAULT_ACTION_DECK: ReadonlyArray<DeckSpec> = [
 
 /**
  * Build the Action deck.
- * Composition is defined by DEFAULT_ACTION_DECK unless overridden by `spec`.
+ * Composition falls back to FALLBACK_ACTION_DECK when no `spec` is provided.
  */
 export function buildActionDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): ActionCard[] {
   const specTotal = spec !== undefined ? spec.reduce((s, e) => s + e.count, 0) : undefined;
   if (specTotal === 0) {
-    console.warn('buildActionDeck: spec sums to zero cards; falling back to DEFAULT_ACTION_DECK');
+    console.warn('buildActionDeck: spec sums to zero cards; falling back to FALLBACK_ACTION_DECK');
     spec = undefined;
   }
   const cards: ActionCard[] = [];
-  for (const { templateId, count } of (spec ?? DEFAULT_ACTION_DECK)) {
+  for (const { templateId, count } of (spec ?? FALLBACK_ACTION_DECK)) {
     const Ctor = ACTION_CARD_REGISTRY.get(templateId)!;
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;

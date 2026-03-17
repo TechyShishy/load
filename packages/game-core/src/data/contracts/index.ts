@@ -68,7 +68,7 @@ export const LOCAL_ISP_CONTRACT: ContractDef = {
     { templateId: 'event-false-alarm',   count: 7 },
     { templateId: 'event-tier1-peering', count: 3 },
   ],
-  // TODO-0015 resolved: actionDeck removed — DEFAULT_ACTION_DECK was updated to
+  // TODO-0015 resolved: actionDeck removed — FALLBACK_ACTION_DECK was updated to
   // match the tutorial composition (Work Order ×6, Null Route removed).
   startingBudget: 700_000,
   slaLimit: 5,

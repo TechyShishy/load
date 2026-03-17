@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   MIN_DECK_SIZE,
   validateDeckSpec,
-  DEFAULT_ACTION_DECK,
+  FALLBACK_ACTION_DECK,
   buildActionDeck,
   makeRng,
 } from '../deck.js';
@@ -47,18 +47,18 @@ describe('validateDeckSpec', () => {
   });
 });
 
-describe('DEFAULT_ACTION_DECK', () => {
+describe('FALLBACK_ACTION_DECK', () => {
   it('is valid (total >= MIN_DECK_SIZE)', () => {
-    expect(validateDeckSpec(DEFAULT_ACTION_DECK).valid).toBe(true);
+    expect(validateDeckSpec(FALLBACK_ACTION_DECK).valid).toBe(true);
   });
 
   it('includes Work Order × 6', () => {
-    const entry = DEFAULT_ACTION_DECK.find((e) => e.templateId === 'action-work-order');
+    const entry = FALLBACK_ACTION_DECK.find((e) => e.templateId === 'action-work-order');
     expect(entry?.count).toBe(6);
   });
 
   it('does not include Null Route', () => {
-    const entry = DEFAULT_ACTION_DECK.find((e) => e.templateId === 'action-null-route');
+    const entry = FALLBACK_ACTION_DECK.find((e) => e.templateId === 'action-null-route');
     expect(entry).toBeUndefined();
   });
 });
@@ -85,7 +85,7 @@ describe('createInitialContext deckSpec parameter', () => {
     expect(actionCards).toHaveLength(29);
   });
 
-  it('falls back to DEFAULT_ACTION_DECK when deckSpec is omitted', () => {
+  it('falls back to FALLBACK_ACTION_DECK when deckSpec is omitted', () => {
     const ctx = createInitialContext('fallback-seed');
     const actionCards = Object.values(ctx.cardInstances).filter((c) => c.type === CardType.Action);
     const workOrders = actionCards.filter((c) => c.templateId === 'action-work-order');
