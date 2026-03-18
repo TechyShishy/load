@@ -22,20 +22,22 @@ function formatDelta(delta: number): string {
 }
 
 const KIND_META: Record<LedgerEntry['kind'], { label: string; color: string; sign: 1 | -1 }> = {
-  'traffic-revenue': { label: 'Traffic', color: 'text-green-400', sign: 1 },
-  'ticket-revenue':  { label: 'Ticket',  color: 'text-cyan-400',  sign: 1 },
-  'action-spend':    { label: 'Action',  color: 'text-amber-400', sign: -1 },
-  'vendor-spend':    { label: 'Vendor',  color: 'text-purple-400', sign: -1 },
-  'crisis-penalty':  { label: 'Crisis',  color: 'text-red-400',   sign: -1 },
+  'traffic-revenue': { label: 'Traffic', color: 'text-green-400',  sign: 1 },
+  'ticket-revenue':  { label: 'Ticket',  color: 'text-cyan-400',   sign: 1 },
+  'vendor-revenue':  { label: 'Rebate',  color: 'text-yellow-400', sign: 1 },
+  'action-spend':    { label: 'Action',  color: 'text-amber-400',  sign: -1 },
+  'vendor-spend':    { label: 'Spend',   color: 'text-purple-400', sign: -1 },
+  'crisis-penalty':  { label: 'Crisis',  color: 'text-red-400',    sign: -1 },
 };
 
 export function ProfitLossPanel({ summary, onClose }: ProfitLossPanelProps) {
   // Aggregate ledger by kind.
   const totals = React.useMemo(() => {
-    const acc = { trafficRevenue: 0, ticketRevenue: 0, actionSpend: 0, vendorSpend: 0, crisisPenalty: 0 };
+    const acc = { trafficRevenue: 0, ticketRevenue: 0, vendorRevenue: 0, actionSpend: 0, vendorSpend: 0, crisisPenalty: 0 };
     for (const entry of summary.ledger) {
       if (entry.kind === 'traffic-revenue') acc.trafficRevenue += entry.amount;
       else if (entry.kind === 'ticket-revenue') acc.ticketRevenue += entry.amount;
+      else if (entry.kind === 'vendor-revenue') acc.vendorRevenue += entry.amount;
       else if (entry.kind === 'action-spend') acc.actionSpend += entry.amount;
       else if (entry.kind === 'vendor-spend') acc.vendorSpend += entry.amount;
       else if (entry.kind === 'crisis-penalty') acc.crisisPenalty += entry.amount;
@@ -89,6 +91,12 @@ export function ProfitLossPanel({ summary, onClose }: ProfitLossPanelProps) {
                   <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Ticket revenue</div>
                   <div className="text-sm font-mono font-bold text-cyan-400">
                     {formatAmount(totals.ticketRevenue)}
+                  </div>
+                </div>
+                <div className="rounded bg-gray-900 border border-gray-800 p-2">
+                  <div className="text-[10px] font-mono text-gray-500 uppercase mb-0.5">Vendor rebates</div>
+                  <div className="text-sm font-mono font-bold text-yellow-400">
+                    {formatAmount(totals.vendorRevenue)}
                   </div>
                 </div>
                 <div className="rounded bg-gray-900 border border-gray-800 p-2">

@@ -44,18 +44,25 @@ describe('TierOnePeeringCard — registration', () => {
 // ─── TierOnePeeringCard — onCrisis ───────────────────────────────────────────
 
 describe('TierOnePeeringCard — onCrisis', () => {
-  it('sets revenueBoostMultiplier to 1.5 when unmitigated', () => {
+  it('adds 0.5 to revenueBoostMultiplier when unmitigated', () => {
     const card = new TierOnePeeringCard();
     const ctx = createInitialContext();
     const result = card.onCrisis(ctx, false);
-    expect(result.revenueBoostMultiplier).toBe(1.5);
+    expect(result.revenueBoostMultiplier).toBe(1.5); // 1.0 + 0.5
   });
 
-  it('also sets revenueBoostMultiplier to 1.5 when mitigated (beneficial — cannot be cancelled)', () => {
+  it('adds 0.5 to revenueBoostMultiplier when mitigated (beneficial — cannot be cancelled)', () => {
     const card = new TierOnePeeringCard();
     const ctx = createInitialContext();
     const result = card.onCrisis(ctx, true);
-    expect(result.revenueBoostMultiplier).toBe(1.5);
+    expect(result.revenueBoostMultiplier).toBe(1.5); // 1.0 + 0.5
+  });
+
+  it('adds 0.5 to a pre-elevated multiplier (additive stacking)', () => {
+    const card = new TierOnePeeringCard();
+    const ctx = { ...createInitialContext(), revenueBoostMultiplier: 1.3 };
+    const result = card.onCrisis(ctx, false);
+    expect(result.revenueBoostMultiplier).toBeCloseTo(1.8, 10);
   });
 
   it('does not affect budget, SLA count, or spawned traffic', () => {

@@ -20,4 +20,5 @@ export const CARD_ART: Partial<Record<string, string>> = {
   'action-redundant-link': './cards/action-redundant-link.svg',
   'action-hot-standby': './cards/action-hot-standby.svg',
   'vendor-managed-services-agreement': './cards/vendor-managed-services-agreement.svg',
+  'vendor-application-delivery-controller': './cards/vendor-application-delivery-controller.svg',
 };

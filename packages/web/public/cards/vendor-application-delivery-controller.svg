@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100" shape-rendering="crispEdges">
+  <!-- Vendor card background: dark amber-black -->
+  <rect width="160" height="100" fill="#110d00"/>
+
+  <g transform="translate(30,0) scale(3.125)">
+    <!-- ── Bar chart: 5 bars (Mon–Fri), baseline y=26, each 4px wide, 1px gap ── -->
+    <!-- Bar 1 — Monday — height 4 (dim gold) -->
+    <rect x="4"  y="22" width="4" height="4" fill="#ffd60a" fill-opacity="0.30"/>
+    <!-- Bar 2 — Tuesday — height 8 -->
+    <rect x="9"  y="18" width="4" height="8" fill="#ffd60a" fill-opacity="0.50"/>
+    <!-- Bar 3 — Wednesday — height 12 -->
+    <rect x="14" y="14" width="4" height="12" fill="#ffd60a" fill-opacity="0.70"/>
+    <!-- Bar 4 — Thursday — height 16 -->
+    <rect x="19" y="10" width="4" height="16" fill="#ffd60a" fill-opacity="0.85"/>
+    <!-- Bar 5 — Friday — height 20 (full gold) -->
+    <rect x="24" y="6"  width="4" height="20" fill="#ffd60a"/>
+
+    <!-- ── Baseline ── -->
+    <rect x="2" y="26" width="28" height="1" fill="#ffd60a" fill-opacity="0.50"/>
+
+    <!-- ── 1U rack chassis body ── -->
+    <rect x="2"  y="27" width="28" height="3" fill="#2a1e00"/>
+    <!-- front panel detail: bezels -->
+    <rect x="3"  y="28" width="4"  height="1" fill="#3d2c00"/>
+    <rect x="9"  y="28" width="4"  height="1" fill="#3d2c00"/>
+    <!-- activity LEDs -->
+    <rect x="15" y="28" width="1"  height="1" fill="#ffd60a" fill-opacity="0.80"/>
+    <rect x="17" y="28" width="1"  height="1" fill="#ffd60a"/>
+    <!-- chassis edge highlight -->
+    <rect x="2"  y="27" width="28" height="1" fill="#ffd60a" fill-opacity="0.12"/>
+    <rect x="2"  y="29" width="28" height="1" fill="#000000" fill-opacity="0.30"/>
+
+    <!-- ── Atmospheric scanlines ── -->
+    <rect x="0" y="3"  width="32" height="1" fill="#ffd60a" fill-opacity="0.03"/>
+    <rect x="0" y="7"  width="32" height="1" fill="#ffd60a" fill-opacity="0.03"/>
+    <rect x="0" y="11" width="32" height="1" fill="#ffd60a" fill-opacity="0.03"/>
+    <rect x="0" y="15" width="32" height="1" fill="#ffd60a" fill-opacity="0.03"/>
+    <rect x="0" y="19" width="32" height="1" fill="#ffd60a" fill-opacity="0.03"/>
+    <rect x="0" y="23" width="32" height="1" fill="#ffd60a" fill-opacity="0.03"/>
+  </g>
+</svg>

@@ -257,7 +257,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
       {phase === 'crisis' && pendingEvents.length > 0 && crisisAnimsDone && (
         <EventModal
           event={pendingEvents[0]!}
-          hand={hand}
+          hand={hand.filter((c): c is ActionCard => c.type === CardType.Action)}
           onMitigate={(card) => playAction(card)}
           onAdvance={advance}
         />

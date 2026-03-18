@@ -14,6 +14,8 @@ export class TierOnePeeringCard extends EventCard {
 
   onCrisis(ctx: GameContext, _mitigated: boolean): GameContext {
     // Beneficial event: the revenue boost applies regardless of mitigation state.
-    return { ...ctx, revenueBoostMultiplier: 1.5 };
+    // Adds +0.5 to the current multiplier so it stacks additively with other
+    // sources (e.g. Application Delivery Controller's weekday ramp).
+    return { ...ctx, revenueBoostMultiplier: ctx.revenueBoostMultiplier + 0.5 };
   }
 }
