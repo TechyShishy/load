@@ -103,6 +103,13 @@ const PILE_COLORS: Record<DeckType, { bg: number; accent: number }> = {
   event:   { bg: 0x5c0015, accent: 0xff375f },
   action:  { bg: 0x013a05, accent: 0x30d158 },
 };
+/** Background colour used for the card-chip face on each deck's discard pile.
+ *  Matches the colour used by paintSlotCards / createCard*FrontTexture for each type. */
+const DISCARD_FACE_COLOR: Record<DeckType, number> = {
+  traffic: TRAFFIC_COLOR,          // 0x005f8f
+  event:   EVENT_COLOR,            // 0x5c0015
+  action:  PILE_COLORS.action.bg,  // 0x013a05
+};
 
 // ── Stable TextStyle instances (module-level, never recreated) ────────────────
 const HEADER_STYLES: Record<Period, TextStyle> = {
@@ -153,6 +160,20 @@ const CARD_COST_STYLE = new TextStyle({
   fontFamily: 'Courier New',
 });
 
+// ── Full-size render constants ─────────────────────────────────────────────────
+// All board cards are drawn at FULL_CARD_W × FULL_CARD_H, then the containing
+// Container is scaled to 0.5 so the visual result is SLOT_W × SLOT_H.  This
+// mirrors the 'render large then shrink' (scale-50) technique used by the HTML
+// hand card components, giving the same available text budget and crisper output.
+const FULL_CARD_W = SLOT_W * 2;                              // 180
+const FULL_CARD_H = SLOT_H * 2;                              // 240
+const FULL_CARD_PADDING = CARD_PADDING * 2;                  // 8
+const FULL_TITLE_ZONE_H = CARD_TITLE_ZONE_H * 2;             // 28
+const FULL_TITLE_MAX_FONT = CARD_TITLE_MAX_FONT * 2;          // 20
+const FULL_TITLE_MAX_W = FULL_CARD_W - FULL_CARD_PADDING * 2 - 8; // 156
+const FULL_FLAVOR_ZONE_H = FLAVOR_ZONE_H * 2;                // 28
+const FULL_CARD_COST_STYLE = new TextStyle({ fill: 0xfbbf24, fontSize: 12, fontFamily: 'Courier New' });
+
 /**
  * Returns a single-line Text object that fits within CARD_TITLE_MAX_W px.
  * Starts at CARD_TITLE_MAX_FONT and steps down by 0.5 px until it fits or
@@ -162,6 +183,23 @@ function fitCardTitle(name: string, fill: number): Text {
   let fontSize = CARD_TITLE_MAX_FONT;
   let t = new Text({ text: name, style: new TextStyle({ fill, fontSize, fontFamily: 'Courier New' }) });
   while (t.width > CARD_TITLE_MAX_W && fontSize > 5) {
+    fontSize -= 0.5;
+    t.destroy();
+    t = new Text({ text: name, style: new TextStyle({ fill, fontSize, fontFamily: 'Courier New' }) });
+  }
+  return t;
+}
+
+/**
+ * Full-size variant of fitCardTitle — fits within FULL_TITLE_MAX_W px.
+ * Used inside 0.5-scaled Containers so the visual result matches fitCardTitle.
+ * Minimum font size 6 (= 3 px visual at 0.5 scale) matches HTML FitText's
+ * minimum, giving the same title-fitting budget as the hand card components.
+ */
+function fitCardTitleFull(name: string, fill: number): Text {
+  let fontSize = FULL_TITLE_MAX_FONT;
+  let t = new Text({ text: name, style: new TextStyle({ fill, fontSize, fontFamily: 'Courier New' }) });
+  while (t.width > FULL_TITLE_MAX_W && fontSize > 6) {
     fontSize -= 0.5;
     t.destroy();
     t = new Text({ text: name, style: new TextStyle({ fill, fontSize, fontFamily: 'Courier New' }) });
@@ -219,6 +257,48 @@ function fitFlavorText(
   container.addChild(t);
 }
 
+/** Full-size variant of fitDescText for use inside 0.5-scaled Containers. */
+function fitDescTextFull(
+  text: string,
+  x: number,
+  y: number,
+  maxH: number,
+  container: Container,
+): void {
+  if (maxH <= 0) return;
+  const innerW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  let fontSize = 12;
+  let t = new Text({ text, style: new TextStyle({ fill: 0x9ca3af, fontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: innerW - 4 }) });
+  while (t.height > maxH && fontSize > DESC_FONT_MIN * 2) {
+    fontSize -= 0.5;
+    t.destroy();
+    t = new Text({ text, style: new TextStyle({ fill: 0x9ca3af, fontSize, fontFamily: 'Courier New', wordWrap: true, wordWrapWidth: innerW - 4 }) });
+  }
+  t.x = x;
+  t.y = y;
+  container.addChild(t);
+}
+
+/** Full-size variant of fitFlavorText for use inside 0.5-scaled Containers. */
+function fitFlavorTextFull(
+  text: string,
+  x: number,
+  y: number,
+  container: Container,
+): void {
+  const innerW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  let fontSize = 10;
+  let t = new Text({ text, style: new TextStyle({ fill: 0x6b7280, fontSize, fontFamily: 'Courier New', fontStyle: 'italic', wordWrap: true, wordWrapWidth: innerW - 4 }) });
+  while (t.height > FULL_FLAVOR_ZONE_H && fontSize > FLAVOR_FONT_MIN * 2) {
+    fontSize -= 0.5;
+    t.destroy();
+    t = new Text({ text, style: new TextStyle({ fill: 0x6b7280, fontSize, fontFamily: 'Courier New', fontStyle: 'italic', wordWrap: true, wordWrapWidth: innerW - 4 }) });
+  }
+  t.x = x;
+  t.y = y;
+  container.addChild(t);
+}
+
 // ── Card art ──────────────────────────────────────────────────────────────────
 /**
  * Returns a sized Sprite using a pre-loaded card art texture, or null if the
@@ -256,24 +336,24 @@ interface CardAnimJob {
 }
 
 function createCardFrontTexture(app: Application, card: TrafficCard): RenderTexture {
-  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const rt = RenderTexture.create({ width: FULL_CARD_W, height: FULL_CARD_H });
   const g = new Graphics();
-  g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
+  g.roundRect(FULL_CARD_PADDING, FULL_CARD_PADDING, FULL_CARD_W - FULL_CARD_PADDING * 2, FULL_CARD_H - FULL_CARD_PADDING * 2, 4);
   g.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
-  const artY = CARD_PADDING + CARD_TITLE_ZONE_H;
-  const artImgW = SLOT_W - CARD_PADDING * 2;
-  const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
-  const art = cardArtSprite(card.templateId, CARD_PADDING, artY, artImgW, artImgH);
+  const artY = FULL_CARD_PADDING + FULL_TITLE_ZONE_H;
+  const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  const artImgH = FULL_CARD_H / 2 - FULL_CARD_PADDING - 2;
+  const art = cardArtSprite(card.templateId, FULL_CARD_PADDING, artY, artImgW, artImgH);
   const imgZone = art ?? (() => {
     const z = new Graphics();
-    z.roundRect(CARD_PADDING, artY, artImgW, artImgH, 2);
+    z.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
     z.fill({ color: 0x00f5ff, alpha: 0.1 });
     z.stroke({ color: 0x00f5ff, width: 1, alpha: 0.35 });
     return z;
   })();
-  const label = fitCardTitle(card.name, 0x00f5ff);
-  label.x = CARD_PADDING + 2;
-  label.y = CARD_PADDING + 2;
+  const label = fitCardTitleFull(card.name, 0x00f5ff);
+  label.x = FULL_CARD_PADDING + 2;
+  label.y = FULL_CARD_PADDING + 2;
   const c = new Container();
   c.addChild(g);
   c.addChild(imgZone);
@@ -295,24 +375,24 @@ function createCardBackTexture(app: Application, color = TRAFFIC_COLOR, accent =
 }
 
 function createEventCardFrontTexture(app: Application, card: EventCard): RenderTexture {
-  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const rt = RenderTexture.create({ width: FULL_CARD_W, height: FULL_CARD_H });
   const g = new Graphics();
-  g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
+  g.roundRect(FULL_CARD_PADDING, FULL_CARD_PADDING, FULL_CARD_W - FULL_CARD_PADDING * 2, FULL_CARD_H - FULL_CARD_PADDING * 2, 4);
   g.fill({ color: EVENT_COLOR, alpha: 0.9 });
-  const artY = CARD_PADDING + CARD_TITLE_ZONE_H;
-  const artImgW = SLOT_W - CARD_PADDING * 2;
-  const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
-  const art = cardArtSprite(card.templateId, CARD_PADDING, artY, artImgW, artImgH);
+  const artY = FULL_CARD_PADDING + FULL_TITLE_ZONE_H;
+  const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  const artImgH = FULL_CARD_H / 2 - FULL_CARD_PADDING - 2;
+  const art = cardArtSprite(card.templateId, FULL_CARD_PADDING, artY, artImgW, artImgH);
   const imgZone = art ?? (() => {
     const z = new Graphics();
-    z.roundRect(CARD_PADDING, artY, artImgW, artImgH, 2);
+    z.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
     z.fill({ color: 0xff375f, alpha: 0.1 });
     z.stroke({ color: 0xff375f, width: 1, alpha: 0.35 });
     return z;
   })();
-  const label = fitCardTitle(card.name, 0xff375f);
-  label.x = CARD_PADDING + 2;
-  label.y = CARD_PADDING + 2;
+  const label = fitCardTitleFull(card.name, 0xff375f);
+  label.x = FULL_CARD_PADDING + 2;
+  label.y = FULL_CARD_PADDING + 2;
   const c = new Container();
   c.addChild(g);
   c.addChild(imgZone);
@@ -323,24 +403,24 @@ function createEventCardFrontTexture(app: Application, card: EventCard): RenderT
 }
 
 function createActionCardFrontTexture(app: Application, card: ActionCard): RenderTexture {
-  const rt = RenderTexture.create({ width: SLOT_W, height: SLOT_H });
+  const rt = RenderTexture.create({ width: FULL_CARD_W, height: FULL_CARD_H });
   const g = new Graphics();
-  g.roundRect(CARD_PADDING, CARD_PADDING, SLOT_W - CARD_PADDING * 2, SLOT_H - CARD_PADDING * 2, 2);
+  g.roundRect(FULL_CARD_PADDING, FULL_CARD_PADDING, FULL_CARD_W - FULL_CARD_PADDING * 2, FULL_CARD_H - FULL_CARD_PADDING * 2, 4);
   g.fill({ color: PILE_COLORS.action.bg, alpha: 0.9 });
-  const artY = CARD_PADDING + CARD_TITLE_ZONE_H;
-  const artImgW = SLOT_W - CARD_PADDING * 2;
-  const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
-  const art = cardArtSprite(card.templateId, CARD_PADDING, artY, artImgW, artImgH);
+  const artY = FULL_CARD_PADDING + FULL_TITLE_ZONE_H;
+  const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  const artImgH = FULL_CARD_H / 2 - FULL_CARD_PADDING - 2;
+  const art = cardArtSprite(card.templateId, FULL_CARD_PADDING, artY, artImgW, artImgH);
   const imgZone = art ?? (() => {
     const z = new Graphics();
-    z.roundRect(CARD_PADDING, artY, artImgW, artImgH, 2);
+    z.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
     z.fill({ color: PILE_COLORS.action.accent, alpha: 0.1 });
     z.stroke({ color: PILE_COLORS.action.accent, width: 1, alpha: 0.35 });
     return z;
   })();
-  const label = fitCardTitle(card.name, PILE_COLORS.action.accent);
-  label.x = CARD_PADDING + 2;
-  label.y = CARD_PADDING + 2;
+  const label = fitCardTitleFull(card.name, PILE_COLORS.action.accent);
+  label.x = FULL_CARD_PADDING + 2;
+  label.y = FULL_CARD_PADDING + 2;
   const c = new Container();
   c.addChild(g);
   c.addChild(imgZone);
@@ -765,49 +845,58 @@ function paintSlotCards(
   if (slot.card === null) return;
   const card = slot.card;
   if (suppressedCardIds?.has(card.id)) return;
-  const cardH = SLOT_H - CARD_PADDING * 2;
-  const cardY = slotY + CARD_PADDING;
+
+  // Render the card at FULL_CARD_W × FULL_CARD_H, then scale the Container to
+  // 0.5 so it occupies SLOT_W × SLOT_H visually — matching the hand-card
+  // 'render large then shrink' technique.
+  const cardWrapper = new Container();
+  cardWrapper.position.set(slotX, slotY);
+  cardWrapper.scale.set(0.5);
+  container.addChild(cardWrapper);
+
+  const cardH = FULL_CARD_H - FULL_CARD_PADDING * 2;
+  const cardY = FULL_CARD_PADDING;
 
   const cardBg = new Graphics();
-  cardBg.roundRect(slotX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 2);
+  cardBg.roundRect(FULL_CARD_PADDING, cardY, FULL_CARD_W - FULL_CARD_PADDING * 2, cardH, 4);
   cardBg.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
-  container.addChild(cardBg);
+  cardWrapper.addChild(cardBg);
 
-  const artImgW = SLOT_W - CARD_PADDING * 2;
-  const artImgH = SLOT_H / 2 - CARD_PADDING;
-  const artY = cardY + CARD_TITLE_ZONE_H;
-  const art = cardArtSprite(card.templateId, slotX + CARD_PADDING, artY, artImgW, artImgH);
+  const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  const artImgH = FULL_CARD_H / 2 - FULL_CARD_PADDING;
+  const artY = cardY + FULL_TITLE_ZONE_H;
+  const art = cardArtSprite(card.templateId, FULL_CARD_PADDING, artY, artImgW, artImgH);
   if (art) {
-    container.addChild(art);
+    cardWrapper.addChild(art);
   } else {
     const imgZone = new Graphics();
-    imgZone.roundRect(slotX + CARD_PADDING, artY, artImgW, artImgH, 2);
+    imgZone.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
     imgZone.fill({ color: 0x00f5ff, alpha: 0.1 });
     imgZone.stroke({ color: 0x00f5ff, width: 1, alpha: 0.35 });
-    container.addChild(imgZone);
+    cardWrapper.addChild(imgZone);
   }
 
-  const cardText = fitCardTitle(card.name, 0x00f5ff);
-  cardText.x = slotX + CARD_PADDING + 2;
+  const cardText = fitCardTitleFull(card.name, 0x00f5ff);
+  cardText.x = FULL_CARD_PADDING + 2;
   cardText.y = cardY + 2;
-  container.addChild(cardText);
+  cardWrapper.addChild(cardText);
 
   // Pricing row pinned to bottom of card: revenue (yellow).
-  const revenueText = new Text({ text: `$${card.revenue.toLocaleString()}`, style: CARD_COST_STYLE });
+  const revenueText = new Text({ text: `$${card.revenue.toLocaleString()}`, style: FULL_CARD_COST_STYLE });
   const pricingRowH = revenueText.height;
-  const pricingY = cardY + cardH - CARD_PADDING - pricingRowH;
-  revenueText.x = slotX + CARD_PADDING + 1;
+  const pricingY = cardY + cardH - FULL_CARD_PADDING - pricingRowH;
+  revenueText.x = FULL_CARD_PADDING + 1;
   revenueText.y = pricingY;
-  container.addChild(revenueText);
+  cardWrapper.addChild(revenueText);
 
   // Description text below the art image, leaving room for the flavor/pricing rows.
-  const descY = artY + artImgH + CARD_PADDING;
-  const flavorH = card.flavorText ? FLAVOR_ZONE_H : 0;
-  const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
-  fitDescText(card.description, slotX + CARD_PADDING + 1, descY, descMaxH, container);
+  const descY = artY + artImgH + FULL_CARD_PADDING;
+  const flavorH = card.flavorText ? FULL_FLAVOR_ZONE_H : 0;
+  const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + FULL_CARD_PADDING : FULL_CARD_PADDING);
+  fitDescTextFull(card.description, FULL_CARD_PADDING + 1, descY, descMaxH, cardWrapper);
   if (card.flavorText) {
-    const flavorY = pricingY - CARD_PADDING - flavorH;
-    fitFlavorText(card.flavorText, slotX + CARD_PADDING + 1, flavorY, container);
+    const flavorY = pricingY - FULL_CARD_PADDING - flavorH;
+    fitFlavorTextFull(card.flavorText, FULL_CARD_PADDING + 1, flavorY, cardWrapper);
   }
 }
 
@@ -824,49 +913,56 @@ function paintVendorSlotCard(
 ): void {
   if (slot.card === null) return;
   const card = slot.card;
-  const cardH = SLOT_H - CARD_PADDING * 2;
-  const cardY = slotY + CARD_PADDING;
+
+  // Render at full size then scale to SLOT_W × SLOT_H.
+  const cardWrapper = new Container();
+  cardWrapper.position.set(slotX, slotY);
+  cardWrapper.scale.set(0.5);
+  container.addChild(cardWrapper);
+
+  const cardH = FULL_CARD_H - FULL_CARD_PADDING * 2;
+  const cardY = FULL_CARD_PADDING;
 
   const cardBg = new Graphics();
-  cardBg.roundRect(slotX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 2);
+  cardBg.roundRect(FULL_CARD_PADDING, cardY, FULL_CARD_W - FULL_CARD_PADDING * 2, cardH, 4);
   cardBg.fill({ color: VENDOR_COLOR, alpha: 0.9 });
-  container.addChild(cardBg);
+  cardWrapper.addChild(cardBg);
 
-  const artImgW = SLOT_W - CARD_PADDING * 2;
-  const artImgH = SLOT_H / 2 - CARD_PADDING;
-  const artY = cardY + CARD_TITLE_ZONE_H;
-  const art = cardArtSprite(card.templateId, slotX + CARD_PADDING, artY, artImgW, artImgH);
+  const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+  const artImgH = FULL_CARD_H / 2 - FULL_CARD_PADDING;
+  const artY = cardY + FULL_TITLE_ZONE_H;
+  const art = cardArtSprite(card.templateId, FULL_CARD_PADDING, artY, artImgW, artImgH);
   if (art) {
-    container.addChild(art);
+    cardWrapper.addChild(art);
   } else {
     const imgZone = new Graphics();
-    imgZone.roundRect(slotX + CARD_PADDING, artY, artImgW, artImgH, 2);
+    imgZone.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
     imgZone.fill({ color: VENDOR_ACCENT, alpha: 0.1 });
     imgZone.stroke({ color: VENDOR_ACCENT, width: 1, alpha: 0.35 });
-    container.addChild(imgZone);
+    cardWrapper.addChild(imgZone);
   }
 
-  const cardText = fitCardTitle(card.name, VENDOR_ACCENT);
-  cardText.x = slotX + CARD_PADDING + 2;
+  const cardText = fitCardTitleFull(card.name, VENDOR_ACCENT);
+  cardText.x = FULL_CARD_PADDING + 2;
   cardText.y = cardY + 2;
-  container.addChild(cardText);
+  cardWrapper.addChild(cardText);
 
   // Cost pinned to bottom of card.
-  const costText = new Text({ text: `$${card.cost.toLocaleString()}`, style: CARD_COST_STYLE });
+  const costText = new Text({ text: `$${card.cost.toLocaleString()}`, style: FULL_CARD_COST_STYLE });
   const pricingRowH = costText.height;
-  const pricingY = cardY + cardH - CARD_PADDING - pricingRowH;
-  costText.x = slotX + CARD_PADDING + 1;
+  const pricingY = cardY + cardH - FULL_CARD_PADDING - pricingRowH;
+  costText.x = FULL_CARD_PADDING + 1;
   costText.y = pricingY;
-  container.addChild(costText);
+  cardWrapper.addChild(costText);
 
   // Description text below the art image, leaving room for flavor/cost rows.
-  const descY = artY + artImgH + CARD_PADDING;
-  const flavorH = card.flavorText ? FLAVOR_ZONE_H : 0;
-  const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
-  fitDescText(card.description, slotX + CARD_PADDING + 1, descY, descMaxH, container);
+  const descY = artY + artImgH + FULL_CARD_PADDING;
+  const flavorH = card.flavorText ? FULL_FLAVOR_ZONE_H : 0;
+  const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + FULL_CARD_PADDING : FULL_CARD_PADDING);
+  fitDescTextFull(card.description, FULL_CARD_PADDING + 1, descY, descMaxH, cardWrapper);
   if (card.flavorText) {
-    const flavorY = pricingY - CARD_PADDING - flavorH;
-    fitFlavorText(card.flavorText, slotX + CARD_PADDING + 1, flavorY, container);
+    const flavorY = pricingY - FULL_CARD_PADDING - flavorH;
+    fitFlavorTextFull(card.flavorText, FULL_CARD_PADDING + 1, flavorY, cardWrapper);
   }
 }
 
@@ -881,45 +977,52 @@ function paintTrackTickets(
   for (let ki = track.tickets.length - 1; ki >= 0; ki--) {
     const ticket = track.tickets[ki]!;
     const tickX = trackX + ki * TICKET_STRIDE;
-    const cardH = TRACK_H - CARD_PADDING * 2;
-    const cardY = trackY + CARD_PADDING;
+
+    // Render each ticket at full size, then scale the wrapper to SLOT_W × TRACK_H.
+    const tickWrapper = new Container();
+    tickWrapper.position.set(tickX, trackY);
+    tickWrapper.scale.set(0.5);
+    container.addChild(tickWrapper);
+
+    const cardH = FULL_CARD_H - FULL_CARD_PADDING * 2;
+    const cardY = FULL_CARD_PADDING;
 
     // Background — event card colour with track accent border.
     const tickBg = new Graphics();
-    tickBg.roundRect(tickX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 3);
+    tickBg.roundRect(FULL_CARD_PADDING, cardY, FULL_CARD_W - FULL_CARD_PADDING * 2, cardH, 6);
     tickBg.fill({ color: EVENT_COLOR, alpha: 0.9 });
-    tickBg.stroke({ color: tColor, width: 1 });
-    container.addChild(tickBg);
+    tickBg.stroke({ color: tColor, width: 2 });
+    tickWrapper.addChild(tickBg);
 
     // Art image (or placeholder).
-    const artImgW = SLOT_W - CARD_PADDING * 2;
-    const artImgH = Math.floor(TRACK_H / 2) - CARD_PADDING;
-    const artY = cardY + CARD_TITLE_ZONE_H;
-    const art = cardArtSprite(ticket.templateId, tickX + CARD_PADDING, artY, artImgW, artImgH);
+    const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+    const artImgH = Math.floor(FULL_CARD_H / 2) - FULL_CARD_PADDING;
+    const artY = cardY + FULL_TITLE_ZONE_H;
+    const art = cardArtSprite(ticket.templateId, FULL_CARD_PADDING, artY, artImgW, artImgH);
     if (art) {
-      container.addChild(art);
+      tickWrapper.addChild(art);
     } else {
       const imgZone = new Graphics();
-      imgZone.roundRect(tickX + CARD_PADDING, artY, artImgW, artImgH, 2);
+      imgZone.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
       imgZone.fill({ color: tColor, alpha: 0.1 });
-      imgZone.stroke({ color: tColor, width: 1, alpha: 0.35 });
-      container.addChild(imgZone);
+      imgZone.stroke({ color: tColor, width: 2, alpha: 0.35 });
+      tickWrapper.addChild(imgZone);
     }
 
     // Title.
-    const titleText = fitCardTitle(ticket.name, tColor);
-    titleText.x = tickX + CARD_PADDING + 2;
+    const titleText = fitCardTitleFull(ticket.name, tColor);
+    titleText.x = FULL_CARD_PADDING + 2;
     titleText.y = cardY + 2;
-    container.addChild(titleText);
+    tickWrapper.addChild(titleText);
 
     // Description + optional flavor, anchored above card bottom.
-    const descY = artY + artImgH + CARD_PADDING;
-    const flavorH = ticket.flavorText ? FLAVOR_ZONE_H : 0;
-    const bottomY = cardY + cardH - CARD_PADDING;
-    const descMaxH = bottomY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
-    fitDescText(ticket.description, tickX + CARD_PADDING + 1, descY, descMaxH, container);
+    const descY = artY + artImgH + FULL_CARD_PADDING;
+    const flavorH = ticket.flavorText ? FULL_FLAVOR_ZONE_H : 0;
+    const bottomY = cardY + cardH - FULL_CARD_PADDING;
+    const descMaxH = bottomY - descY - (flavorH > 0 ? flavorH + FULL_CARD_PADDING : FULL_CARD_PADDING);
+    fitDescTextFull(ticket.description, FULL_CARD_PADDING + 1, descY, descMaxH, tickWrapper);
     if (ticket.flavorText) {
-      fitFlavorText(ticket.flavorText, tickX + CARD_PADDING + 1, bottomY - flavorH, container);
+      fitFlavorTextFull(ticket.flavorText, FULL_CARD_PADDING + 1, bottomY - flavorH, tickWrapper);
     }
   }
 }
@@ -940,6 +1043,9 @@ function paintPile(
   topDiscardCost?: number,
   topCardTitleColor?: number,
   topDiscardFlavorText?: string,
+  /** Card-face background colour for discard top-card. Defaults to TRAFFIC_COLOR for
+   *  backward compatibility but callers should pass the deck-appropriate colour. */
+  topCardFaceColor: number = TRAFFIC_COLOR,
 ): void {
   const layers = Math.min(5, Math.ceil(count / 10));
 
@@ -953,62 +1059,72 @@ function paintPile(
     container.addChild(shadow);
   }
 
-  const topRect = new Graphics();
-  topRect.roundRect(pileX, pileY, SLOT_W, SLOT_H, 4);
-
   if (layers === 0) {
     // Empty pile — ghost outline only.
-    topRect.fill({ color: accentColor, alpha: 0.05 });
-    topRect.stroke({ color: accentColor, width: 1, alpha: 0.25 });
-    container.addChild(topRect);
+    const emptyRect = new Graphics();
+    emptyRect.roundRect(pileX, pileY, SLOT_W, SLOT_H, 4);
+    emptyRect.fill({ color: accentColor, alpha: 0.05 });
+    emptyRect.stroke({ color: accentColor, width: 1, alpha: 0.25 });
+    container.addChild(emptyRect);
     return;
   }
 
   if (pileType === 'discard' && topCardName !== undefined) {
-    // Discard face — chip style matching slot cards.
-    topRect.fill({ color: TRAFFIC_COLOR, alpha: 0.9 });
-    topRect.stroke({ color: accentColor, width: 1 });
-    container.addChild(topRect);
-    const artImgW = SLOT_W - CARD_PADDING * 2;
-    const artImgH = SLOT_H / 2 - CARD_PADDING - 1;
-    const artY = pileY + CARD_PADDING + CARD_TITLE_ZONE_H;
-    const art = topCardTemplateId ? cardArtSprite(topCardTemplateId, pileX + CARD_PADDING, artY, artImgW, artImgH) : null;
+    // Discard face — rendered at full size in a 0.5-scaled wrapper, matching
+    // the 'render large then shrink' approach used by slot and track cards.
+    const faceWrapper = new Container();
+    faceWrapper.position.set(pileX, pileY);
+    faceWrapper.scale.set(0.5);
+    container.addChild(faceWrapper);
+
+    const faceRect = new Graphics();
+    faceRect.roundRect(0, 0, FULL_CARD_W, FULL_CARD_H, 4);
+    faceRect.fill({ color: topCardFaceColor, alpha: 0.9 });
+    faceRect.stroke({ color: accentColor, width: 2 });
+    faceWrapper.addChild(faceRect);
+
+    const artImgW = FULL_CARD_W - FULL_CARD_PADDING * 2;
+    const artImgH = FULL_CARD_H / 2 - FULL_CARD_PADDING - 2;
+    const artY = FULL_CARD_PADDING + FULL_TITLE_ZONE_H;
+    const art = topCardTemplateId ? cardArtSprite(topCardTemplateId, FULL_CARD_PADDING, artY, artImgW, artImgH) : null;
     if (art) {
-      container.addChild(art);
+      faceWrapper.addChild(art);
     } else {
       const imgZone = new Graphics();
-      imgZone.roundRect(pileX + CARD_PADDING, artY, artImgW, artImgH, 2);
+      imgZone.roundRect(FULL_CARD_PADDING, artY, artImgW, artImgH, 4);
       imgZone.fill({ color: accentColor, alpha: 0.1 });
-      imgZone.stroke({ color: accentColor, width: 1, alpha: 0.35 });
-      container.addChild(imgZone);
+      imgZone.stroke({ color: accentColor, width: 2, alpha: 0.35 });
+      faceWrapper.addChild(imgZone);
     }
-    const nameText = fitCardTitle(topCardName, topCardTitleColor ?? accentColor);
-    nameText.x = pileX + CARD_PADDING + 2;
-    nameText.y = pileY + CARD_PADDING + 2;
-    container.addChild(nameText);
+    const nameText = fitCardTitleFull(topCardName, topCardTitleColor ?? accentColor);
+    nameText.x = FULL_CARD_PADDING + 2;
+    nameText.y = FULL_CARD_PADDING + 2;
+    faceWrapper.addChild(nameText);
     // Cost text is created first so its height informs how much vertical space
     // remains for the description text below the art zone.
     const costText = topDiscardCost !== undefined
-      ? new Text({ text: '$' + topDiscardCost.toLocaleString(), style: CARD_COST_STYLE })
+      ? new Text({ text: '$' + topDiscardCost.toLocaleString(), style: FULL_CARD_COST_STYLE })
       : null;
     if (costText !== null) {
-      costText.x = pileX + CARD_PADDING + 1;
-      costText.y = pileY + SLOT_H - CARD_PADDING - costText.height;
-      container.addChild(costText);
+      costText.x = FULL_CARD_PADDING + 1;
+      costText.y = FULL_CARD_H - FULL_CARD_PADDING - costText.height;
+      faceWrapper.addChild(costText);
     }
     if (topDiscardDescription !== undefined) {
-      const descY = artY + artImgH + CARD_PADDING;
-      const costBase = pileY + SLOT_H - CARD_PADDING - (costText !== null ? costText.height + CARD_PADDING : 0);
-      const flavorH = topDiscardFlavorText ? FLAVOR_ZONE_H : 0;
-      const descMaxH = costBase - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
-      fitDescText(topDiscardDescription, pileX + CARD_PADDING + 1, descY, descMaxH, container);
+      const descY = artY + artImgH + FULL_CARD_PADDING;
+      const costBase = FULL_CARD_H - FULL_CARD_PADDING - (costText !== null ? costText.height + FULL_CARD_PADDING : 0);
+      const flavorH = topDiscardFlavorText ? FULL_FLAVOR_ZONE_H : 0;
+      const descMaxH = costBase - descY - (flavorH > 0 ? flavorH + FULL_CARD_PADDING : FULL_CARD_PADDING);
+      fitDescTextFull(topDiscardDescription, FULL_CARD_PADDING + 1, descY, descMaxH, faceWrapper);
       if (topDiscardFlavorText) {
         const flavorY = costBase - flavorH;
-        fitFlavorText(topDiscardFlavorText, pileX + CARD_PADDING + 1, flavorY, container);
+        fitFlavorTextFull(topDiscardFlavorText, FULL_CARD_PADDING + 1, flavorY, faceWrapper);
       }
     }
   } else {
     // Draw pile back — colored fill, inner decorative border, deck name.
+    const topRect = new Graphics();
+    topRect.roundRect(pileX, pileY, SLOT_W, SLOT_H, 4);
     topRect.fill({ color: bgColor, alpha: 0.95 });
     topRect.stroke({ color: accentColor, width: 1 });
     container.addChild(topRect);
@@ -1100,7 +1216,7 @@ function buildDeckPiles(
     // Discard pile.
     const discardContainer = new Container();
     const discardRect = computeDeckPileRect(di, 'discard', app.screen.width);
-    paintPile(discardContainer, discardRect.x, discardRect.y, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId, def.topDiscardDescription, def.topDiscardCost, def.key === 'traffic' ? 0x00f5ff : undefined, def.topDiscardFlavorText);
+    paintPile(discardContainer, discardRect.x, discardRect.y, colors.bg, colors.accent, deckLabel, 'discard', def.discardCount, def.topDiscardName, def.topDiscardTemplateId, def.topDiscardDescription, def.topDiscardCost, def.key === 'traffic' ? 0x00f5ff : undefined, def.topDiscardFlavorText, DISCARD_FACE_COLOR[def.key]);
     board.addChild(discardContainer);
     const discardLabel = new Text({ text: 'DISCARD', style: PILE_LABEL_STYLE });
     discardLabel.x = discardRect.x;
@@ -1132,9 +1248,11 @@ function patchSlot(
   const cardsChanged = oldSlot.card?.id !== newSlot.card?.id;
 
   if (cardsChanged) {
-    // Explicitly destroy children to release GPU textures before removal.
+    // Explicitly destroy children (and their subtrees) to release GPU textures
+    // before removal. { children: true } is required because paintSlotCards now
+    // wraps content in a Container — a plain destroy() would skip its children.
     for (const child of refs.cardContainer.children) {
-      child.destroy();
+      child.destroy({ children: true });
     }
     refs.cardContainer.removeChildren();
     paintSlotCards(newSlot, refs.slotX, refs.slotY, refs.cardContainer, suppressedCardIds);
@@ -1149,7 +1267,7 @@ function patchTrack(refs: TrackRefs, oldTrack: TrackSlot, newTrack: TrackSlot): 
 
   if (ticketsChanged) {
     for (const child of refs.ticketContainer.children) {
-      child.destroy();
+      child.destroy({ children: true });
     }
     refs.ticketContainer.removeChildren();
     paintTrackTickets(newTrack, refs.trackX, refs.trackY, refs.ticketContainer);
@@ -1180,7 +1298,7 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
   const colors = PILE_COLORS[pile.deckType];
   const deckLabel = pile.deckType.toUpperCase();
   for (const child of pile.container.children) {
-    child.destroy();
+    child.destroy({ children: true });
   }
   pile.container.removeChildren();
   paintPile(
@@ -1198,6 +1316,7 @@ function patchPile(pile: DeckPileRefs, prevCtx: GameContext, nextCtx: GameContex
     next.topCost,
     pile.deckType === 'traffic' ? 0x00f5ff : undefined,
     next.topFlavorText,
+    DISCARD_FACE_COLOR[pile.deckType],
   );
 }
 
