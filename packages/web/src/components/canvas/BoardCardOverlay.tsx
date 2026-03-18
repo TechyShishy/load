@@ -201,6 +201,15 @@ function VendorGearFlyout({
           </button>
         </div>
 
+        {/* Art */}
+        <img
+          src={`./cards/${card.templateId}.svg`}
+          alt=""
+          aria-hidden="true"
+          className="w-full object-cover bg-amber-900/40"
+          style={{ height: '112px', imageRendering: 'pixelated' }}
+        />
+
         {/* Body */}
         <div className="flex flex-col items-stretch p-2 gap-1">
           <FitTextBlock className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
