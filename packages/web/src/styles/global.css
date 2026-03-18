@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+html {
+  /* Guard against browser auto-inflation of font sizes on narrow viewports
+     (WebKit's text autosizer, distinct from Android's textZoom mechanism).
+     The definitive fix for Android system font scale is setTextZoom(100)
+     in MainActivity.java. Tailwind preflight covers -webkit-text-size-adjust
+     already; the unprefixed property adds coverage for modern browsers. */
+  text-size-adjust: 100%;
+}
+
 :root {
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
