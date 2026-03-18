@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100" shape-rendering="crispEdges">
+  <!-- Vendor card background: dark amber-black -->
+  <rect width="160" height="100" fill="#110d00"/>
+
+  <g transform="translate(30,0) scale(3.125)">
+    <!-- ── ECG heartbeat line above both racks (pixel-art rects) ── -->
+    <!-- Baseline left: x=2..7 at y=11 -->
+    <rect x="2"  y="11" width="6" height="1" fill="#ffd60a"/>
+    <!-- Rise column x=7: y=8..10 (y=11 covered by baseline) -->
+    <rect x="7"  y="8"  width="1" height="3" fill="#ffd60a"/>
+    <!-- Ascending to peak, column x=8: y=5..8 -->
+    <rect x="8"  y="5"  width="1" height="4" fill="#ffd60a"/>
+    <!-- Peak column x=9: y=5..8 (tip at y=5, descent toward y=8) -->
+    <rect x="9"  y="5"  width="1" height="4" fill="#ffd60a"/>
+    <!-- Deep dip, column x=10: y=8..15 -->
+    <rect x="10" y="8"  width="1" height="8" fill="#ffd60a"/>
+    <!-- Recovery column x=11: y=13..15 -->
+    <rect x="11" y="13" width="1" height="3" fill="#ffd60a"/>
+    <!-- Recovery column x=12: y=11..13 -->
+    <rect x="12" y="11" width="1" height="3" fill="#ffd60a"/>
+    <!-- Baseline right: x=13..29 at y=11 -->
+    <rect x="13" y="11" width="17" height="1" fill="#ffd60a"/>
+
+    <!-- ── Left 1U rack unit ── -->
+    <!-- Body -->
+    <rect x="1" y="19" width="12" height="4" fill="#2a1e00"/>
+    <!-- Top highlight -->
+    <rect x="1" y="19" width="12" height="1" fill="#ffd60a" fill-opacity="0.12"/>
+    <!-- Mounting ears -->
+    <rect x="1"  y="19" width="1" height="4" fill="#150f00"/>
+    <rect x="12" y="19" width="1" height="4" fill="#150f00"/>
+    <!-- Active LED -->
+    <rect x="3" y="20" width="1" height="1" fill="#ffd60a"/>
+    <!-- Secondary LED (dim) -->
+    <rect x="5" y="20" width="1" height="1" fill="#ffd60a" fill-opacity="0.40"/>
+    <!-- Port slot -->
+    <rect x="3" y="22" width="7" height="1" fill="#0d0800"/>
+
+    <!-- ── Right 1U rack unit (mirrored) ── -->
+    <!-- Body -->
+    <rect x="15" y="19" width="12" height="4" fill="#2a1e00"/>
+    <!-- Top highlight -->
+    <rect x="15" y="19" width="12" height="1" fill="#ffd60a" fill-opacity="0.12"/>
+    <!-- Mounting ears -->
+    <rect x="15" y="19" width="1" height="4" fill="#150f00"/>
+    <rect x="26" y="19" width="1" height="4" fill="#150f00"/>
+    <!-- Active LED -->
+    <rect x="17" y="20" width="1" height="1" fill="#ffd60a"/>
+    <!-- Secondary LED (dim) -->
+    <rect x="19" y="20" width="1" height="1" fill="#ffd60a" fill-opacity="0.40"/>
+    <!-- Port slot -->
+    <rect x="17" y="22" width="7" height="1" fill="#0d0800"/>
+
+    <!-- ── Atmospheric scanlines ── -->
+    <rect x="4" y="27" width="24" height="1" fill="#ffd60a" fill-opacity="0.15"/>
+    <rect x="4" y="29" width="24" height="1" fill="#ffd60a" fill-opacity="0.10"/>
+    <rect x="4" y="31" width="24" height="1" fill="#ffd60a" fill-opacity="0.06"/>
+  </g>
+</svg>

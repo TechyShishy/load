@@ -22,4 +22,5 @@ export const CARD_ART: Partial<Record<string, string>> = {
   'vendor-managed-services-agreement': './cards/vendor-managed-services-agreement.svg',
   'vendor-application-delivery-controller': './cards/vendor-application-delivery-controller.svg',
   'vendor-content-delivery-network': './cards/vendor-content-delivery-network.svg',
+  'vendor-high-availability-failover-cluster': './cards/vendor-high-availability-failover-cluster.svg',
 };
