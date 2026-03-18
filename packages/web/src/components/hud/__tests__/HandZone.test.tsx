@@ -103,6 +103,15 @@ describe('ExpandedCardFlyout', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('dismisses the flyout when the flyout body itself is clicked', () => {
+    renderWithDnd(<HandZone hand={[makeCard({ name: 'Zoom Card' })]} />);
+    fireEvent.click(screen.getByRole('button', { name: /Zoom Card/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Zoom Card details' });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(dialog);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('dismisses the flyout when Escape is pressed', () => {
     renderWithDnd(<HandZone hand={[makeCard({ name: 'Zoom Card' })]} />);
     fireEvent.click(screen.getByRole('button', { name: /Zoom Card/ }));

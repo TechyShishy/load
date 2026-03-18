@@ -53,6 +53,7 @@ function DeckBuilderSidebar({
       role="dialog"
       aria-label={card.name}
       tabIndex={-1}
+      onClick={onDismiss}
       style={{ width: SIDEBAR_WIDTH, flexShrink: 0 }}
       className="flex flex-col border-r border-cyan-900 bg-purple-950/60 overflow-y-auto"
     >
@@ -60,7 +61,7 @@ function DeckBuilderSidebar({
       <div className="flex items-center justify-between px-3 py-2 border-b border-purple-700/40 flex-shrink-0">
         <span className="text-cyan-500 font-mono text-xs tracking-widest uppercase">Card Details</span>
         <button
-          onClick={onDismiss}
+          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
           aria-label="Close card details"
           className="text-gray-500 hover:text-white leading-none cursor-pointer"
           style={{ fontSize: '14px' }}
@@ -115,9 +116,11 @@ function DeckBuilderCardFlyout({
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [onDismiss]);
 
-  // Outside-click: dismiss when a pointerdown lands outside the flyout panel AND
-  // is not on a deck-builder interactive element (tile buttons, counter buttons)
-  // that should remain functional while the flyout is open.
+  // Dismiss via pointerdown when clicking outside the flyout or on a
+  // non-interactive background. The contains() guard prevents double-dismissal:
+  // inside-clicks are already handled by onClick on the dialog div itself.
+  // data-flyout-interactive elements (tile/counter buttons) stay functional
+  // while the flyout is open — their pointerdown must not dismiss.
   useEffect(() => {
     function handlePointerDown(e: PointerEvent) {
       if (dialogRef.current?.contains(e.target as Node)) return;
@@ -136,15 +139,16 @@ function DeckBuilderCardFlyout({
       role="dialog"
       aria-label={card.name}
       tabIndex={-1}
+      onClick={onDismiss}
       style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
-      className="rounded overflow-hidden border border-cyan-400 shadow-2xl shadow-cyan-900/60"
+      className="rounded overflow-hidden border border-cyan-400 shadow-2xl shadow-cyan-900/60 cursor-pointer"
     >
       {card.type === CardType.Vendor
         ? <VendorCardFace card={card} className="bg-amber-950" titleSlot={
-            <button onClick={onDismiss} aria-label="Close card details" className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer" style={{ fontSize: '14px' }}>×</button>
+            <button onClick={(e) => { e.stopPropagation(); onDismiss(); }} aria-label="Close card details" className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer" style={{ fontSize: '14px' }}>×</button>
           } />
         : <ActionCardFace card={card} className="bg-purple-950" titleSlot={
-            <button onClick={onDismiss} aria-label="Close card details" className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer" style={{ fontSize: '14px' }}>×</button>
+            <button onClick={(e) => { e.stopPropagation(); onDismiss(); }} aria-label="Close card details" className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer" style={{ fontSize: '14px' }}>×</button>
           } />
       }
     </div>,

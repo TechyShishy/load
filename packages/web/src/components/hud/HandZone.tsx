@@ -258,6 +258,10 @@ function ExpandedCardFlyout({
         aria-label={`${card.name} details`}
         tabIndex={-1}
         {...listeners}
+        // onClick coexists safely with DnD listeners: click only fires for a
+        // stationary tap (no move beyond the activation distance threshold),
+        // which is not a drag. Completed drags dismiss via the isDragging effect.
+        onClick={onDismiss}
         style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999, touchAction: 'none', opacity: isDragging ? 0 : 1 }}
         className="rounded overflow-hidden border border-cyan-400 shadow-2xl shadow-cyan-900/60 cursor-grab"
       >
@@ -266,7 +270,7 @@ function ExpandedCardFlyout({
           className="bg-purple-950"
           titleSlot={
             <button
-              onClick={onDismiss}
+              onClick={(e) => { e.stopPropagation(); onDismiss(); }}
               onPointerDown={(e) => e.stopPropagation()}
               aria-label="Close card details"
               className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"

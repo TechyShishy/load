@@ -92,6 +92,7 @@ function CardFlyout({ card, sourceRect, onDismiss, theme, backdropTestId, stat }
         aria-modal="true"
         aria-label={`${card.name} details`}
         tabIndex={-1}
+        onClick={onDismiss}
         style={{
           position: 'fixed',
           left: pos.left,
@@ -99,7 +100,7 @@ function CardFlyout({ card, sourceRect, onDismiss, theme, backdropTestId, stat }
           zIndex: 9999,
           width: flyoutWidth,
         }}
-        className={`flex flex-col border rounded shadow-2xl ${theme.border} ${theme.bg} ${theme.shadow}`}
+        className={`flex flex-col border rounded shadow-2xl ${theme.border} ${theme.bg} ${theme.shadow} cursor-pointer`}
       >
         {/* Header */}
         <div className={`flex items-center justify-between px-1.5 pt-1 border-b ${theme.headerBorder}`}>
@@ -107,7 +108,7 @@ function CardFlyout({ card, sourceRect, onDismiss, theme, backdropTestId, stat }
             {card.name}
           </FitText>
           <button
-            onClick={onDismiss}
+            onClick={(e) => { e.stopPropagation(); onDismiss(); }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Close card details"
             className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"

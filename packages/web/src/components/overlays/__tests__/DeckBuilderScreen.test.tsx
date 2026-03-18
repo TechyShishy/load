@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ACTION_CARDS, FALLBACK_ACTION_DECK, MIN_DECK_SIZE, VendorCard, VENDOR_CARDS, VENDOR_SLOT_COUNT } from '@load/game-core';
 import type { DeckSpec, GameContext } from '@load/game-core';
@@ -342,6 +342,19 @@ describe('DeckBuilderScreen — card detail flyout', () => {
     expect(screen.getByRole('dialog', { name: workOrder.name })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
+  });
+
+  it('single-clicking the flyout body dismisses it', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+
+    const workOrder = ACTION_CARDS.find((c) => c.templateId === 'action-work-order')!;
+    await user.click(screen.getByRole('button', { name: `View ${workOrder.name} details` }));
+    const dialog = screen.getByRole('dialog', { name: workOrder.name });
+    expect(dialog).toBeInTheDocument();
+
+    fireEvent.click(dialog);
     expect(screen.queryByRole('dialog', { name: workOrder.name })).not.toBeInTheDocument();
   });
 
