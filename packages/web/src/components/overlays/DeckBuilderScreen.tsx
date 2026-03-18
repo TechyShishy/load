@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
-import { ACTION_CARDS, FALLBACK_ACTION_DECK, MIN_DECK_SIZE, validateDeckSpec } from '@load/game-core';
-import type { ActionCard, DeckSpec } from '@load/game-core';
-import { ActionCardPreview, ActionCardFace, CARD_W, CARD_H } from '../hud/HandZone.js';
+import { ACTION_CARDS, CardType, FALLBACK_ACTION_DECK, MIN_DECK_SIZE, VENDOR_CARDS, VENDOR_SLOT_COUNT, validateDeckSpec } from '@load/game-core';
+import type { ActionCard, DeckSpec, VendorCard } from '@load/game-core';
+import { ActionCardPreview, ActionCardFace, VendorCardFace, VendorCardPreview, CARD_W, CARD_H } from '../hud/HandZone.js';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
 import { loadDeckConfig, saveDeckConfig } from '../../save.js';
 
@@ -14,7 +14,7 @@ import { loadDeckConfig, saveDeckConfig } from '../../save.js';
 const WIDE_FLYOUT_BREAKPOINT = 768;
 const SIDEBAR_WIDTH = 240;
 
-type FlyoutState = { card: ActionCard; rect: DOMRect; triggerEl: HTMLButtonElement };
+type FlyoutState = { card: ActionCard | VendorCard; rect: DOMRect; triggerEl: HTMLButtonElement };
 
 // ── Wide sidebar ─────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ function DeckBuilderSidebar({
   card,
   onDismiss,
 }: {
-  card: ActionCard;
+  card: ActionCard | VendorCard;
   onDismiss: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -72,7 +72,10 @@ function DeckBuilderSidebar({
       {/* Card subpanel */}
       <div className="flex justify-center px-4 pt-4 pb-2 flex-shrink-0">
         <div className="rounded overflow-hidden border border-purple-500 shadow shadow-cyan-900/30">
-          <ActionCardFace card={card} className="bg-purple-950" />
+          {card.type === CardType.Vendor
+            ? <VendorCardFace card={card} className="bg-amber-950" />
+            : <ActionCardFace card={card} className="bg-purple-950" />
+          }
         </div>
       </div>
     </div>
@@ -89,7 +92,7 @@ function DeckBuilderCardFlyout({
   sourceRect,
   onDismiss,
 }: {
-  card: ActionCard;
+  card: ActionCard | VendorCard;
   sourceRect: DOMRect;
   onDismiss: () => void;
 }) {
@@ -136,20 +139,14 @@ function DeckBuilderCardFlyout({
       style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
       className="rounded overflow-hidden border border-cyan-400 shadow-2xl shadow-cyan-900/60"
     >
-      <ActionCardFace
-        card={card}
-        className="bg-purple-950"
-        titleSlot={
-          <button
-            onClick={onDismiss}
-            aria-label="Close card details"
-            className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"
-            style={{ fontSize: '14px' }}
-          >
-            ×
-          </button>
-        }
-      />
+      {card.type === CardType.Vendor
+        ? <VendorCardFace card={card} className="bg-amber-950" titleSlot={
+            <button onClick={onDismiss} aria-label="Close card details" className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer" style={{ fontSize: '14px' }}>×</button>
+          } />
+        : <ActionCardFace card={card} className="bg-purple-950" titleSlot={
+            <button onClick={onDismiss} aria-label="Close card details" className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer" style={{ fontSize: '14px' }}>×</button>
+          } />
+      }
     </div>,
     document.body,
   );
@@ -169,6 +166,10 @@ function initialCounts(): Record<string, number> {
   for (const card of ACTION_CARDS) {
     counts[card.templateId] = 0;
   }
+  // Vendor cards always start at 0 unless the saved spec says otherwise.
+  for (const card of VENDOR_CARDS) {
+    counts[card.templateId] = 0;
+  }
   for (const entry of spec) {
     if (Object.prototype.hasOwnProperty.call(counts, entry.templateId)) {
       counts[entry.templateId] = entry.count;
@@ -180,6 +181,10 @@ function initialCounts(): Record<string, number> {
 function defaultCounts(): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const card of ACTION_CARDS) {
+    counts[card.templateId] = 0;
+  }
+  // Vendor cards default to 0 — players opt in by adding them.
+  for (const card of VENDOR_CARDS) {
     counts[card.templateId] = 0;
   }
   for (const entry of FALLBACK_ACTION_DECK) {
@@ -195,7 +200,7 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
   const vw = window.visualViewport?.width ?? window.innerWidth;
   const isWide = vw >= WIDE_FLYOUT_BREAKPOINT;
 
-  const handleTileClick = useCallback((card: ActionCard, el: HTMLButtonElement) => {
+  const handleTileClick = useCallback((card: ActionCard | VendorCard, el: HTMLButtonElement) => {
     setFlyout((prev) => {
       // Clicking the same tile again toggles the flyout closed.
       if (prev?.card.templateId === card.templateId) return null;
@@ -209,11 +214,24 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
     setFlyout(null);
   }, [flyout]);
 
-  const currentSpec: DeckSpec[] = ACTION_CARDS.map((card) => ({
+  // Action-only spec for MIN_DECK_SIZE validation — vendor cards are optional
+  // and do not count toward the minimum deck size.
+  const actionSpec: DeckSpec[] = ACTION_CARDS.map((card) => ({
     templateId: card.templateId,
     count: counts[card.templateId] ?? 0,
   }));
-  const { valid: isValid, total } = validateDeckSpec(currentSpec);
+  const vendorSpec: DeckSpec[] = VENDOR_CARDS.map((card) => ({
+    templateId: card.templateId,
+    count: counts[card.templateId] ?? 0,
+  }));
+  // Combined spec saved to disk — includes both action and vendor entries.
+  const currentSpec: DeckSpec[] = [...actionSpec, ...vendorSpec];
+  const { valid: isValid, total } = validateDeckSpec(actionSpec);
+  // Vendor count cap: players cannot add more vendor cards than there are gear slots.
+  // Excess vendor cards would be permanently unplayable (no slot to receive them).
+  const totalVendorCount = vendorSpec.reduce((s, e) => s + e.count, 0);
+  const isVendorCountValid = totalVendorCount <= VENDOR_SLOT_COUNT;
+  const isSaveEnabled = isValid && isVendorCountValid;
 
   const adjust = (templateId: string, delta: number) => {
     setCounts((prev) => ({
@@ -227,12 +245,12 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
   };
 
   const handleSave = () => {
-    if (!isValid) return;
+    if (!isSaveEnabled) return;
     saveDeckConfig(currentSpec);
   };
 
   const handleStart = () => {
-    if (!isValid) return;
+    if (!isSaveEnabled) return;
     saveDeckConfig(currentSpec);
     onStart();
   };
@@ -322,6 +340,68 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
                 );
               })}
             </div>
+
+            {/* Vendor cards — always start at 0; players opt in */}
+            {VENDOR_CARDS.length > 0 && (
+              <>
+                <div className="flex items-center gap-3 mt-8 mb-4 max-w-4xl mx-auto">
+                  <span className="text-amber-500 font-mono text-xs tracking-widest uppercase border border-amber-500/40 rounded px-2 py-0.5">
+                    VENDOR
+                  </span>
+                  <span className="text-gray-500 font-mono text-xs">
+                    Vendor cards go to Gear slots — not the board. Start at 0 copies.
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-5 justify-center max-w-4xl mx-auto">
+                  {VENDOR_CARDS.map((card) => {
+                    const count = counts[card.templateId] ?? 0;
+                    return (
+                      <div key={card.templateId} className="flex flex-col items-center gap-2">
+                        <button
+                          data-flyout-interactive
+                          onClick={(e) => handleTileClick(card, e.currentTarget)}
+                          aria-label={`View ${card.name} details`}
+                          aria-expanded={flyout?.card.templateId === card.templateId}
+                          aria-haspopup="dialog"
+                          className="rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                        >
+                          <VendorCardPreview card={card} />
+                        </button>
+                        <span className="text-amber-500 font-mono text-xs tracking-widest uppercase border border-amber-500/40 rounded px-1">
+                          VENDOR
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            data-flyout-interactive
+                            onClick={() => adjust(card.templateId, -1)}
+                            disabled={count === 0}
+                            aria-label={`Remove one ${card.name}`}
+                            className="w-7 h-7 flex items-center justify-center rounded border border-amber-700 text-amber-300 hover:bg-amber-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold font-mono transition-colors"
+                          >
+                            −
+                          </button>
+                          <span
+                            className="w-8 text-center font-mono text-white text-sm"
+                            aria-label={`${count} copies of ${card.name}`}
+                          >
+                            {count}
+                          </span>
+                          <button
+                            data-flyout-interactive
+                            onClick={() => adjust(card.templateId, 1)}
+                            aria-label={`Add one ${card.name}`}
+                            // TODO-0016 (#22): cap this button by the player's owned count once card ownership is implemented
+                            className="w-7 h-7 flex items-center justify-center rounded border border-amber-700 text-amber-300 hover:bg-amber-800 font-bold font-mono transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
           {!isWide && flyout !== null && (
             <DeckBuilderCardFlyout
@@ -334,26 +414,33 @@ export function DeckBuilderScreen({ onBack, onStart }: DeckBuilderScreenProps) {
 
         {/* Footer: total + actions */}
         <div className="flex-shrink-0 border-t border-cyan-900 px-6 py-4 flex items-center justify-between gap-4">
-          <div
-            className={`font-mono text-sm tracking-widest ${isValid ? 'text-green-400' : 'text-red-400'}`}
-            aria-live="polite"
-          >
-            {total} CARDS
-            {isValid
-              ? <span className="ml-2 text-xs text-gray-500">(min {MIN_DECK_SIZE})</span>
-              : <span className="ml-2 text-xs">(need {MIN_DECK_SIZE - total} more)</span>}
+          <div className="flex flex-col gap-1">
+            <div
+              className={`font-mono text-sm tracking-widest ${isValid ? 'text-green-400' : 'text-red-400'}`}
+              aria-live="polite"
+            >
+              {total} CARDS
+              {isValid
+                ? <span className="ml-2 text-xs text-gray-500">(min {MIN_DECK_SIZE})</span>
+                : <span className="ml-2 text-xs">(need {MIN_DECK_SIZE - total} more)</span>}
+            </div>
+            <div className="font-mono text-xs text-red-400" aria-live="polite" aria-atomic="true">
+              {!isVendorCountValid
+                ? `Too many vendor cards — max ${VENDOR_SLOT_COUNT} (you have ${totalVendorCount})`
+                : ''}
+            </div>
           </div>
           <div className="flex gap-3">
             <button
               onClick={handleSave}
-              disabled={!isValid}
+              disabled={!isSaveEnabled}
               className="px-5 py-2 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded font-mono tracking-widest transition-colors text-sm"
             >
               SAVE
             </button>
             <button
               onClick={handleStart}
-              disabled={!isValid}
+              disabled={!isSaveEnabled}
               className="px-5 py-2 bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded font-mono tracking-widest transition-colors text-sm"
             >
               START →

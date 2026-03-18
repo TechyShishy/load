@@ -15,6 +15,7 @@ export {
   BANKRUPT_THRESHOLD,
   MAX_SLA_FAILURES,
   HAND_SIZE,
+  VENDOR_SLOT_COUNT,
   MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKDAY_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW,
@@ -73,7 +74,7 @@ export {
 } from './data/index.js';
 
 // ── Deck constants & utilities ───────────────────────────────────────────────
-export { FALLBACK_ACTION_DECK, FALLBACK_TRAFFIC_DECK, FALLBACK_EVENT_DECK, MIN_DECK_SIZE, validateDeckSpec } from './deck.js';
+export { FALLBACK_ACTION_DECK, FALLBACK_TRAFFIC_DECK, FALLBACK_EVENT_DECK, MIN_DECK_SIZE, validateDeckSpec, buildVendorDeck } from './deck.js';
 
 // ── Crisis / scheduling helpers ───────────────────────────────────────────────
 export { playVendorCard } from './processCrisis.js';

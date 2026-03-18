@@ -1,9 +1,9 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ACTION_CARDS, FALLBACK_ACTION_DECK, MIN_DECK_SIZE } from '@load/game-core';
-import type { DeckSpec } from '@load/game-core';
+import { ACTION_CARDS, FALLBACK_ACTION_DECK, MIN_DECK_SIZE, VendorCard, VENDOR_CARDS, VENDOR_SLOT_COUNT } from '@load/game-core';
+import type { DeckSpec, GameContext } from '@load/game-core';
 import { DeckBuilderScreen } from '../DeckBuilderScreen.js';
 
 const mockLoadDeckConfig = vi.hoisted(() => vi.fn<[], ReadonlyArray<DeckSpec> | null>(() => null));
@@ -14,6 +14,22 @@ vi.mock('../../../save.js', () => ({
   saveDeckConfig: mockSaveDeckConfig,
 }));
 
+// ── Stub vendor card for tests ───────────────────────────────────────────────
+class StubVendorCard extends VendorCard {
+  readonly templateId = 'vendor-test-appliance';
+  readonly id: string;
+  readonly name = 'Test Appliance';
+  readonly cost = 1000;
+  readonly description = 'A test vendor card';
+  constructor(instanceId = 'vendor-test-appliance') {
+    super();
+    this.id = instanceId;
+  }
+  onResolve(ctx: GameContext): GameContext { return ctx; }
+}
+
+const stubVendorTemplate = new StubVendorCard();
+
 const defaultProps = {
   onBack: vi.fn(),
   onStart: vi.fn(),
@@ -22,6 +38,12 @@ const defaultProps = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockLoadDeckConfig.mockReturnValue(null); // default: use FALLBACK_ACTION_DECK
+  VENDOR_CARDS.push(stubVendorTemplate);
+});
+
+afterEach(() => {
+  const idx = VENDOR_CARDS.indexOf(stubVendorTemplate);
+  if (idx !== -1) VENDOR_CARDS.splice(idx, 1);
 });
 
 describe('DeckBuilderScreen — card catalog', () => {
@@ -165,6 +187,106 @@ describe('DeckBuilderScreen — navigation', () => {
     await user.click(screen.getByRole('button', { name: 'START →' }));
     expect(mockSaveDeckConfig).toHaveBeenCalledOnce();
     expect(onStart).toHaveBeenCalledOnce();
+  });
+});
+
+describe('DeckBuilderScreen — vendor cards', () => {
+  it('renders vendor card name in the catalog', () => {
+    render(<DeckBuilderScreen {...defaultProps} />);
+    expect(screen.getByText(stubVendorTemplate.name)).toBeInTheDocument();
+  });
+
+  it('shows a VENDOR badge for each vendor card', () => {
+    render(<DeckBuilderScreen {...defaultProps} />);
+    // There should be at least one VENDOR badge visible.
+    const badges = screen.getAllByText('VENDOR');
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('vendor card count starts at 0', () => {
+    render(<DeckBuilderScreen {...defaultProps} />);
+    expect(
+      screen.getByLabelText(`0 copies of ${stubVendorTemplate.name}`),
+    ).toBeInTheDocument();
+  });
+
+  it('vendor count starts at 0 even when no saved config', () => {
+    mockLoadDeckConfig.mockReturnValue(null);
+    render(<DeckBuilderScreen {...defaultProps} />);
+    expect(
+      screen.getByLabelText(`0 copies of ${stubVendorTemplate.name}`),
+    ).toBeInTheDocument();
+  });
+
+  it('+ button increments vendor card count', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+    await user.click(screen.getByRole('button', { name: `Add one ${stubVendorTemplate.name}` }));
+    expect(
+      screen.getByLabelText(`1 copies of ${stubVendorTemplate.name}`),
+    ).toBeInTheDocument();
+  });
+
+  it('− button is disabled when vendor count is 0', () => {
+    render(<DeckBuilderScreen {...defaultProps} />);
+    expect(
+      screen.getByRole('button', { name: `Remove one ${stubVendorTemplate.name}` }),
+    ).toBeDisabled();
+  });
+
+  it('saved spec includes vendor entries', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+    // Add one vendor card
+    await user.click(screen.getByRole('button', { name: `Add one ${stubVendorTemplate.name}` }));
+    await user.click(screen.getByRole('button', { name: 'SAVE' }));
+    const saved = mockSaveDeckConfig.mock.calls[0]![0];
+    const vendorEntry = saved.find((e) => e.templateId === stubVendorTemplate.templateId);
+    expect(vendorEntry).toBeDefined();
+    expect(vendorEntry!.count).toBe(1);
+  });
+
+  it('vendor count is loaded from saved spec', () => {
+    mockLoadDeckConfig.mockReturnValue([
+      ...FALLBACK_ACTION_DECK,
+      { templateId: stubVendorTemplate.templateId, count: 2 },
+    ]);
+    render(<DeckBuilderScreen {...defaultProps} />);
+    expect(
+      screen.getByLabelText(`2 copies of ${stubVendorTemplate.name}`),
+    ).toBeInTheDocument();
+  });
+
+  it('Reset to Default resets vendor count to 0', async () => {
+    const user = userEvent.setup();
+    render(<DeckBuilderScreen {...defaultProps} />);
+    // Add vendor card
+    await user.click(screen.getByRole('button', { name: `Add one ${stubVendorTemplate.name}` }));
+    expect(screen.getByLabelText(`1 copies of ${stubVendorTemplate.name}`)).toBeInTheDocument();
+    // Reset
+    await user.click(screen.getByRole('button', { name: 'RESET TO DEFAULT' }));
+    expect(screen.getByLabelText(`0 copies of ${stubVendorTemplate.name}`)).toBeInTheDocument();
+  });
+
+  it('adding vendor cards alone does NOT enable the Save button (need action cards too)', () => {
+    // Empty deck spec — no action cards
+    mockLoadDeckConfig.mockReturnValue([]);
+    render(<DeckBuilderScreen {...defaultProps} />);
+    expect(screen.getByRole('button', { name: 'SAVE' })).toBeDisabled();
+  });
+
+  it('Save button is disabled and error shown when vendor count exceeds VENDOR_SLOT_COUNT', async () => {
+    const user = userEvent.setup();
+    // Load enough action cards to pass MIN_DECK_SIZE validation
+    mockLoadDeckConfig.mockReturnValue(FALLBACK_ACTION_DECK as DeckSpec[]);
+    render(<DeckBuilderScreen {...defaultProps} />);
+    // Add one more vendor card than the gear slots allow
+    const addBtn = screen.getByRole('button', { name: `Add one ${stubVendorTemplate.name}` });
+    for (let i = 0; i <= VENDOR_SLOT_COUNT; i++) {
+      await user.click(addBtn);
+    }
+    expect(screen.getByRole('button', { name: 'SAVE' })).toBeDisabled();
+    expect(screen.getByText(/too many vendor cards/i)).toBeInTheDocument();
   });
 });
 

@@ -1,6 +1,6 @@
 import seedrandom from 'seedrandom';
-import { ACTION_CARD_REGISTRY, EVENT_CARD_REGISTRY, TRAFFIC_CARD_REGISTRY } from './data/index.js';
-import type { ActionCard, DeckSpec, EventCard, TrafficCard } from './types.js';
+import { ACTION_CARD_REGISTRY, EVENT_CARD_REGISTRY, TRAFFIC_CARD_REGISTRY, VENDOR_CARD_REGISTRY } from './data/index.js';
+import type { ActionCard, DeckSpec, EventCard, TrafficCard, VendorCard } from './types.js';
 
 /** Injectable RNG function — default is Math.random, tests can seed it. */
 export type Rng = () => number;
@@ -123,6 +123,28 @@ export function buildActionDeck(rng: Rng = Math.random, spec?: ReadonlyArray<Dec
   const cards: ActionCard[] = [];
   for (const { templateId, count } of (spec ?? FALLBACK_ACTION_DECK)) {
     const Ctor = ACTION_CARD_REGISTRY.get(templateId)!;
+    for (let i = 0; i < count; i++) {
+      const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
+      cards.push(new Ctor(instanceId));
+    }
+  }
+  return shuffle(cards, rng);
+}
+
+/**
+ * Build the Vendor card draw pile from a player deck spec.
+ *
+ * The returned cards are intended to be shuffled into the action draw pile
+ * (Option A — see createInitialContext). Unknown templateIds (e.g. action card
+ * entries sharing the same spec array) are silently skipped so that callers
+ * do not need to pre-filter.
+ */
+export function buildVendorDeck(rng: Rng = Math.random, spec?: ReadonlyArray<DeckSpec>): VendorCard[] {
+  if (!spec) return [];
+  const cards: VendorCard[] = [];
+  for (const { templateId, count } of spec) {
+    const Ctor = VENDOR_CARD_REGISTRY.get(templateId);
+    if (!Ctor) continue; // not a vendor templateId — skip
     for (let i = 0; i < count; i++) {
       const instanceId = `${templateId}-${Math.floor(rng() * 1e9)}`;
       cards.push(new Ctor(instanceId));

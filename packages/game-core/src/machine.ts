@@ -1,14 +1,14 @@
 import { and, assign, enqueueActions, setup } from 'xstate';
-import { BUILT_IN_CONTRACTS } from './data/index.js';
+import { ACTION_CARD_REGISTRY, BUILT_IN_CONTRACTS } from './data/index.js';
 import {
-  HAND_SIZE, LoseReason, Period, PhaseId, STARTING_BUDGET, Track,
+  CardType, HAND_SIZE, LoseReason, Period, PhaseId, STARTING_BUDGET, Track,
   MAX_WEEKDAY_TRAFFIC_DRAW, MIN_WEEKDAY_TRAFFIC_DRAW,
   MAX_WEEKEND_TRAFFIC_DRAW, MIN_WEEKEND_TRAFFIC_DRAW,
   WEEKDAY_EVENT_DRAW, WEEKEND_EVENT_DRAW, BANKRUPT_THRESHOLD, MAX_SLA_FAILURES,
   type ActionCard, type Card, type ContractDef, type DeckSpec, type DrawLogTrafficEntry, type EventCard, type GameContext, type TrafficCard, type VendorCard,
   isWeekend, isFriday, getDayOfWeek,
 } from './types.js';
-import { buildActionDeck, buildEventDeck, buildTrafficDeck, drawN, makeRng, shuffle } from './deck.js';
+import { buildActionDeck, buildEventDeck, buildTrafficDeck, buildVendorDeck, drawN, makeRng, shuffle } from './deck.js';
 import {
   createInitialSlotLayout,
   createVendorSlots,
@@ -30,14 +30,35 @@ export function createInitialContext(seed?: string, contract?: ContractDef, deck
   const rng = makeRng(resolvedSeed + '-init');
   const trafficCards = buildTrafficDeck(rng, contract?.trafficDeck);
   const eventCards = buildEventDeck(rng, contract?.eventDeck);
-  const allActionCards = buildActionDeck(rng, contract?.actionDeck ?? deckSpec);
-  const [initialHandCards, remainingActionCards] = drawN(allActionCards, HAND_SIZE);
+
+  // Split the player's combined deck spec into action-only entries before
+  // calling buildActionDeck, which crashes on unknown templateIds. The same
+  // full spec is passed to buildVendorDeck, which skips non-vendor entries.
+  // Note: if all entries in deckSpec are vendor templateIds, actionDeckSpec
+  // will be [] and buildActionDeck will warn + silently fall back to
+  // FALLBACK_ACTION_DECK. The deck builder's MIN_DECK_SIZE validation prevents
+  // this in normal gameplay.
+  const actionDeckSpec = deckSpec?.filter((e) => ACTION_CARD_REGISTRY.has(e.templateId));
+  const allActionCards = buildActionDeck(rng, contract?.actionDeck ?? actionDeckSpec);
+
+  // Option A: vendor cards are shuffled into the single combined draw pile
+  // alongside action cards. actionDeckOrder therefore holds IDs of both types.
+  // Card rendering detects the type at draw time and renders accordingly.
+  // This requires zero changes to the draw machinery — handOrder already
+  // accepts both ActionCard and VendorCard instance IDs.
+  // Note: when contract.actionDeck is set the contract controls the full deck;
+  // vendor cards from the player's deckSpec are intentionally excluded.
+  const vendorCards = contract?.actionDeck ? [] : buildVendorDeck(rng, deckSpec);
+  const allDrawCards = shuffle([...allActionCards, ...vendorCards], rng);
+  const [initialHandCards, remainingCards] = drawN(allDrawCards, HAND_SIZE);
 
   // ─ card instance registry ─
   const cardInstances: Record<string, Card> = {};
-  for (const c of [...trafficCards, ...eventCards, ...allActionCards]) {
+  for (const c of [...trafficCards, ...eventCards, ...allActionCards, ...vendorCards]) {
     cardInstances[c.id] = c;
   }
+
+  const initialActionCards = initialHandCards.filter((c): c is ActionCard => c.type === CardType.Action);
 
   const ticketOrders: Record<Track, string[]> = {
     [Track.BreakFix]: [],
@@ -59,7 +80,7 @@ export function createInitialContext(seed?: string, contract?: ContractDef, deck
     ticketIssuedRound: {},
     trafficDeckOrder: trafficCards.map((c) => c.id),
     trafficDiscardOrder: [],
-    actionDeckOrder: remainingActionCards.map((c) => c.id),
+    actionDeckOrder: remainingCards.map((c) => c.id),
     actionDiscardOrder: [],
     eventDeckOrder: eventCards.map((c) => c.id),
     eventDiscardOrder: [],
@@ -79,7 +100,7 @@ export function createInitialContext(seed?: string, contract?: ContractDef, deck
     skipNextTrafficDraw: false,
     revenueBoostMultiplier: 1,
     slaForgivenessThisRound: 0,
-    drawLog: { traffic: [], action: initialHandCards, events: [] },
+    drawLog: { traffic: [], action: initialActionCards, events: [] },
   };
 }
 
@@ -334,7 +355,9 @@ export const gameMachine = setup({
         const drawnIds = actionDeckOrder.slice(0, deficit);
         actionDeckOrder = actionDeckOrder.slice(deficit);
         handOrder = [...handOrder, ...drawnIds];
-        actionDrawn = drawnIds.map((id) => context.cardInstances[id] as ActionCard);
+        actionDrawn = drawnIds
+          .map((id) => context.cardInstances[id])
+          .filter((c): c is ActionCard => c !== undefined && c.type === CardType.Action);
       }
 
       enqueue.assign({

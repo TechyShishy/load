@@ -3,12 +3,15 @@ import {
   buildActionDeck,
   buildEventDeck,
   buildTrafficDeck,
+  buildVendorDeck,
   drawN,
   makeRng,
   reshuffleDiscard,
   shuffle,
 } from '../deck.js';
-import { CardType } from '../types.js';
+import { CardType, VendorCard } from '../types.js';
+import type { GameContext } from '../types.js';
+import { VENDOR_CARD_REGISTRY, VENDOR_CARDS } from '../data/index.js';
 
 describe('shuffle', () => {
   it('returns a new array with the same elements', () => {
@@ -174,6 +177,106 @@ describe('buildActionDeck', () => {
     const deck1 = buildActionDeck(makeRng('seed-a'));
     const deck2 = buildActionDeck(makeRng('seed-b'));
     expect(deck1.map((c) => c.id)).not.toEqual(deck2.map((c) => c.id));
+  });
+});
+
+// ── minimal concrete VendorCard for tests ─────────────────────────────────────
+
+class StubVendorCard extends VendorCard {
+  readonly templateId = 'vendor-stub';
+  readonly id: string;
+  readonly name = 'Stub Appliance';
+  readonly cost = 500;
+  readonly description = 'A test vendor card';
+  constructor(instanceId = 'vendor-stub') {
+    super();
+    this.id = instanceId;
+  }
+  onResolve(ctx: GameContext): GameContext { return ctx; }
+}
+
+describe('buildVendorDeck', () => {
+  it('returns an empty array when no spec is provided', () => {
+    expect(buildVendorDeck()).toEqual([]);
+  });
+
+  it('returns an empty array for an empty spec', () => {
+    expect(buildVendorDeck(Math.random, [])).toEqual([]);
+  });
+
+  it('silently skips action and traffic templateIds', () => {
+    const spec = [
+      { templateId: 'action-work-order', count: 3 },
+      { templateId: 'traffic-4k-stream', count: 2 },
+    ];
+    expect(buildVendorDeck(Math.random, spec)).toEqual([]);
+  });
+
+  describe('with a registered StubVendorCard', () => {
+    const stub = new StubVendorCard();
+
+    // Register / unregister around each test so module state stays clean.
+    // (VENDOR_CARD_REGISTRY is exported as a mutable Map.)
+    // biome-ignore lint/suspicious/noDuplicateTestHooks: paired setup/teardown pattern
+    const setup = () => {
+      VENDOR_CARD_REGISTRY.set('vendor-stub', StubVendorCard as unknown as new (instanceId: string) => VendorCard);
+      VENDOR_CARDS.push(stub);
+    };
+    const teardown = () => {
+      VENDOR_CARD_REGISTRY.delete('vendor-stub');
+      const idx = VENDOR_CARDS.indexOf(stub);
+      if (idx !== -1) VENDOR_CARDS.splice(idx, 1);
+    };
+
+    it('builds the correct number of vendor card instances', () => {
+      setup();
+      try {
+        const deck = buildVendorDeck(Math.random, [{ templateId: 'vendor-stub', count: 3 }]);
+        expect(deck).toHaveLength(3);
+        expect(deck.every((c) => c.type === CardType.Vendor)).toBe(true);
+        expect(deck.every((c) => c.templateId === 'vendor-stub')).toBe(true);
+      } finally {
+        teardown();
+      }
+    });
+
+    it('generates unique instance IDs', () => {
+      setup();
+      try {
+        const deck = buildVendorDeck(makeRng('seed-v'), [{ templateId: 'vendor-stub', count: 5 }]);
+        const ids = deck.map((c) => c.id);
+        expect(new Set(ids).size).toBe(5);
+      } finally {
+        teardown();
+      }
+    });
+
+    it('produces the same IDs for the same seed', () => {
+      setup();
+      try {
+        const spec = [{ templateId: 'vendor-stub', count: 3 }];
+        const deck1 = buildVendorDeck(makeRng('seed-v'), spec);
+        const deck2 = buildVendorDeck(makeRng('seed-v'), spec);
+        expect(deck1.map((c) => c.id)).toEqual(deck2.map((c) => c.id));
+      } finally {
+        teardown();
+      }
+    });
+
+    it('skips unknown templateIds alongside known vendor ones', () => {
+      setup();
+      try {
+        const spec = [
+          { templateId: 'action-work-order', count: 2 },
+          { templateId: 'vendor-stub', count: 1 },
+        ];
+        const deck = buildVendorDeck(Math.random, spec);
+        expect(deck).toHaveLength(1);
+        expect(deck[0]!.templateId).toBe('vendor-stub');
+      } finally {
+        teardown();
+      }
+    });
   });
 });
 
