@@ -1,4 +1,4 @@
-import { Period, SlotType, Track, type ActionCard, type EventCard, type GameContext, type TimeSlot, type TrackSlot, type TrafficCard } from './types.js';
+import { Period, SlotType, Track, type ActionCard, type EventCard, type GameContext, type TimeSlot, type TrackSlot, type TrafficCard, type VendorCard } from './types.js';
 
 // ─── Traffic views ────────────────────────────────────────────────────────────
 
@@ -48,8 +48,8 @@ export function getActionDiscard(ctx: GameContext): ActionCard[] {
   return ctx.actionDiscardOrder.map((id) => ctx.cardInstances[id] as ActionCard);
 }
 
-export function getHand(ctx: GameContext): ActionCard[] {
-  return ctx.handOrder.map((id) => ctx.cardInstances[id] as ActionCard);
+export function getHand(ctx: GameContext): (ActionCard | VendorCard)[] {
+  return ctx.handOrder.map((id) => ctx.cardInstances[id] as ActionCard | VendorCard);
 }
 
 export function getPlayedThisRound(ctx: GameContext): ActionCard[] {

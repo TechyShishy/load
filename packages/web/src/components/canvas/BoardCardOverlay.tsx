@@ -1,11 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CardType, Period, getFilledTimeSlots, getTracks, getTrafficDiscard, getEventDiscard, getActionDiscard } from '@load/game-core';
-import type { ActionCard, EventCard, GameContext, TrafficCard } from '@load/game-core';
+import type { ActionCard, EventCard, GameContext, TrafficCard, VendorCard } from '@load/game-core';
 import {
   computeDeckPileRect,
+  computeGearSlotRect,
   computeSlotRect,
   computeTicketRect,
+  type SlotRect,
 } from './canvasLayout.js';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
 import { FitText, FitTextBlock } from '../FitText.js';
@@ -132,6 +134,131 @@ function BoardCardFlyout({
   );
 }
 
+function VendorGearFlyout({
+  card,
+  sourceRect,
+  onDismiss,
+}: {
+  card: VendorCard;
+  sourceRect: DOMRect;
+  onDismiss: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [flyoutHeight, setFlyoutHeight] = useState(200);
+  useLayoutEffect(() => {
+    if (!dialogRef.current) return;
+    setFlyoutHeight(dialogRef.current.offsetHeight);
+    dialogRef.current.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onDismiss();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onDismiss]);
+
+  const flyoutWidth = 180;
+  const pos = computeFlyoutPosition(sourceRect, flyoutWidth, flyoutHeight);
+
+  return createPortal(
+    <>
+      <div
+        data-testid="vendor-card-flyout-backdrop"
+        aria-hidden="true"
+        style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+        onClick={onDismiss}
+      />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${card.name} details`}
+        tabIndex={-1}
+        style={{
+          position: 'fixed',
+          left: pos.left,
+          top: pos.top,
+          zIndex: 9999,
+          width: flyoutWidth,
+        }}
+        className="flex flex-col border border-amber-400 rounded bg-amber-950/90 shadow-2xl shadow-amber-900/60"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-1.5 pt-1 border-b border-amber-700/30">
+          <FitText className="font-bold text-amber-300 leading-tight flex-1 min-w-0">
+            {card.name}
+          </FitText>
+          <button
+            onClick={onDismiss}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Close card details"
+            className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"
+            style={{ fontSize: '14px' }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-col items-stretch p-2 gap-1">
+          <FitTextBlock className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
+          {card.flavorText && (
+            <em className="text-gray-500 leading-snug" style={{ fontSize: '9px', display: 'block' }}>{card.flavorText}</em>
+          )}
+          <span
+            className="text-amber-400 font-mono flex-shrink-0 border border-amber-400/40 rounded px-1 self-start"
+            style={{ fontSize: '9px' }}
+          >
+            Cost: ${card.cost.toLocaleString()}
+          </span>
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+// ── Hit-zone components ───────────────────────────────────────────────────────
+
+interface GearSlotHitZoneProps {
+  card: VendorCard;
+  slotRect: SlotRect;
+  onActivate: (rect: DOMRect) => void;
+}
+
+function GearSlotHitZone({ card, slotRect, onActivate }: GearSlotHitZoneProps) {
+  return (
+    <div
+      aria-label={`View ${card.name} gear card details`}
+      role="button"
+      tabIndex={0}
+      style={{
+        position: 'absolute',
+        left: slotRect.x,
+        top: slotRect.y,
+        width: slotRect.w,
+        height: slotRect.h,
+        cursor: 'pointer',
+        zIndex: 2,
+      }}
+      className="rounded"
+      onClick={(e) => {
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+        onActivate(rect);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+          onActivate(rect);
+        }
+      }}
+    />
+  );
+}
+
 // ── Hit-zone components ───────────────────────────────────────────────────────
 
 interface DiscardPileHitZoneProps {
@@ -254,6 +381,11 @@ interface FlyoutState {
   fromDiscard?: 'traffic' | 'event' | 'action';
 }
 
+interface GearFlyoutState {
+  card: VendorCard;
+  rect: DOMRect;
+}
+
 export interface BoardCardOverlayProps {
   context: GameContext;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -264,6 +396,7 @@ export interface BoardCardOverlayProps {
 export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCardOverlayProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [flyoutState, setFlyoutState] = useState<FlyoutState | null>(null);
+  const [gearFlyoutState, setGearFlyoutState] = useState<GearFlyoutState | null>(null);
   const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
   const tracks = useMemo(() => getTracks(context), [context]);
   const trafficDiscard = useMemo(() => getTrafficDiscard(context), [context]);
@@ -384,6 +517,22 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
             );
           }),
         )}
+
+        {/* Gear slot hit zones — one per occupied vendor slot */}
+        {context.vendorSlots
+          .filter((slot) => slot.card !== null)
+          .map((slot) => {
+            const vendorCard = slot.card!;
+            const slotRect = computeGearSlotRect(slot.index, containerWidth);
+            return (
+              <GearSlotHitZone
+                key={`gear-hit-${slot.index}`}
+                card={vendorCard}
+                slotRect={slotRect}
+                onActivate={(domRect) => setGearFlyoutState({ card: vendorCard, rect: domRect })}
+              />
+            );
+          })}
       </div>
 
       {/* Flyout portal — rendered outside the overlay div */}
@@ -392,6 +541,13 @@ export function BoardCardOverlay({ context, containerRef, activeCard }: BoardCar
           card={flyoutState.card}
           sourceRect={flyoutState.rect}
           onDismiss={() => setFlyoutState(null)}
+        />
+      )}
+      {gearFlyoutState !== null && (
+        <VendorGearFlyout
+          card={gearFlyoutState.card}
+          sourceRect={gearFlyoutState.rect}
+          onDismiss={() => setGearFlyoutState(null)}
         />
       )}
     </>

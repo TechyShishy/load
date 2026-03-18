@@ -4,15 +4,15 @@ import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGame } from '../hooks/useGame.js';
 import { useDrawAnimationState } from '../hooks/useDrawAnimationState.js';
 import { useSettings } from '../settings/SettingsContext.js';
-import { BUILT_IN_CONTRACTS, Period, Track, getFilledTimeSlots, getHand, getPendingEvents } from '@load/game-core';
-import type { ActionCard, ContractDef } from '@load/game-core';
+import { BUILT_IN_CONTRACTS, CardType, Period, Track, getFilledTimeSlots, getHand, getPendingEvents } from '@load/game-core';
+import type { ActionCard, ContractDef, VendorCard } from '@load/game-core';
 import { GameCanvas } from './canvas/GameCanvas.js';
 import { BoardDropZones } from './canvas/BoardDropZones.js';
 import { BoardCardOverlay } from './canvas/BoardCardOverlay.js';
 import { BudgetBar } from './hud/BudgetBar.js';
 import { SLAMeter } from './hud/SLAMeter.js';
 import { PhaseIndicator } from './hud/PhaseIndicator.js';
-import { HandZone, ActionCardPreview } from './hud/HandZone.js';
+import { HandZone, ActionCardPreview, VendorCardPreview } from './hud/HandZone.js';
 import { WinScreen, LoseScreen } from './overlays/EndScreens.js';
 import { EventModal } from './overlays/EventModal.js';
 import { CalendarModal } from './overlays/CalendarModal.js';
@@ -36,13 +36,14 @@ const snapFlyoutToCursor: Modifier = ({ transform, activatorEvent, draggingNodeR
 };
 
 export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { contract?: ContractDef; onReturnToMenu: () => void; onOpenSettings: () => void }) {
-  const { context, phase, advance, drawComplete, playAction, isWon, isLost } = useGame(contract);
+  const { context, phase, advance, drawComplete, playAction, playVendor, isWon, isLost } = useGame(contract);
   const { settings } = useSettings();
   const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
   const hand = useMemo(() => getHand(context), [context]);
   const pendingEvents = useMemo(() => getPendingEvents(context), [context]);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<ActionCard | null>(null);
+  const [activeVendorCard, setActiveVendorCard] = useState<VendorCard | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   useEffect(() => { if (isWon || isLost) setIsCalendarOpen(false); }, [isWon, isLost]);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,16 +95,32 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
   );
 
   const handleDragStart = useCallback(({ active }: DragStartEvent) => {
-    const card = active.data.current?.card as ActionCard | undefined;
-    setActiveCard(card ?? null);
+    const card = active.data.current?.card as ActionCard | VendorCard | undefined;
+    if (card?.type === CardType.Vendor) {
+      setActiveVendorCard(card);
+    } else {
+      setActiveCard((card as ActionCard | undefined) ?? null);
+    }
   }, []);
 
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
       setActiveCard(null);
+      setActiveVendorCard(null);
       if (!over) return;
-      const card = active.data.current?.card as ActionCard | undefined;
+      const card = active.data.current?.card as ActionCard | VendorCard | undefined;
       if (!card) return;
+
+      // Route vendor card drops to gear slots
+      if (card.type === CardType.Vendor) {
+        if (typeof over.id === 'string' && over.id.startsWith('gear-')) {
+          const slotIndex = parseInt(over.id.slice('gear-'.length), 10);
+          playVendor(card, slotIndex);
+          showFeedback(`${card.name}: Installed in gear slot ${slotIndex} (-$${card.cost.toLocaleString()})`);
+        }
+        return;
+      }
+
       const zones = card.validDropZones;
 
       if (typeof over.id === 'string' && over.id.startsWith('period-')) {
@@ -168,7 +185,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
         }
       }
     },
-    [playAction, timeSlots, showFeedback],
+    [playAction, playVendor, timeSlots, showFeedback],
   );
 
   const canAdvance = phase === 'scheduling' || phase === 'crisis';
@@ -204,7 +221,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
           speedMult={speedMult}
           reducedMotion={settings.reducedMotion}
         />
-        <BoardDropZones context={context} containerRef={canvasRef} activeCard={activeCard} />
+        <BoardDropZones context={context} containerRef={canvasRef} activeCard={activeCard} activeVendorCard={activeVendorCard} />
         <BoardCardOverlay context={context} containerRef={canvasRef} activeCard={activeCard} />
       </div>
       <div className="flex items-center gap-2 px-4 border-t border-gray-800 bg-gray-900 flex-shrink-0">
@@ -217,7 +234,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
           <HandZone
             hand={hand}
             disabled={!canPlayCard}
-            isCardDisabled={(card) => card.crisisOnly === true && phase === 'scheduling'}
+            isCardDisabled={(card) => card.type !== CardType.Vendor && card.crisisOnly === true && phase === 'scheduling'}
             suppressedCardIds={suppressedCardIds}
           />
         </div>
@@ -257,7 +274,7 @@ export function GamePlayArea({ contract, onReturnToMenu, onOpenSettings }: { con
     </div>
     </ErrorBoundary>
     <DragOverlay dropAnimation={null} modifiers={[snapFlyoutToCursor]}>
-      {activeCard ? <ActionCardPreview card={activeCard} dragging /> : null}
+      {activeCard ? <ActionCardPreview card={activeCard} dragging /> : activeVendorCard ? <VendorCardPreview card={activeVendorCard} dragging /> : null}
     </DragOverlay>
     </DndContext>
   );

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDraggable } from '@dnd-kit/core';
-import type { ActionCard } from '@load/game-core';
+import type { ActionCard, VendorCard } from '@load/game-core';
+import { CardType } from '@load/game-core';
 import { computeFlyoutPosition } from '../flyoutPosition.js';
 import { FitText, FitTextBlock } from '../FitText.js';
 
@@ -73,6 +74,126 @@ interface ExpandedState {
   dragId: string;
   card: ActionCard;
   rect: DOMRect;
+}
+
+// ── Vendor card components ────────────────────────────────────────────────────
+
+/**
+ * Canonical vendor card face. Always rendered at CARD_W × CARD_H.
+ * Amber color scheme to distinguish vendor cards from action cards.
+ */
+export function VendorCardFace({
+  card,
+  className = '',
+  titleSlot,
+  maxTitleFontSize = 13.33,
+}: {
+  card: VendorCard;
+  className?: string;
+  titleSlot?: React.ReactNode;
+  maxTitleFontSize?: number;
+}) {
+  return (
+    <div
+      className={`flex flex-col ${className}`}
+      style={{ width: CARD_W, height: CARD_H }}
+    >
+      <div className="flex items-center justify-between px-1.5 pt-1 border-b border-amber-700/30">
+        <FitText className="font-bold text-amber-300 leading-tight flex-1 min-w-0" maxFontSize={maxTitleFontSize}>{card.name}</FitText>
+        {titleSlot}
+      </div>
+      <img
+        src={`./cards/${card.templateId}.svg`}
+        alt=""
+        aria-hidden="true"
+        className="w-full object-cover bg-amber-900/40"
+        style={{ height: CARD_IMG_H, imageRendering: 'pixelated' }}
+      />
+      <div className="flex flex-col flex-1 items-stretch p-2 min-h-0">
+        <FitTextBlock maxFontSize={22} className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
+        {card.flavorText && (
+          <em className="text-gray-500 leading-snug flex-shrink-0" style={{ fontSize: '9px', display: 'block' }}>
+            {card.flavorText}
+          </em>
+        )}
+        <span
+          className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
+          style={{ fontSize: '9px' }}
+        >
+          Cost: ${'{'}card.cost.toLocaleString(){'}'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Pure visual representation of a vendor card — no DnD logic.
+ * Used by HandZone internally and by the DragOverlay in GamePlayArea.
+ */
+export function VendorCardPreview({ card, dragging = false }: { card: VendorCard; dragging?: boolean }) {
+  return (
+    <div
+      className={`
+        w-[90px] h-[120px] flex-shrink-0 rounded overflow-hidden transform-gpu
+        border select-none
+        ${dragging
+          ? 'border-amber-400 shadow-xl shadow-amber-900/60'
+          : 'border-amber-600'
+        }
+      `}
+    >
+      <VendorCardFace
+        card={card}
+        className={`scale-50 origin-top-left ${dragging ? 'bg-amber-900' : 'bg-amber-950'}`}
+        maxTitleFontSize={27}
+      />
+    </div>
+  );
+}
+
+interface VendorCardViewProps {
+  card: VendorCard;
+  dragId: string;
+  disabled: boolean;
+}
+
+function VendorCardView({ card, dragId, disabled }: VendorCardViewProps) {
+  const { isDragging, setNodeRef, listeners, attributes } = useDraggable({
+    id: dragId,
+    data: { card },
+    disabled,
+  });
+
+  const style: React.CSSProperties = {
+    opacity: isDragging ? 0 : 1,
+    touchAction: 'none',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      aria-label={`${card.name} – Cost $${card.cost.toLocaleString()} – ${card.description}`}
+      aria-disabled={disabled}
+      className={`
+        w-[90px] h-[120px] flex-shrink-0 rounded overflow-hidden transform-gpu
+        border select-none
+        ${disabled
+          ? 'border-gray-700 opacity-40 cursor-not-allowed'
+          : 'border-amber-600 hover:border-amber-400 cursor-grab group'
+        }
+      `}
+    >
+      <VendorCardFace
+        card={card}
+        className={`scale-50 origin-top-left ${disabled ? 'bg-gray-900' : 'bg-amber-950 group-hover:bg-amber-900'}`}
+        maxTitleFontSize={27}
+      />
+    </div>
+  );
 }
 
 function ExpandedCardFlyout({
@@ -162,9 +283,9 @@ function ExpandedCardFlyout({
 }
 
 interface HandZoneProps {
-  hand: ActionCard[];
+  hand: (ActionCard | VendorCard)[];
   disabled?: boolean;
-  isCardDisabled?: (card: ActionCard) => boolean;
+  isCardDisabled?: (card: ActionCard | VendorCard) => boolean;
   /** Card IDs currently mid-animation — suppressed from rendering until arrival. */
   suppressedCardIds?: ReadonlySet<string>;
 }
@@ -193,6 +314,16 @@ export function HandZone({ hand, disabled = false, isCardDisabled, suppressedCar
         )}
         {visibleHand.map((card, i) => {
           const dragId = `${card.id}-${i}`;
+          if (card.type === CardType.Vendor) {
+            return (
+              <VendorCardView
+                key={dragId}
+                dragId={dragId}
+                card={card}
+                disabled={disabled || (isCardDisabled?.(card) ?? false)}
+              />
+            );
+          }
           return (
             <ActionCardView
               key={dragId}

@@ -31,6 +31,8 @@ import {
   BOARD_COLUMN_COUNT,
   TRACK_H,
   TICKET_STRIDE,
+  GEAR_SLOT_H,
+  GEAR_HEADER_H,
   computeDeckPileRect,
   computeSlotRect,
   computeTrackRect,
@@ -107,6 +109,9 @@ const HEADER_STYLES: Record<Period, TextStyle> = {
   [Period.Overnight]: new TextStyle({ fill: 0x005577, fontSize: 11, fontFamily: 'Courier New' }),
 };
 const GEAR_HEADER_STYLE = new TextStyle({ fill: 0x888888, fontSize: 11, fontFamily: 'Courier New' });
+const GEAR_SLOT_NAME_STYLE = new TextStyle({ fill: 0xf59e0b, fontSize: 9, fontFamily: 'Courier New', fontWeight: 'bold' });
+const GEAR_SLOT_DESC_STYLE = new TextStyle({ fill: 0x6b7280, fontSize: 8, fontFamily: 'Courier New' });
+const GEAR_SLOT_EMPTY_STYLE = new TextStyle({ fill: 0x2d3748, fontSize: 9, fontFamily: 'Courier New', fontStyle: 'italic' });
 
 const SLOT_LABEL_STYLE = new TextStyle({ fill: 0x4b5563, fontSize: 9, fontFamily: 'Courier New' });
 const EMPTY_STYLE = new TextStyle({
@@ -211,6 +216,25 @@ function fitFlavorText(
   t.x = x;
   t.y = y;
   container.addChild(t);
+}
+
+/**
+ * Truncates `text` so it fits within `maxW` pixels when rendered with `style`.
+ * Appends "…" when truncation is necessary.
+ * Creates and immediately destroys temporary Text objects for measurement only.
+ */
+function truncateSingleLine(text: string, style: TextStyle, maxW: number): string {
+  let probe = new Text({ text, style });
+  if (probe.width <= maxW) { probe.destroy(); return text; }
+  probe.destroy();
+  let s = text;
+  while (s.length > 0) {
+    s = s.slice(0, -1);
+    probe = new Text({ text: s + '…', style });
+    if (probe.width <= maxW) { probe.destroy(); return s + '…'; }
+    probe.destroy();
+  }
+  return '…';
 }
 
 // ── Card art ──────────────────────────────────────────────────────────────────
@@ -648,15 +672,15 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
     } // end interleave block
   }
 
-  // ── Gear block — stubbed 5th column ──────────────────────────────────────
-  // TODO-0010 (#27): implement Gear block mechanics — part of vendor mechanics
+  // ── Gear block — vendor slot panel ────────────────────────────────────────
   {
     const gearX = 20 + periodCols.length * colW;
+    const slotW = colW - 8;
     const gearBg = new Graphics();
     gearBg.roundRect(
       gearX,
       BOARD_START_Y - 8,
-      colW - 8,
+      slotW,
       32 + 3 * STACK_STRIDE + SLOT_H + STACK_STRIDE / 2,
       8,
     );
@@ -668,6 +692,43 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
     gearHeader.x = gearX + PERIOD_PADDING;
     gearHeader.y = BOARD_START_Y;
     board.addChild(gearHeader);
+
+    const slotInnerW = slotW - PERIOD_PADDING * 2;
+    for (let si = 0; si < ctx.vendorSlots.length; si++) {
+      const slot = ctx.vendorSlots[si]!;
+      const slotY = BOARD_START_Y + GEAR_HEADER_H + si * GEAR_SLOT_H;
+
+      // Slot cell background.
+      const cellBg = new Graphics();
+      cellBg.roundRect(gearX + 4, slotY + 2, slotW - 8, GEAR_SLOT_H - 4, 4);
+      if (slot.card !== null) {
+        cellBg.fill({ color: 0x2a1e08, alpha: 0.8 });
+        cellBg.stroke({ color: 0xf59e0b, width: 1, alpha: 0.4 });
+      } else {
+        cellBg.fill({ color: 0x111827, alpha: 0.3 });
+        cellBg.stroke({ color: 0x374151, width: 1, alpha: 0.2 });
+      }
+      board.addChild(cellBg);
+
+      if (slot.card !== null) {
+        const card = slot.card;
+        const nameText = new Text({ text: card.name, style: GEAR_SLOT_NAME_STYLE });
+        nameText.x = gearX + PERIOD_PADDING;
+        nameText.y = slotY + 8;
+        board.addChild(nameText);
+
+        const descStr = truncateSingleLine(card.description, GEAR_SLOT_DESC_STYLE, slotInnerW);
+        const descText = new Text({ text: descStr, style: GEAR_SLOT_DESC_STYLE });
+        descText.x = gearX + PERIOD_PADDING;
+        descText.y = slotY + 22;
+        board.addChild(descText);
+      } else {
+        const emptyLabel = new Text({ text: `SLOT ${si}`, style: GEAR_SLOT_EMPTY_STYLE });
+        emptyLabel.x = gearX + PERIOD_PADDING;
+        emptyLabel.y = slotY + Math.floor(GEAR_SLOT_H / 2) - 6;
+        board.addChild(emptyLabel);
+      }
+    }
   }
 
   // Tracks — static row backgrounds with dynamic ticket containers.
@@ -1190,6 +1251,16 @@ function buildBoardSummary(ctx: GameContext): string {
     parts.push(`${track.track} track: ${ticketDesc}`);
   }
 
+  // Gear slot summary.
+  for (let i = 0; i < ctx.vendorSlots.length; i++) {
+    const slot = ctx.vendorSlots[i]!;
+    if (slot.card !== null) {
+      parts.push(`Gear slot ${i}: ${slot.card.name}`);
+    } else {
+      parts.push(`Gear slot ${i}: empty`);
+    }
+  }
+
   // Deck pile counts and top discard card.
   const deckPileDescs: [string, number, string | undefined][] = [
     ['Traffic draw', trafficDeck.length, undefined],
@@ -1385,8 +1456,13 @@ export function GameCanvas({
         context.slotLayout.filter((s) => s.period === p).length !==
         prev.slotLayout.filter((s) => s.period === p).length,
     );
+    // A vendor card played into a gear slot also requires a full rebuild because
+    // buildStaticScene renders the gear panel statically from ctx.vendorSlots.
+    const vendorSlotsChanged = context.vendorSlots.some(
+      (v, i) => v.card !== prev.vendorSlots[i]?.card,
+    );
 
-    if (slotLayoutChanged) {
+    if (slotLayoutChanged || vendorSlotsChanged) {
       // Per-period slot count changed — destroy old board Container and rebuild from scratch.
       const oldBoard = boardRef.current;
       if (oldBoard) {

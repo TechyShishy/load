@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Period, getFilledTimeSlots, getTracks, type ActionCard, type GameContext, type TimeSlot, type TrackSlot } from '@load/game-core';
-import { computePeriodRect, computeSlotRect, computeTicketRect, computeTrackRect, rowsForPeriod } from './canvasLayout.js';
+import { Period, getFilledTimeSlots, getTracks, type ActionCard, type GameContext, type TimeSlot, type TrackSlot, type VendorCard } from '@load/game-core';
+import { computeGearSlotRect, computePeriodRect, computeSlotRect, computeTicketRect, computeTrackRect, rowsForPeriod } from './canvasLayout.js';
 
 const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening, Period.Overnight];
 
@@ -156,8 +156,42 @@ function TrackDropZone({ track, trackIndex, containerWidth, maxSlotCount }: Trac
   );
 }
 
-// ── Board-wide fallback drop zone ─────────────────────────────────────────────
+// ── Gear slot drop zone ───────────────────────────────────────────────────────
 
+interface GearSlotDropZoneProps {
+  slotIndex: number;
+  containerWidth: number;
+}
+
+function GearSlotDropZone({ slotIndex, containerWidth }: GearSlotDropZoneProps) {
+  const id = `gear-${slotIndex}`;
+  const { isOver, setNodeRef } = useDroppable({ id, data: { type: 'gear', slotIndex } });
+  const rect = computeGearSlotRect(slotIndex, containerWidth);
+
+  return (
+    <div
+      id={id}
+      ref={setNodeRef}
+      style={{
+        position: 'absolute',
+        left: rect.x,
+        top: rect.y,
+        width: rect.w,
+        height: rect.h,
+        borderRadius: 4,
+        pointerEvents: 'auto',
+        zIndex: 1,
+      }}
+      className={
+        isOver
+          ? 'border-2 border-amber-400 bg-amber-900/30 ring-1 ring-amber-400/60'
+          : 'border-2 border-transparent'
+      }
+    />
+  );
+}
+
+// ── Board-wide fallback drop zone ─────────────────────────────────────────────────────
 function BoardAreaDropZone() {
   const { isOver, setNodeRef } = useDroppable({ id: 'board-area' });
 
@@ -179,9 +213,11 @@ export interface BoardDropZonesProps {
   containerRef: React.RefObject<HTMLDivElement>;
   /** The card currently being dragged. Used to conditionally show period drop zones. */
   activeCard?: ActionCard | null;
+  /** The vendor card currently being dragged. Used to show gear slot drop zones. */
+  activeVendorCard?: VendorCard | null;
 }
 
-export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZonesProps) {
+export function BoardDropZones({ context, containerRef, activeCard, activeVendorCard }: BoardDropZonesProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const timeSlots = useMemo(() => getFilledTimeSlots(context), [context]);
   const tracks = useMemo(() => getTracks(context), [context]);
@@ -265,6 +301,17 @@ export function BoardDropZones({ context, containerRef, activeCard }: BoardDropZ
           );
         })
       )}
+      {/* Gear slot drop zones — shown when a vendor card is being dragged */}
+      {activeVendorCard != null &&
+        context.vendorSlots
+          .filter((s) => s.card === null)
+          .map((s) => (
+            <GearSlotDropZone
+              key={`gear-drop-${s.index}`}
+              slotIndex={s.index}
+              containerWidth={containerWidth}
+            />
+          ))}
     </div>
   );
 }

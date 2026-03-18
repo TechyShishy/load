@@ -194,6 +194,28 @@ export function computeTicketRect(
   };
 }
 
+/** Visual height of a single vendor slot cell in the Gear panel. */
+export const GEAR_SLOT_H = 80;
+
+/** Vertical space reserved for the "GEAR" header label within the Gear block. */
+export const GEAR_HEADER_H = 20;
+
+/**
+ * Compute the pixel rect of a gear slot cell given the canvas container CSS width.
+ * @param slotIndex     0-based gear slot index (0–3)
+ * @param containerWidth  clientWidth of the canvas container div
+ */
+export function computeGearSlotRect(slotIndex: number, containerWidth: number): SlotRect {
+  const colW = (containerWidth - 40) / BOARD_COLUMN_COUNT;
+  const gearX = 20 + PERIOD_COUNT * colW;
+  return {
+    x: gearX,
+    y: BOARD_START_Y + GEAR_HEADER_H + slotIndex * GEAR_SLOT_H,
+    w: colW - 8,
+    h: GEAR_SLOT_H,
+  };
+}
+
 /**
  * Compute the pixel rect of a deck pile sprite.
  * The three deck groups are clustered compactly to the LEFT of the top band.

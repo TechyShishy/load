@@ -397,4 +397,20 @@ describe('GameCanvas accessibility (aria-live board summary)', () => {
     expect(liveRegion.textContent).not.toContain('Morning slot 1: empty');
   });
 
+  it('lists vendor card names in occupied gear slots', () => {
+    const ctx = {
+      ...makeCtx(),
+      vendorSlots: [
+        { index: 0, card: { id: 'v1', templateId: 'cdn-appliance', name: 'CDN Appliance', description: '', cost: 10_000, type: 'Vendor' } },
+        { index: 1, card: null },
+        { index: 2, card: null },
+        { index: 3, card: null },
+      ],
+    } as unknown as GameContext;
+    const { container } = render(<GameCanvas context={ctx} phase="scheduling" />);
+    const text = getLiveRegion(container).textContent ?? '';
+    expect(text).toContain('Gear slot 0: CDN Appliance');
+    expect(text).toContain('Gear slot 1: empty');
+  });
+
 });

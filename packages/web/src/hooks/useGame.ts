@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { gameMachine, createInitialContext, SlotType, BUILT_IN_CONTRACTS } from '@load/game-core';
-import type { ActionCard, ContractDef, DeckSpec, Period, Track } from '@load/game-core';
+import type { ActionCard, ContractDef, DeckSpec, Period, Track, VendorCard } from '@load/game-core';
 import { clearSave, loadDeckConfig, loadGame, saveGame } from '../save.js';
 import { useAudio } from '../audio/AudioContext.js';
 
@@ -84,6 +84,14 @@ export function useGame(contract?: ContractDef) {
     [send, audio],
   );
 
+  const playVendor = useCallback(
+    (card: VendorCard, slotIndex: number) => {
+      send({ type: 'PLAY_VENDOR', card, slotIndex });
+      audio.playCardDrop();
+    },
+    [send, audio],
+  );
+
   const reset = useCallback(() => {
     clearSave();
     send({ type: 'RESET' });
@@ -146,6 +154,7 @@ export function useGame(contract?: ContractDef) {
     advance,
     drawComplete,
     playAction,
+    playVendor,
     reset,
     isWon: phase === 'gameWon',
     isLost: phase === 'gameLost',
