@@ -1469,6 +1469,7 @@ export function GameCanvas({
   const prevSlotsRef = useRef<TimeSlot[]>([]);
   const prevTracksRef = useRef<TrackSlot[]>([]);
   const [initError, setInitError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [boardSummary, setBoardSummary] = useState(() => buildBoardSummary(context));
 
   // Animation refs — updated every render, safe to read from effects and ticker.
@@ -1595,7 +1596,7 @@ export function GameCanvas({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryKey]);
 
   // Patch only what changed whenever context updates.
   // `phase` is intentionally omitted — the canvas renders board state only;
@@ -1699,11 +1700,39 @@ export function GameCanvas({
 
   if (initError) {
     return (
-      // TODO-0001 (#33): replace stub with a proper recovery/retry UI
-      <div className="flex h-full w-full items-center justify-center bg-red-900/80">
-        <div className="text-center">
-          <p className="text-lg font-bold text-red-200">Canvas failed to initialize</p>
-          <p className="mt-1 font-mono text-sm text-red-400">{initError}</p>
+      <div role="alert" className="absolute inset-0 flex items-center justify-center bg-black/80 z-50">
+        <div className="border border-red-500 bg-gray-950 rounded-lg p-8 max-w-md w-full text-center shadow-2xl">
+          <h2 className="text-red-400 text-3xl font-bold font-mono mb-2 tracking-widest">
+            CANVAS ERROR
+          </h2>
+          <p className="text-gray-400 text-sm mb-4">
+            The game canvas failed to initialise. This usually means WebGL is
+            unavailable or the browser has run out of GPU resources.
+          </p>
+          <pre className="text-xs font-mono text-red-300 bg-gray-900 rounded p-3 mb-6 text-left overflow-auto max-h-32 whitespace-pre-wrap">
+            {initError}
+          </pre>
+          <div className="flex gap-3 justify-center">
+            <button
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              type="button"
+              onClick={() => {
+                setInitError(null);
+                setRetryKey((k) => k + 1);
+              }}
+              className="px-5 py-2 bg-red-700 hover:bg-red-600 text-white font-bold rounded font-mono transition-colors"
+            >
+              RETRY
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded font-mono transition-colors"
+            >
+              RELOAD PAGE
+            </button>
+          </div>
         </div>
       </div>
     );
