@@ -18,15 +18,43 @@ const PERIOD_ORDER: Period[] = [Period.Morning, Period.Afternoon, Period.Evening
 
 type BoardCard = TrafficCard | EventCard | ActionCard;
 
-function BoardCardFlyout({
-  card,
-  sourceRect,
-  onDismiss,
-}: {
-  card: BoardCard;
+interface FlyoutTheme {
+  border: string;       // e.g. "border-cyan-400"
+  bg: string;           // e.g. "bg-purple-950"
+  shadow: string;       // e.g. "shadow-cyan-900/60"
+  headerBorder: string; // e.g. "border-purple-700/30"
+  titleText: string;    // e.g. "text-purple-300"
+  artBg: string;        // e.g. "bg-purple-900/40"
+}
+
+const BOARD_CARD_THEME: FlyoutTheme = {
+  border: 'border-cyan-400',
+  bg: 'bg-purple-950',
+  shadow: 'shadow-cyan-900/60',
+  headerBorder: 'border-purple-700/30',
+  titleText: 'text-purple-300',
+  artBg: 'bg-purple-900/40',
+};
+
+const VENDOR_CARD_THEME: FlyoutTheme = {
+  border: 'border-amber-400',
+  bg: 'bg-amber-950/90',
+  shadow: 'shadow-amber-900/60',
+  headerBorder: 'border-amber-700/30',
+  titleText: 'text-amber-300',
+  artBg: 'bg-amber-900/40',
+};
+
+interface CardFlyoutProps {
+  card: { name: string; templateId: string; description: string; flavorText?: string };
   sourceRect: DOMRect;
   onDismiss: () => void;
-}) {
+  theme: FlyoutTheme;
+  backdropTestId: string;
+  stat: React.ReactNode;
+}
+
+function CardFlyout({ card, sourceRect, onDismiss, theme, backdropTestId, stat }: CardFlyoutProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   // Content-sized flyout: measure on first layout pass so the clamping math
   // uses the real height rather than an estimate. useLayoutEffect fires
@@ -48,14 +76,12 @@ function BoardCardFlyout({
 
   const flyoutWidth = 180;
   const pos = computeFlyoutPosition(sourceRect, flyoutWidth, flyoutHeight);
-  const isTraffic = card.type === CardType.Traffic;
-  const isAction = card.type === CardType.Action;
 
   return createPortal(
     <>
       {/* Transparent backdrop — click outside to dismiss */}
       <div
-        data-testid="board-card-flyout-backdrop"
+        data-testid={backdropTestId}
         aria-hidden="true"
         style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
         onClick={onDismiss}
@@ -73,11 +99,11 @@ function BoardCardFlyout({
           zIndex: 9999,
           width: flyoutWidth,
         }}
-        className="flex flex-col border border-cyan-400 rounded bg-purple-950 shadow-2xl shadow-cyan-900/60"
+        className={`flex flex-col border rounded shadow-2xl ${theme.border} ${theme.bg} ${theme.shadow}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-1.5 pt-1 border-b border-purple-700/30">
-          <FitText className="font-bold text-purple-300 leading-tight flex-1 min-w-0">
+        <div className={`flex items-center justify-between px-1.5 pt-1 border-b ${theme.headerBorder}`}>
+          <FitText className={`font-bold leading-tight flex-1 min-w-0 ${theme.titleText}`}>
             {card.name}
           </FitText>
           <button
@@ -96,7 +122,7 @@ function BoardCardFlyout({
           src={`./cards/${card.templateId}.svg`}
           alt=""
           aria-hidden="true"
-          className="w-full object-cover bg-purple-900/40"
+          className={`w-full object-cover ${theme.artBg}`}
           style={{ height: '112px', imageRendering: 'pixelated' }}
         />
 
@@ -106,31 +132,56 @@ function BoardCardFlyout({
           {card.flavorText && (
             <em className="text-gray-500 leading-snug" style={{ fontSize: '9px', display: 'block' }}>{card.flavorText}</em>
           )}
-          {isTraffic ? (
-            <div className="flex gap-2 flex-shrink-0" style={{ fontSize: '10px' }}>
-              <span className="text-yellow-400 font-mono">
-                ${card.revenue.toLocaleString()}
-              </span>
-            </div>
-          ) : isAction ? (
-            <span
-              className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
-              style={{ fontSize: '9px' }}
-            >
-              Cost: ${card.cost.toLocaleString()}
-            </span>
-          ) : (
-            <span
-              className="text-orange-400 font-mono flex-shrink-0 border border-orange-400/40 rounded px-1 self-start"
-              style={{ fontSize: '9px' }}
-            >
-              {card.label}
-            </span>
-          )}
+          {stat}
         </div>
       </div>
     </>,
     document.body,
+  );
+}
+
+function BoardCardFlyout({
+  card,
+  sourceRect,
+  onDismiss,
+}: {
+  card: BoardCard;
+  sourceRect: DOMRect;
+  onDismiss: () => void;
+}) {
+  const isTraffic = card.type === CardType.Traffic;
+  const isAction = card.type === CardType.Action;
+  const stat = isTraffic ? (
+    <div className="flex gap-2 flex-shrink-0" style={{ fontSize: '10px' }}>
+      <span className="text-yellow-400 font-mono">
+        ${(card as TrafficCard).revenue.toLocaleString()}
+      </span>
+    </div>
+  ) : isAction ? (
+    <span
+      className="text-green-400 font-mono flex-shrink-0 border border-green-400/40 rounded px-1 self-start"
+      style={{ fontSize: '9px' }}
+    >
+      Cost: ${(card as ActionCard).cost.toLocaleString()}
+    </span>
+  ) : (
+    <span
+      className="text-orange-400 font-mono flex-shrink-0 border border-orange-400/40 rounded px-1 self-start"
+      style={{ fontSize: '9px' }}
+    >
+      {(card as EventCard).label}
+    </span>
+  );
+
+  return (
+    <CardFlyout
+      card={card}
+      sourceRect={sourceRect}
+      onDismiss={onDismiss}
+      theme={BOARD_CARD_THEME}
+      backdropTestId="board-card-flyout-backdrop"
+      stat={stat}
+    />
   );
 }
 
@@ -143,89 +194,24 @@ function VendorGearFlyout({
   sourceRect: DOMRect;
   onDismiss: () => void;
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const [flyoutHeight, setFlyoutHeight] = useState(200);
-  useLayoutEffect(() => {
-    if (!dialogRef.current) return;
-    setFlyoutHeight(dialogRef.current.offsetHeight);
-    dialogRef.current.focus();
-  }, []);
+  const stat = (
+    <span
+      className="text-amber-400 font-mono flex-shrink-0 border border-amber-400/40 rounded px-1 self-start"
+      style={{ fontSize: '9px' }}
+    >
+      Cost: ${card.cost.toLocaleString()}
+    </span>
+  );
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onDismiss();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onDismiss]);
-
-  const flyoutWidth = 180;
-  const pos = computeFlyoutPosition(sourceRect, flyoutWidth, flyoutHeight);
-
-  return createPortal(
-    <>
-      <div
-        data-testid="vendor-card-flyout-backdrop"
-        aria-hidden="true"
-        style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-        onClick={onDismiss}
-      />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${card.name} details`}
-        tabIndex={-1}
-        style={{
-          position: 'fixed',
-          left: pos.left,
-          top: pos.top,
-          zIndex: 9999,
-          width: flyoutWidth,
-        }}
-        className="flex flex-col border border-amber-400 rounded bg-amber-950/90 shadow-2xl shadow-amber-900/60"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-1.5 pt-1 border-b border-amber-700/30">
-          <FitText className="font-bold text-amber-300 leading-tight flex-1 min-w-0">
-            {card.name}
-          </FitText>
-          <button
-            onClick={onDismiss}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Close card details"
-            className="text-gray-400 hover:text-white leading-none ml-1 flex-shrink-0 cursor-pointer"
-            style={{ fontSize: '14px' }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Art */}
-        <img
-          src={`./cards/${card.templateId}.svg`}
-          alt=""
-          aria-hidden="true"
-          className="w-full object-cover bg-amber-900/40"
-          style={{ height: '112px', imageRendering: 'pixelated' }}
-        />
-
-        {/* Body */}
-        <div className="flex flex-col items-stretch p-2 gap-1">
-          <FitTextBlock className="text-gray-300 leading-snug">{card.description}</FitTextBlock>
-          {card.flavorText && (
-            <em className="text-gray-500 leading-snug" style={{ fontSize: '9px', display: 'block' }}>{card.flavorText}</em>
-          )}
-          <span
-            className="text-amber-400 font-mono flex-shrink-0 border border-amber-400/40 rounded px-1 self-start"
-            style={{ fontSize: '9px' }}
-          >
-            Cost: ${card.cost.toLocaleString()}
-          </span>
-        </div>
-      </div>
-    </>,
-    document.body,
+  return (
+    <CardFlyout
+      card={card}
+      sourceRect={sourceRect}
+      onDismiss={onDismiss}
+      theme={VENDOR_CARD_THEME}
+      backdropTestId="vendor-card-flyout-backdrop"
+      stat={stat}
+    />
   );
 }
 
