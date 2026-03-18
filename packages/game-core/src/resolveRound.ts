@@ -71,21 +71,28 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
     ...overloadedCardIds.filter((id) => !spawnedTrafficIdSet.has(id)),
   ];
 
-  const resolvedCount = Object.values(newTrafficSlotPositions).filter(
-    (pos) => pos.slotType !== SlotType.Overloaded,
-  ).length;
-
   // ── Vendor card persistent effects ───────────────────────────────────────────
-  // Runs after the full SLA-accounting and traffic sweep so vendors see the
-  // reconciled board state. Runs before budgetDelta is computed so any ledger
-  // entries appended by onResolve are captured in summary.ledger and included
-  // in the round P&L total.
-  let resolvedCtx = ctx;
+  // Vendors receive the post-overload-sweep board state so they see only the
+  // cards that remain after SLA accounting. Any board-position changes a vendor
+  // makes (e.g. CDN auto-clears one card) are carried forward into the final
+  // context rather than being overwritten by the pre-vendor snapshots.
+  let resolvedCtx: GameContext = {
+    ...ctx,
+    trafficSlotPositions: newTrafficSlotPositions,
+    trafficDiscardOrder,
+    slotLayout,
+  };
   for (const slot of ctx.vendorSlots) {
     if (slot.card !== null) {
       resolvedCtx = slot.card.onResolve(resolvedCtx);
     }
   }
+
+  // Recompute from post-vendor positions so vendor-cleared cards are excluded
+  // from the remaining-on-board count.
+  const resolvedCount = Object.values(resolvedCtx.trafficSlotPositions).filter(
+    (pos) => pos.slotType !== SlotType.Overloaded,
+  ).length;
 
   const budgetDelta = resolvedCtx.pendingLedger.reduce(
     (sum, e) => sum + (e.kind === 'traffic-revenue' || e.kind === 'ticket-revenue' || e.kind === 'vendor-revenue' ? e.amount : -e.amount),
@@ -121,12 +128,9 @@ export function resolveRound(ctx: GameContext, spawnedTrafficCount = 0, spawnedC
 
   const context: GameContext = {
     ...resolvedCtx,
-    slotLayout,
-    trafficDiscardOrder,
-    trafficSlotPositions: newTrafficSlotPositions,
-    // Prune stale IDs (cards that left the board this round or earlier); only keep
-    // spawned cards that are still on a slot so the set stays tightly bounded.
-    spawnedTrafficIds: ctx.spawnedTrafficIds.filter((id) => id in newTrafficSlotPositions),
+    // trafficSlotPositions, trafficDiscardOrder, and slotLayout are already
+    // set in resolvedCtx (post-overload-sweep, post-vendor). Do not override.
+    spawnedTrafficIds: ctx.spawnedTrafficIds.filter((id) => id in resolvedCtx.trafficSlotPositions),
     ticketOrders: newTicketOrders,
     ticketProgress: newTicketProgress,
     ticketIssuedRound: newTicketIssuedRound,
