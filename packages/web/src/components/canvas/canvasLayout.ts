@@ -194,11 +194,17 @@ export function computeTicketRect(
   };
 }
 
-/** Visual height of a single vendor slot cell in the Gear panel. */
-export const GEAR_SLOT_H = 80;
+/**
+ * Y-stride between consecutive vendor card slots in the Gear panel.
+ * Matches STACK_STRIDE so vendor cards fan/overlap identically to traffic cards.
+ */
+export const GEAR_SLOT_H = STACK_STRIDE;
 
-/** Vertical space reserved for the "GEAR" header label within the Gear block. */
-export const GEAR_HEADER_H = 20;
+/**
+ * Vertical space reserved for the "GEAR" header label within the Gear block.
+ * Matches the 24 px header space used by period columns.
+ */
+export const GEAR_HEADER_H = 24;
 
 /**
  * Compute the pixel rect of a gear slot cell given the canvas container CSS width.
@@ -209,10 +215,10 @@ export function computeGearSlotRect(slotIndex: number, containerWidth: number): 
   const colW = (containerWidth - 40) / BOARD_COLUMN_COUNT;
   const gearX = 20 + PERIOD_COUNT * colW;
   return {
-    x: gearX,
+    x: gearX + PERIOD_PADDING,
     y: BOARD_START_Y + GEAR_HEADER_H + slotIndex * GEAR_SLOT_H,
-    w: colW - 8,
-    h: GEAR_SLOT_H,
+    w: SLOT_W,
+    h: SLOT_H,
   };
 }
 

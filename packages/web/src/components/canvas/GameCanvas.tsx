@@ -19,6 +19,7 @@ import {
   type TimeSlot,
   type TrackSlot,
   type TrafficCard,
+  type VendorSlot,
 } from '@load/game-core';
 import {
   SLOT_W,
@@ -77,6 +78,8 @@ const PERIOD_ACCENT: Record<Period, number> = {
 
 const GEAR_BLOCK_COLOR = 0x1a1a1a;
 const GEAR_BLOCK_ACCENT = 0x888888;
+const VENDOR_COLOR = 0x2a1e08;
+const VENDOR_ACCENT = 0xf59e0b;
 
 /** Fill colour for overload slots (period-full traffic card was placed here). */
 const OVERLOAD_SLOT_COLOR = 0x3a0000;
@@ -109,8 +112,6 @@ const HEADER_STYLES: Record<Period, TextStyle> = {
   [Period.Overnight]: new TextStyle({ fill: 0x005577, fontSize: 11, fontFamily: 'Courier New' }),
 };
 const GEAR_HEADER_STYLE = new TextStyle({ fill: 0x888888, fontSize: 11, fontFamily: 'Courier New' });
-const GEAR_SLOT_NAME_STYLE = new TextStyle({ fill: 0xf59e0b, fontSize: 9, fontFamily: 'Courier New', fontWeight: 'bold' });
-const GEAR_SLOT_DESC_STYLE = new TextStyle({ fill: 0x6b7280, fontSize: 8, fontFamily: 'Courier New' });
 const GEAR_SLOT_EMPTY_STYLE = new TextStyle({ fill: 0x2d3748, fontSize: 9, fontFamily: 'Courier New', fontStyle: 'italic' });
 
 const SLOT_LABEL_STYLE = new TextStyle({ fill: 0x4b5563, fontSize: 9, fontFamily: 'Courier New' });
@@ -216,25 +217,6 @@ function fitFlavorText(
   t.x = x;
   t.y = y;
   container.addChild(t);
-}
-
-/**
- * Truncates `text` so it fits within `maxW` pixels when rendered with `style`.
- * Appends "…" when truncation is necessary.
- * Creates and immediately destroys temporary Text objects for measurement only.
- */
-function truncateSingleLine(text: string, style: TextStyle, maxW: number): string {
-  let probe = new Text({ text, style });
-  if (probe.width <= maxW) { probe.destroy(); return text; }
-  probe.destroy();
-  let s = text;
-  while (s.length > 0) {
-    s = s.slice(0, -1);
-    probe = new Text({ text: s + '…', style });
-    if (probe.width <= maxW) { probe.destroy(); return s + '…'; }
-    probe.destroy();
-  }
-  return '…';
 }
 
 // ── Card art ──────────────────────────────────────────────────────────────────
@@ -672,7 +654,9 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
     } // end interleave block
   }
 
-  // ── Gear block — vendor slot panel ────────────────────────────────────────
+  // ── Gear block — vendor card panel ────────────────────────────────────────
+  // Vendor cards use the same SLOT_W × SLOT_H chip size as traffic cards,
+  // stacked with STACK_STRIDE so they fan and overlap identically.
   {
     const gearX = 20 + periodCols.length * colW;
     const slotW = colW - 8;
@@ -681,7 +665,7 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
       gearX,
       BOARD_START_Y - 8,
       slotW,
-      32 + 3 * STACK_STRIDE + SLOT_H + STACK_STRIDE / 2,
+      32 + (ctx.vendorSlots.length - 1) * STACK_STRIDE + SLOT_H + STACK_STRIDE / 2,
       8,
     );
     gearBg.fill({ color: GEAR_BLOCK_COLOR, alpha: 0.15 });
@@ -693,40 +677,39 @@ function buildStaticScene(app: Application, board: Container, ctx: GameContext, 
     gearHeader.y = BOARD_START_Y;
     board.addChild(gearHeader);
 
-    const slotInnerW = slotW - PERIOD_PADDING * 2;
+    // slotX mirrors the period-column formula: column origin + PERIOD_PADDING.
+    const slotX = gearX + PERIOD_PADDING;
     for (let si = 0; si < ctx.vendorSlots.length; si++) {
       const slot = ctx.vendorSlots[si]!;
       const slotY = BOARD_START_Y + GEAR_HEADER_H + si * GEAR_SLOT_H;
 
-      // Slot cell background.
-      const cellBg = new Graphics();
-      cellBg.roundRect(gearX + 4, slotY + 2, slotW - 8, GEAR_SLOT_H - 4, 4);
+      // Slot background — matches period-column slot bg pattern.
+      const slotBg = new Graphics();
+      slotBg.roundRect(slotX, slotY, SLOT_W, SLOT_H, 4);
       if (slot.card !== null) {
-        cellBg.fill({ color: 0x2a1e08, alpha: 0.8 });
-        cellBg.stroke({ color: 0xf59e0b, width: 1, alpha: 0.4 });
+        slotBg.fill({ color: VENDOR_COLOR, alpha: 0.9 });
+        slotBg.stroke({ color: VENDOR_ACCENT, width: 1, alpha: 0.4 });
       } else {
-        cellBg.fill({ color: 0x111827, alpha: 0.3 });
-        cellBg.stroke({ color: 0x374151, width: 1, alpha: 0.2 });
+        slotBg.fill({ color: GEAR_BLOCK_COLOR, alpha: 0.9 });
+        slotBg.stroke({ color: GEAR_BLOCK_ACCENT, width: 1, alpha: 0.4 });
       }
-      board.addChild(cellBg);
+      board.addChild(slotBg);
 
-      if (slot.card !== null) {
-        const card = slot.card;
-        const nameText = new Text({ text: card.name, style: GEAR_SLOT_NAME_STYLE });
-        nameText.x = gearX + PERIOD_PADDING;
-        nameText.y = slotY + 8;
-        board.addChild(nameText);
+      // Slot index label — always present (e.g. "G1").
+      const slotLabel = new Text({ text: `G${si + 1}`, style: SLOT_LABEL_STYLE });
+      slotLabel.x = slotX + 4;
+      slotLabel.y = slotY + 4;
+      board.addChild(slotLabel);
 
-        const descStr = truncateSingleLine(card.description, GEAR_SLOT_DESC_STYLE, slotInnerW);
-        const descText = new Text({ text: descStr, style: GEAR_SLOT_DESC_STYLE });
-        descText.x = gearX + PERIOD_PADDING;
-        descText.y = slotY + 22;
-        board.addChild(descText);
-      } else {
-        const emptyLabel = new Text({ text: `SLOT ${si}`, style: GEAR_SLOT_EMPTY_STYLE });
-        emptyLabel.x = gearX + PERIOD_PADDING;
-        emptyLabel.y = slotY + Math.floor(GEAR_SLOT_H / 2) - 6;
+      if (slot.card === null) {
+        const emptyLabel = new Text({ text: 'empty', style: GEAR_SLOT_EMPTY_STYLE });
+        emptyLabel.x = slotX + CARD_PADDING + 2;
+        emptyLabel.y = slotY + Math.floor(SLOT_H / 2) - 5;
         board.addChild(emptyLabel);
+      } else {
+        const cardContainer = new Container();
+        board.addChild(cardContainer);
+        paintVendorSlotCard(slot, slotX, slotY, cardContainer);
       }
     }
   }
@@ -818,6 +801,65 @@ function paintSlotCards(
   container.addChild(revenueText);
 
   // Description text below the art image, leaving room for the flavor/pricing rows.
+  const descY = artY + artImgH + CARD_PADDING;
+  const flavorH = card.flavorText ? FLAVOR_ZONE_H : 0;
+  const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
+  fitDescText(card.description, slotX + CARD_PADDING + 1, descY, descMaxH, container);
+  if (card.flavorText) {
+    const flavorY = pricingY - CARD_PADDING - flavorH;
+    fitFlavorText(card.flavorText, slotX + CARD_PADDING + 1, flavorY, container);
+  }
+}
+
+/**
+ * Paints a vendor card chip into `container` using the same full-card layout as
+ * paintSlotCards (title strip + art zone + description + flavor + cost row).
+ * No-ops when slot.card is null — the caller is responsible for the empty-slot bg.
+ */
+function paintVendorSlotCard(
+  slot: VendorSlot,
+  slotX: number,
+  slotY: number,
+  container: Container,
+): void {
+  if (slot.card === null) return;
+  const card = slot.card;
+  const cardH = SLOT_H - CARD_PADDING * 2;
+  const cardY = slotY + CARD_PADDING;
+
+  const cardBg = new Graphics();
+  cardBg.roundRect(slotX + CARD_PADDING, cardY, SLOT_W - CARD_PADDING * 2, cardH, 2);
+  cardBg.fill({ color: VENDOR_COLOR, alpha: 0.9 });
+  container.addChild(cardBg);
+
+  const artImgW = SLOT_W - CARD_PADDING * 2;
+  const artImgH = SLOT_H / 2 - CARD_PADDING;
+  const artY = cardY + CARD_TITLE_ZONE_H;
+  const art = cardArtSprite(card.templateId, slotX + CARD_PADDING, artY, artImgW, artImgH);
+  if (art) {
+    container.addChild(art);
+  } else {
+    const imgZone = new Graphics();
+    imgZone.roundRect(slotX + CARD_PADDING, artY, artImgW, artImgH, 2);
+    imgZone.fill({ color: VENDOR_ACCENT, alpha: 0.1 });
+    imgZone.stroke({ color: VENDOR_ACCENT, width: 1, alpha: 0.35 });
+    container.addChild(imgZone);
+  }
+
+  const cardText = fitCardTitle(card.name, VENDOR_ACCENT);
+  cardText.x = slotX + CARD_PADDING + 2;
+  cardText.y = cardY + 2;
+  container.addChild(cardText);
+
+  // Cost pinned to bottom of card.
+  const costText = new Text({ text: `$${card.cost.toLocaleString()}`, style: CARD_COST_STYLE });
+  const pricingRowH = costText.height;
+  const pricingY = cardY + cardH - CARD_PADDING - pricingRowH;
+  costText.x = slotX + CARD_PADDING + 1;
+  costText.y = pricingY;
+  container.addChild(costText);
+
+  // Description text below the art image, leaving room for flavor/cost rows.
   const descY = artY + artImgH + CARD_PADDING;
   const flavorH = card.flavorText ? FLAVOR_ZONE_H : 0;
   const descMaxH = pricingY - descY - (flavorH > 0 ? flavorH + CARD_PADDING : CARD_PADDING);
