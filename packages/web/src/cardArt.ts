@@ -19,4 +19,5 @@ export const CARD_ART: Partial<Record<string, string>> = {
   'event-tier1-peering': './cards/event-tier1-peering.svg',
   'action-redundant-link': './cards/action-redundant-link.svg',
   'action-hot-standby': './cards/action-hot-standby.svg',
+  'vendor-managed-services-agreement': './cards/vendor-managed-services-agreement.svg',
 };

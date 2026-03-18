@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" shape-rendering="crispEdges">
+  <!-- Background: warm dark amber-black, vendor card palette -->
+  <rect width="160" height="100" fill="#110d00"/>
+
+  <!-- Drawing area: 32×32 virtual grid, centered -->
+  <g transform="translate(30,0) scale(3.125)">
+
+    <!-- ── Document drop shadow ────────────────────────────────────── -->
+    <rect x="4" y="5" width="17" height="22" fill="#281500"/>
+
+    <!-- ── Document body (parchment) ──────────────────────────────── -->
+    <rect x="2" y="3" width="17" height="22" fill="#e8dba4"/>
+    <!-- Top edge highlight -->
+    <rect x="2" y="3" width="17" height="1" fill="#f8f4e0"/>
+    <!-- Right edge shading (innermost column of doc) -->
+    <rect x="18" y="4" width="1" height="20" fill="#c0a840"/>
+
+    <!-- Dog-eared top-right corner: remove corner from parchment -->
+    <rect x="16" y="3" width="3" height="3" fill="#110d00"/>
+    <!-- Fold crease — staircase diagonal across removed corner -->
+    <rect x="16" y="5" width="1" height="1" fill="#c0b060"/>
+    <rect x="17" y="4" width="1" height="1" fill="#c0b060"/>
+    <rect x="18" y="3" width="1" height="1" fill="#c0b060"/>
+
+    <!-- ── Text lines ──────────────────────────────────────────────── -->
+    <!-- Header block (section title) -->
+    <rect x="4" y="7" width="10" height="2" fill="#405060"/>
+    <!-- Body text lines -->
+    <rect x="4" y="11" width="12" height="1" fill="#889aaa"/>
+    <rect x="4" y="13" width="10" height="1" fill="#889aaa"/>
+    <rect x="4" y="15" width="11" height="1" fill="#889aaa"/>
+    <!-- Highlighted clause — Section 4.2 / 4.3 callout, dark gold -->
+    <rect x="4" y="17" width="13" height="1" fill="#c89010"/>
+    <rect x="4" y="18" width="9"  height="1" fill="#c89010"/>
+
+    <!-- ── Wax seal (stamped on lower doc area) ────────────────────── -->
+    <!-- Seal face: pixel circle centered at x=12, y=22 -->
+    <rect x="10" y="20" width="5" height="1" fill="#ffd60a"/>
+    <rect x="9"  y="21" width="7" height="1" fill="#ffd60a"/>
+    <rect x="9"  y="22" width="7" height="1" fill="#ffd60a"/>
+    <rect x="9"  y="23" width="7" height="1" fill="#ffd60a"/>
+    <rect x="10" y="24" width="5" height="1" fill="#ffd60a"/>
+    <!-- Seal outer ring: 1px dark gold border around face -->
+    <rect x="10" y="19" width="5" height="1" fill="#b89000"/>
+    <rect x="10" y="25" width="5" height="1" fill="#b89000"/>
+    <rect x="8"  y="21" width="1" height="3" fill="#b89000"/>
+    <rect x="16" y="21" width="1" height="3" fill="#b89000"/>
+    <rect x="9"  y="20" width="1" height="1" fill="#b89000"/>
+    <rect x="15" y="20" width="1" height="1" fill="#b89000"/>
+    <rect x="9"  y="24" width="1" height="1" fill="#b89000"/>
+    <rect x="15" y="24" width="1" height="1" fill="#b89000"/>
+    <!-- 4-point star symbol inside seal (dark on gold) -->
+    <rect x="11" y="21" width="3" height="3" fill="#110d00"/>
+    <rect x="12" y="20" width="1" height="1" fill="#110d00"/>
+    <rect x="12" y="24" width="1" height="1" fill="#110d00"/>
+    <rect x="10" y="22" width="1" height="1" fill="#110d00"/>
+    <rect x="14" y="22" width="1" height="1" fill="#110d00"/>
+
+    <!-- ── Coin stack (right side, separate from document) ─────────── -->
+    <!-- Top coin -->
+    <rect x="22" y="14" width="5" height="1" fill="#ffd60a"/>
+    <rect x="21" y="15" width="7" height="1" fill="#ffd60a"/>
+    <rect x="21" y="16" width="7" height="1" fill="#a07000"/>
+    <!-- Middle coin -->
+    <rect x="22" y="18" width="5" height="1" fill="#ffd60a"/>
+    <rect x="21" y="19" width="7" height="1" fill="#ffd60a"/>
+    <rect x="21" y="20" width="7" height="1" fill="#a07000"/>
+    <!-- Bottom coin -->
+    <rect x="22" y="22" width="5" height="1" fill="#ffd60a"/>
+    <rect x="21" y="23" width="7" height="1" fill="#ffd60a"/>
+    <rect x="21" y="24" width="7" height="1" fill="#a07000"/>
+
+    <!-- ── Atmospheric scanlines ───────────────────────────────────── -->
+    <rect x="2" y="27" width="26" height="1" fill="#ffd60a" opacity="0.10"/>
+    <rect x="2" y="29" width="26" height="1" fill="#ffd60a" opacity="0.07"/>
+    <rect x="2" y="31" width="26" height="1" fill="#ffd60a" opacity="0.04"/>
+
+  </g>
+</svg>

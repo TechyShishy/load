@@ -1,13 +1,17 @@
 import { type VendorCard } from '../../types.js';
+import { ManagedServicesAgreementCard } from './ManagedServicesAgreementCard.js';
+
+export { ManagedServicesAgreementCard } from './ManagedServicesAgreementCard.js';
 
 /**
- * Registry mapping templateId → constructor for deserialization. Populated by sub-issue D.
- * NOTE: every new VendorCard subclass must be registered in BOTH this Map AND
- * the VENDOR_CARDS array below. Omitting either causes the card to be either
- * playable-but-invisible-in-deck-builder (missing VENDOR_CARDS) or
- * visible-but-unserializable (missing VENDOR_CARD_REGISTRY).
+ * Registry mapping templateId → constructor for deserialization.
+ * To add a card: import its class above, add it to both structures below.
  */
-export const VENDOR_CARD_REGISTRY = new Map<string, new (instanceId: string) => VendorCard>();
+export const VENDOR_CARD_REGISTRY = new Map<string, new (instanceId: string) => VendorCard>([
+  ['vendor-managed-services-agreement', ManagedServicesAgreementCard],
+]);
 
-/** Singleton template instances (id === templateId). Used by deck builder. Populated by sub-issue D. */
-export const VENDOR_CARDS: VendorCard[] = [];
+/** Singleton template instances (id === templateId). Used by deck builder. */
+export const VENDOR_CARDS: VendorCard[] = [
+  new ManagedServicesAgreementCard(),
+];
